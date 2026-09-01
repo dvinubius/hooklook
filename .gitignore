@@ -1,0 +1,14 @@
+# Local runtime state
+*.db
+*.db-shm
+*.db-wal
+
+# Local environment files
+.env
+.env.*
+!.env.example
+
+# Build and editor output
+webhook-inspector
+coverage.out
+.DS_Store
