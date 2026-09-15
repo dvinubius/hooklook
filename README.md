@@ -15,14 +15,27 @@ complete service.
 
 ## Status
 
-Milestone 1 is complete: bins and captured request summaries are held in memory
-and available through the HTTP API. The public product requirements and
-delivery plan are documented.
+Milestone 2 is complete: the in-memory API captures raw query strings, headers
+(with redaction), content types, and raw bodies. The public list API continues
+to return request summaries only. Milestone 3 will add a deliberate,
+configurable request-body limit.
 
 ## Current next step
 
-Exercise captured JSON, text, XML, form, empty, and binary bodies, then decide
-which specific request metadata fields are worth retaining.
+Define and implement the request-body limit and oversized-request behavior.
+
+## Capture smoke test
+
+With the server running locally and a bin already created, exercise the current
+Milestone 2 capture shapes with:
+
+```bash
+./scripts/exercise-capture.sh YOUR_BIN_CODE
+```
+
+Set `BASE_URL` to test a different instance, for example
+`BASE_URL=http://localhost:8081 ./scripts/exercise-capture.sh YOUR_BIN_CODE`.
+The script sends capture requests only; inspect the bin separately.
 
 ## Header redaction policy
 
