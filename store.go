@@ -2,38 +2,45 @@ package main
 
 import (
 	"crypto/rand"
+	"errors"
 	"fmt"
 	"sync"
 	"time"
 )
 
 const (
-	binCodeAlphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
-	binCodeLength   = 22
-	defaultBinTTL   = 7 * 24 * time.Hour
+	storeCodeAlphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
+	binCodeLength     = 22
+	requestCodeLength = 8
+	defaultBinTTL     = 7 * 24 * time.Hour
+)
+
+var (
+	ErrBinNotFound = errors.New("bin not found")
 )
 
 type Bin struct {
-	Code      string    `json:"code"`
-	CreatedAt time.Time `json:"createdAt"`
-	ExpiresAt time.Time `json:"expiresAt"`
+	Code      string                   `json:"code"`
+	CreatedAt time.Time                `json:"createdAt"`
+	ExpiresAt time.Time                `json:"expiresAt"`
+	Requests  map[string]ParsedRequest `json:"requests"`
 }
 
 type Store struct {
 	Bins         map[string]Bin // bin code to bin
 	mu           sync.RWMutex
-	generateCode func() (string, error)
+	generateCode func(int) (string, error)
 }
 
 func newBinStore() *Store {
 	return &Store{
 		Bins:         make(map[string]Bin),
-		generateCode: generateBinCode,
+		generateCode: generateCode,
 	}
 }
 
-func generateBinCode() (string, error) {
-	return randomString(binCodeAlphabet, binCodeLength)
+func generateCode(length int) (string, error) {
+	return randomString(storeCodeAlphabet, length)
 }
 
 func randomString(alphabet string, length int) (string, error) {
@@ -60,13 +67,13 @@ func randomString(alphabet string, length int) (string, error) {
 
 // CRUD
 
-func (s *Store) create() (Bin, error) {
+func (s *Store) createBin() (Bin, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	code := ""
 	for code == "" {
-		candidate, err := s.generateCode()
+		candidate, err := s.generateCode(binCodeLength)
 		if err != nil {
 			return Bin{}, fmt.Errorf("generate bin code: %w", err)
 		}
@@ -79,9 +86,67 @@ func (s *Store) create() (Bin, error) {
 	var bin = Bin{
 		Code:      code,
 		CreatedAt: time.Now().UTC().Truncate(time.Second),
+		Requests:  make(map[string]ParsedRequest),
 	}
 	bin.ExpiresAt = bin.CreatedAt.Add(defaultBinTTL)
 	s.Bins[code] = bin
 
 	return bin, nil
+}
+
+// TODO see if any error can even occur. if not, remove from signature
+func (s *Store) getAllBins() ([]Bin, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	bins := []Bin{}
+	for _, v := range s.Bins {
+		bins = append(bins, v)
+	}
+
+	return bins, nil
+}
+
+func (s *Store) saveRequest(parsedReq ParsedRequest, binCode string) (string, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	_, ok := s.Bins[binCode]
+	if !ok {
+		return "", ErrBinNotFound
+	}
+
+	requestCode := ""
+	for requestCode == "" {
+		candidate, err := s.generateCode(requestCodeLength)
+		if err != nil {
+			return "", fmt.Errorf("generate request code: %w", err)
+		}
+		_, ok := s.Bins[binCode].Requests[candidate]
+		if !ok {
+			requestCode = candidate
+		}
+	}
+
+	parsedReq.Id = requestCode
+	s.Bins[binCode].Requests[requestCode] = parsedReq
+
+	return requestCode, nil
+}
+
+func (s *Store) getBinRequests(binCode string) ([]ParsedRequest, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	_, ok := s.Bins[binCode]
+	if !ok {
+		return []ParsedRequest{}, ErrBinNotFound
+	}
+
+	requests := []ParsedRequest{}
+	for _, v := range s.Bins[binCode].Requests {
+		requests = append(requests, v)
+	}
+
+	return requests, nil
 }

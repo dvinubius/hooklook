@@ -15,12 +15,14 @@ complete service.
 
 ## Status
 
-Early implementation: the Go module and a local `GET /health` endpoint are in
-place. The public product requirements and delivery plan are documented.
+Milestone 1 is complete: bins and captured request summaries are held in memory
+and available through the HTTP API. The public product requirements and
+delivery plan are documented.
 
 ## Current next step
 
-Implement the in-memory request-bin flow, beginning with `POST /api/bins`.
+Capture request data faithfully: raw query, headers, body, content type, and
+useful request metadata.
 
 ## Local configuration
 

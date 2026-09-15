@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -36,25 +35,19 @@ func publicBaseURLFromEnvironment() (string, error) {
 	return value, nil
 }
 
-func health(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintln(w, "OK, I'm healthy")
-}
+func routes() http.Handler {
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /health", health)
 
-func createBin(w http.ResponseWriter, req *http.Request) {
-	bin, err := store.create()
-	if err != nil {
-		http.Error(w, "internal server error", http.StatusInternalServerError)
-		return
-	}
+	mux.HandleFunc("POST /api/bins", createBin)
+	mux.HandleFunc("GET /api/bins/{code}/requests", getBinRequests)
 
-	response := struct {
-		Code string `json:"code"`
-		URL  string `json:"url"`
-	}{Code: bin.Code, URL: publicBaseURL + "/b/" + bin.Code}
+	mux.HandleFunc("GET /admin/bins", getAllBins)
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(response)
+	mux.HandleFunc("/b/{code}", captureRequest)
+	mux.HandleFunc("/b/{code}/{path...}", captureRequest)
+
+	return mux
 }
 
 func main() {
@@ -64,8 +57,5 @@ func main() {
 	}
 	publicBaseURL = configuredPublicBaseURL
 
-	http.HandleFunc("GET /health", health)
-	http.HandleFunc("POST /api/bins", createBin)
-
-	log.Fatal(http.ListenAndServe(":8080", nil))
+	log.Fatal(http.ListenAndServe(":8080", routes()))
 }
