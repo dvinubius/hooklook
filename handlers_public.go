@@ -31,8 +31,17 @@ func createBin(w http.ResponseWriter, req *http.Request) {
 
 func captureRequest(w http.ResponseWriter, req *http.Request) {
 	binCode := req.PathValue("code")
+	if !store.hasBin(binCode) {
+		http.Error(w, "bin not found", http.StatusNotFound)
+		return
+	}
+
 	path := strings.TrimPrefix(req.URL.Path, "/b/"+binCode)
-	parsedRequest := parseRequest(req, path)
+	parsedRequest, err := parseRequest(req, path)
+	if err != nil {
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
 
 	requestCode, err := store.saveRequest(parsedRequest, binCode)
 	if errors.Is(err, ErrBinNotFound) {

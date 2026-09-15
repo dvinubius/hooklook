@@ -107,6 +107,14 @@ func (s *Store) getAllBins() ([]Bin, error) {
 	return bins, nil
 }
 
+func (s *Store) hasBin(binCode string) bool {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	_, ok := s.Bins[binCode]
+	return ok
+}
+
 func (s *Store) saveRequest(parsedReq ParsedRequest, binCode string) (string, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -134,18 +142,24 @@ func (s *Store) saveRequest(parsedReq ParsedRequest, binCode string) (string, er
 	return requestCode, nil
 }
 
-func (s *Store) getBinRequests(binCode string) ([]ParsedRequest, error) {
+func (s *Store) getBinRequests(binCode string) ([]SummarizedRequest, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	_, ok := s.Bins[binCode]
 	if !ok {
-		return []ParsedRequest{}, ErrBinNotFound
+		return []SummarizedRequest{}, ErrBinNotFound
 	}
 
-	requests := []ParsedRequest{}
+	requests := []SummarizedRequest{}
 	for _, v := range s.Bins[binCode].Requests {
-		requests = append(requests, v)
+		summarizedRequest := SummarizedRequest{
+			Id:          v.Id,
+			Method:      v.Method,
+			Path:        v.Path,
+			ReceiptTime: v.ReceiptTime,
+		}
+		requests = append(requests, summarizedRequest)
 	}
 
 	return requests, nil

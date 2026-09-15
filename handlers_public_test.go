@@ -152,7 +152,16 @@ func TestCaptureRequestRejectsUnknownBin(t *testing.T) {
 func TestGetBinRequests(t *testing.T) {
 	store := useTestStore(t)
 	bin := Bin{Code: "test-bin", Requests: map[string]ParsedRequest{
-		"request1": {Id: "request1", Method: POST, Path: "/github/events", ReceiptTime: time.Date(2026, 9, 15, 12, 0, 0, 0, time.UTC)},
+		"request1": {
+			Id:          "request1",
+			Method:      POST,
+			Path:        "/github/events",
+			ReceiptTime: time.Date(2026, 9, 15, 12, 0, 0, 0, time.UTC),
+			RawQuery:    "secret=value",
+			Headers:     HeaderMap{"Authorization": {redactedValue}},
+			ContentType: "application/json",
+			RawBody:     []byte("secret body"),
+		},
 	}}
 	store.Bins[bin.Code] = bin
 
@@ -167,15 +176,21 @@ func TestGetBinRequests(t *testing.T) {
 		t.Errorf("Content-Type = %q, want %q", contentType, "application/json")
 	}
 
-	var response []ParsedRequest
+	var response []SummarizedRequest
 	if err := json.NewDecoder(rec.Body).Decode(&response); err != nil {
 		t.Fatalf("decode response: %v", err)
 	}
 	if len(response) != 1 {
 		t.Fatalf("request count = %d, want 1", len(response))
 	}
-	if response[0] != bin.Requests["request1"] {
-		t.Errorf("request = %#v, want %#v", response[0], bin.Requests["request1"])
+	want := SummarizedRequest{
+		Id:          "request1",
+		Method:      POST,
+		Path:        "/github/events",
+		ReceiptTime: bin.Requests["request1"].ReceiptTime,
+	}
+	if response[0] != want {
+		t.Errorf("request = %#v, want %#v", response[0], want)
 	}
 }
 

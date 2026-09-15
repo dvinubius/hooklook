@@ -21,8 +21,8 @@ delivery plan are documented.
 
 ## Current next step
 
-Capture request data faithfully: raw query, headers, body, content type, and
-useful request metadata.
+Exercise captured JSON, text, XML, form, empty, and binary bodies, then decide
+which specific request metadata fields are worth retaining.
 
 ## Header redaction policy
 
