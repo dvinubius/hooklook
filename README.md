@@ -1,8 +1,12 @@
-# Webhook Inspector
+# hooklook
 
-A small, self-hosted request bin written in Go. Create a temporary endpoint, send it arbitrary HTTP requests, and inspect what was captured.
+A small, self-hosted request bin written in Go. Hooklook token holders can
+create temporary endpoints, send arbitrary HTTP requests, and inspect what was
+captured live.
 
-This is a learning project focused on Go's HTTP model, safe handling of untrusted payloads, SQLite persistence, and a small complete service.
+This is a learning project focused on Go's HTTP model, safe handling of
+untrusted payloads, SQLite persistence, live Server-Sent Events, and a small
+complete service.
 
 ## Project guidance
 
@@ -11,8 +15,24 @@ This is a learning project focused on Go's HTTP model, safe handling of untruste
 
 ## Status
 
-Scaffolded; implementation has not started.
+Early implementation: the Go module and a local `GET /health` endpoint are in
+place. The public product requirements and delivery plan are documented.
 
-## Intended first step
+## Current next step
 
-Create a Go module and a minimal `net/http` server with `GET /health`. The planned request-bin flow begins in Milestone 1.
+Implement the in-memory request-bin flow, beginning with `POST /api/bins`.
+
+## Local configuration
+
+`PUBLIC_BASE_URL` is required to create bins because it is used to construct
+their inbound URLs. For local development:
+
+```bash
+set -a
+source .env
+set +a
+go run .
+```
+
+Hooklook reads process environment variables only; `.env` is a local shell and
+deployment convenience, not an application configuration format.
