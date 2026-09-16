@@ -9,27 +9,14 @@ import (
 
 func TestGetAllBins(t *testing.T) {
 	store := useTestStore(t)
-	store.Bins["first-bin"] = Bin{Code: "first-bin", Requests: make(map[string]ParsedRequest)}
-
-	req := httptest.NewRequest(http.MethodGet, "/admin/bins", nil)
+	insertTestBin(t, store, "first-bin")
+	if _, err := store.saveRequest(ParsedRequest{RawBody: []byte{}}, "first-bin"); err != nil {
+		t.Fatalf("save request: %v", err)
+	}
 	rec := httptest.NewRecorder()
-	routes().ServeHTTP(rec, req)
-
-	if rec.Code != http.StatusOK {
-		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
-	}
-	if contentType := rec.Header().Get("Content-Type"); contentType != "application/json" {
-		t.Errorf("Content-Type = %q, want %q", contentType, "application/json")
-	}
-
-	var response []Bin
-	if err := json.NewDecoder(rec.Body).Decode(&response); err != nil {
-		t.Fatalf("decode response: %v", err)
-	}
-	if len(response) != 1 {
-		t.Fatalf("bin count = %d, want 1", len(response))
-	}
-	if response[0].Code != "first-bin" {
-		t.Errorf("bin code = %q, want %q", response[0].Code, "first-bin")
+	routes().ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/admin/bins", nil))
+	var response []BinSummary
+	if err := json.NewDecoder(rec.Body).Decode(&response); err != nil || rec.Code != http.StatusOK || len(response) != 1 || response[0].Code != "first-bin" || response[0].RequestCount != 1 {
+		t.Errorf("response = %#v, status = %d, error = %v", response, rec.Code, err)
 	}
 }

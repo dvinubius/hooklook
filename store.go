@@ -26,7 +26,7 @@ const (
 	// characters that break double-click selection. 32 chars × 12 ≈ 60 bits,
 	// ample for a use-bounded, revocable token (ADR 0002).
 	creationTokenAlphabet = "abcdefghijkmnpqrstuvwxyz23456789"
-	creationTokenLength   = 12
+	creationTokenLength   = 18
 )
 
 var (
@@ -107,7 +107,7 @@ func generateCreationToken() (string, string, error) {
 		return "", "", fmt.Errorf("generate token secret: %w", err)
 	}
 
-	return base64.RawURLEncoding.EncodeToString(idBytes), "zib_" + secret, nil
+	return base64.RawURLEncoding.EncodeToString(idBytes), "hklk_" + secret, nil
 }
 
 func (s *Store) issueCreationToken(label string, maxUses int) (CreationToken, string, error) {
@@ -283,6 +283,25 @@ func (s *Store) getAllBins() ([]BinSummary, error) {
 	}
 
 	return bins, nil
+}
+
+func (s *Store) deleteBin(code string) error {
+	result, err := s.db.Exec(`
+		DELETE FROM bins
+		WHERE code = ?
+	`, code)
+	if err != nil {
+		return fmt.Errorf("delete bin: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("check delete result: %w", err)
+	}
+	if rowsAffected == 0 {
+		return ErrBinNotFound
+	}
+	return nil
 }
 
 // PUBLIC CRUD

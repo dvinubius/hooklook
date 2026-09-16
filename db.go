@@ -43,7 +43,7 @@ func migrate(db *sql.DB) error {
 			content_type TEXT NOT NULL,
 			raw_body BLOB NOT NULL,
 			body_size_kib INTEGER NOT NULL,
-			FOREIGN KEY(bin_code) REFERENCES bins(code)
+			FOREIGN KEY(bin_code) REFERENCES bins(code) ON DELETE CASCADE
 		);
 
 		CREATE TABLE IF NOT EXISTS creation_tokens (
