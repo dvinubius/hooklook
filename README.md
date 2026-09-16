@@ -15,6 +15,19 @@ most five bins actively receiving requests. It is not a high-throughput webhook
 platform or a file-transfer service; the service limits reflect that expected
 use. See [ADR 0001](docs/adr/0001-public-ingress-limits.md) for the details.
 
+## Live request events
+
+`GET /api/bins/{binCode}/events` opens a Server-Sent Events stream for one
+existing bin. Each successfully persisted inbound request produces one
+`request` event whose `data` is the same compact request summary returned by
+the request-list endpoint. Events are intentionally ephemeral: clients must
+refetch the list after reconnecting.
+
+Each subscriber has a one-event buffer. If it cannot consume the next event,
+hooklook closes that stream immediately; this prevents a slow browser from
+blocking ingestion or accumulating unbounded work. Deleting a bin and graceful
+server shutdown also close its open event streams.
+
 ## Project documentation
 
 - [Plan](.agents/PROJECT_PLAN.md)

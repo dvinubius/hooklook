@@ -34,6 +34,7 @@ func deleteBinByCode(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
+	eventHub.closeBin(code)
 
 	w.WriteHeader(http.StatusNoContent)
 }

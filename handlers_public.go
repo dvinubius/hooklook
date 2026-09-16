@@ -18,6 +18,7 @@ func createBin(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
+	eventHub.openBin(bin.Code)
 
 	response := struct {
 		Code string `json:"code"`
@@ -43,7 +44,7 @@ func captureRequest(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	requestCode, err := store.saveRequest(parsedRequest, binCode)
+	requestId, err := store.saveRequest(parsedRequest, binCode)
 	if errors.Is(err, ErrBinNotFound) {
 		http.Error(w, "bin not found", http.StatusNotFound)
 		return
@@ -57,10 +58,21 @@ func captureRequest(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	eventHub.publish(binCode, SummarizedRequest{
+		Id:          requestId,
+		Method:      parsedRequest.Method,
+		Path:        parsedRequest.Path,
+		RawQuery:    parsedRequest.RawQuery,
+		ReceivedAt:  parsedRequest.ReceiptTime,
+		ContentType: parsedRequest.ContentType,
+		BodySizeKiB: parsedRequest.BodySizeKiB,
+		HeaderCount: len(parsedRequest.Headers),
+	})
+
 	response := struct {
 		Id  string `json:"id"`
 		URL string `json:"url"`
-	}{Id: requestCode, URL: publicBaseURL + "/bins/" + binCode + "/requests/" + requestCode}
+	}{Id: requestId, URL: publicBaseURL + "/bins/" + binCode + "/requests/" + requestId}
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
@@ -83,4 +95,55 @@ func getBinRequests(w http.ResponseWriter, req *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(requests)
+}
+
+func getBinEvents(w http.ResponseWriter, req *http.Request) {
+	binCode := req.PathValue("code")
+	if _, err := store.getBinRequests(binCode); err != nil {
+		if errors.Is(err, ErrBinNotFound) {
+			http.Error(w, "bin not found", http.StatusNotFound)
+			return
+		}
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	events, ok := eventHub.subscribe(binCode)
+	if !ok {
+		http.Error(w, "server is shutting down", http.StatusServiceUnavailable)
+		return
+	}
+	defer eventHub.unsubscribe(binCode, events)
+
+	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Connection", "keep-alive")
+	w.Header().Set("X-Accel-Buffering", "no")
+
+	responseController := http.NewResponseController(w)
+	if err := responseController.Flush(); err != nil {
+		return
+	}
+
+	for {
+		select {
+		case <-req.Context().Done():
+			return
+		case summarizedRequest, ok := <-events:
+			if !ok {
+				return // channel drained (closed)
+			}
+
+			encoded, err := json.Marshal(summarizedRequest)
+			if err != nil {
+				return
+			}
+			if _, err := fmt.Fprintf(w, "event: request\ndata: %s\n\n", encoded); err != nil {
+				return
+			}
+			if err := responseController.Flush(); err != nil {
+				return
+			}
+		}
+	}
 }

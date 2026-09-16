@@ -6,11 +6,14 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"os"
+	"os/signal"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 )
 
@@ -23,6 +26,7 @@ const (
 	defaultReadHeaderTimeout               = 5 * time.Second
 	defaultReadTimeout                     = 15 * time.Second
 	defaultIdleTimeout                     = 60 * time.Second
+	shutdownTimeout                        = 10 * time.Second
 	databasePath                           = "hooklook.db"
 )
 
@@ -139,6 +143,7 @@ func routes() http.Handler {
 
 	mux.Handle("POST /api/bins", requireCreationToken(http.HandlerFunc(createBin)))
 	mux.HandleFunc("GET /api/bins/{code}/requests", getBinRequests)
+	mux.HandleFunc("GET /api/bins/{code}/events", getBinEvents)
 
 	mux.Handle("GET /admin/bins", requireBearerToken(adminToken, http.HandlerFunc(getAllBins)))
 	mux.Handle("POST /admin/tokens", requireBearerToken(adminToken, http.HandlerFunc(issueCreationToken)))
@@ -181,20 +186,49 @@ func config() {
 	adminToken = configuredAdminToken
 }
 
-func main() {
+func run(ctx context.Context, address string, logger *slog.Logger) error {
 	config()
 
 	db, err := openDB(databasePath)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 	defer db.Close()
 
 	if err := migrate(db); err != nil {
-		log.Fatal(err)
+		return err
 	}
 
 	store = newBinStore(db)
+	server := newHTTPServer(address, routes())
+	serverErrors := make(chan error, 1)
+	go func() { serverErrors <- server.ListenAndServe() }()
 
-	log.Fatal(newHTTPServer(":8080", routes()).ListenAndServe())
+	select {
+	case err := <-serverErrors:
+		if errors.Is(err, http.ErrServerClosed) {
+			return nil
+		}
+		return err
+	case <-ctx.Done():
+		logger.Info("shutting down HTTP server")
+		eventHub.close()
+		shutdownContext, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
+		defer cancel()
+		if err := server.Shutdown(shutdownContext); err != nil {
+			return fmt.Errorf("shut down HTTP server: %w", err)
+		}
+		return nil
+	}
+}
+
+func main() {
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	if err := run(ctx, ":8080", logger); err != nil {
+		logger.Error("server stopped with error", "error", err)
+		os.Exit(1)
+	}
 }
