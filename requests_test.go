@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -14,7 +15,7 @@ func TestParseRequestCapturesFaithfulRequestFields(t *testing.T) {
 	req.Header["authorization"] = []string{"Bearer first", "Bearer second"}
 	req.Header["X-Trace-ID"] = []string{"first", "second"}
 
-	parsed, err := parseRequest(req, "/github/events")
+	parsed, err := parseRequest(req, "/github/events", defaultMaxRequestBodyBytes)
 	if err != nil {
 		t.Fatalf("parse request: %v", err)
 	}
@@ -36,6 +37,28 @@ func TestParseRequestCapturesFaithfulRequestFields(t *testing.T) {
 	}
 	if got, want := parsed.Headers["X-Trace-ID"], []string{"first", "second"}; !equalStrings(got, want) {
 		t.Errorf("trace header = %q, want %q", got, want)
+	}
+}
+
+func TestParseRequestRejectsBodyOverLimit(t *testing.T) {
+	req := httptest.NewRequest(http.MethodPost, "/b/test-bin", bytes.NewReader([]byte("12345")))
+
+	_, err := parseRequest(req, "", 4)
+	if !errors.Is(err, ErrRequestBodyTooLarge) {
+		t.Fatalf("parse request error = %v, want %v", err, ErrRequestBodyTooLarge)
+	}
+}
+
+func TestParseRequestAcceptsBodyAtLimit(t *testing.T) {
+	body := []byte("1234")
+	req := httptest.NewRequest(http.MethodPost, "/b/test-bin", bytes.NewReader(body))
+
+	parsed, err := parseRequest(req, "", int64(len(body)))
+	if err != nil {
+		t.Fatalf("parse request: %v", err)
+	}
+	if !bytes.Equal(parsed.RawBody, body) {
+		t.Errorf("raw body = %v, want %v", parsed.RawBody, body)
 	}
 }
 

@@ -37,7 +37,11 @@ func captureRequest(w http.ResponseWriter, req *http.Request) {
 	}
 
 	path := strings.TrimPrefix(req.URL.Path, "/b/"+binCode)
-	parsedRequest, err := parseRequest(req, path)
+	parsedRequest, err := parseRequest(req, path, maxRequestBodyBytes)
+	if errors.Is(err, ErrRequestBodyTooLarge) {
+		http.Error(w, "request body too large", http.StatusRequestEntityTooLarge)
+		return
+	}
 	if err != nil {
 		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return

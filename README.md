@@ -8,21 +8,18 @@ This is a learning project focused on Go's HTTP model, safe handling of
 untrusted payloads, SQLite persistence, live Server-Sent Events, and a small
 complete service.
 
-## Project guidance
+## Intended v1 use
+
+Hooklook is designed for one developer testing integrations at a time, with at
+most five bins actively receiving requests. It is not a high-throughput webhook
+platform or a file-transfer service; the service limits reflect that expected
+use. See [ADR 0001](docs/adr/0001-public-ingress-limits.md) for the details.
+
+## Project documentation
 
 - [Plan](.agents/PROJECT_PLAN.md)
 - [Current progress](.agents/PROGRESS.md)
-
-## Status
-
-Milestone 2 is complete: the in-memory API captures raw query strings, headers
-(with redaction), content types, and raw bodies. The public list API continues
-to return request summaries only. Milestone 3 will add a deliberate,
-configurable request-body limit.
-
-## Current next step
-
-Define and implement the request-body limit and oversized-request behavior.
+- [Architecture decision records](docs/adr/)
 
 ## Capture smoke test
 
@@ -39,16 +36,10 @@ The script sends capture requests only; inspect the bin separately.
 
 ## Header redaction policy
 
-When header capture is added, hooklook will redact every value for these
-case-insensitive header names before persistence: `Authorization`,
-`Proxy-Authorization`, `Cookie`, `Set-Cookie`, `X-Api-Key`,
-`X-Auth-Token`, and `X-Access-Token`. The header name and number of values are
-retained, but each value is stored as `[REDACTED]`.
-
-Webhook signature headers are retained in v1 because they are important when
-debugging signature verification. Treat a bin as sensitive while it exists:
-signature values, request bodies, query parameters, and other unredacted
-headers may be visible to anyone able to access the bin.
+Hooklook redacts common credential-bearing headers before storing a request.
+Webhook signature headers are retained for debugging, so treat every bin as
+sensitive. See [ADR 0002](docs/adr/0002-captured-header-redaction.md) for the
+exact header list, repeated-header behavior, and security implications.
 
 ## Local configuration
 
@@ -64,3 +55,10 @@ go run .
 
 Hooklook reads process environment variables only; `.env` is a local shell and
 deployment convenience, not an application configuration format.
+
+### Request-body limit
+
+`MAX_REQUEST_BODY_BYTES` sets the largest request body hooklook will capture.
+It defaults to `262144` (256 KiB). Oversized bodies and headers are rejected
+before storage. See [ADR 0001](docs/adr/0001-public-ingress-limits.md) for the
+complete resource, retention, and public-ingress policy.

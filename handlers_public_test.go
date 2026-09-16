@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -13,14 +14,38 @@ func useTestStore(t *testing.T) *Store {
 
 	originalStore := store
 	originalPublicBaseURL := publicBaseURL
+	originalMaxRequestBodyBytes := maxRequestBodyBytes
 	store = newBinStore()
 	publicBaseURL = "https://hooklook.example"
+	maxRequestBodyBytes = defaultMaxRequestBodyBytes
 	t.Cleanup(func() {
 		store = originalStore
 		publicBaseURL = originalPublicBaseURL
+		maxRequestBodyBytes = originalMaxRequestBodyBytes
 	})
 
 	return store
+}
+
+func TestCaptureRequestRejectsOversizedBodyWithoutSavingIt(t *testing.T) {
+	store := useTestStore(t)
+	bin := Bin{Code: "test-bin", Requests: make(map[string]ParsedRequest)}
+	store.Bins[bin.Code] = bin
+	maxRequestBodyBytes = 4
+
+	req := httptest.NewRequest(http.MethodPost, "/b/test-bin", bytes.NewReader([]byte("12345")))
+	rec := httptest.NewRecorder()
+	routes().ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusRequestEntityTooLarge {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusRequestEntityTooLarge)
+	}
+	if body := rec.Body.String(); body != "request body too large\n" {
+		t.Errorf("body = %q, want %q", body, "request body too large\n")
+	}
+	if len(store.Bins[bin.Code].Requests) != 0 {
+		t.Errorf("saved request count = %d, want 0", len(store.Bins[bin.Code].Requests))
+	}
 }
 
 func TestHealth(t *testing.T) {
