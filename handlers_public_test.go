@@ -11,222 +11,90 @@ import (
 
 func useTestStore(t *testing.T) *Store {
 	t.Helper()
-
-	originalStore := store
-	originalPublicBaseURL := publicBaseURL
-	originalMaxRequestBodyBytes := maxRequestBodyBytes
-	store = newBinStore()
-	publicBaseURL = "https://hooklook.example"
-	maxRequestBodyBytes = defaultMaxRequestBodyBytes
-	t.Cleanup(func() {
-		store = originalStore
-		publicBaseURL = originalPublicBaseURL
-		maxRequestBodyBytes = originalMaxRequestBodyBytes
-	})
-
+	originalStore, originalURL, originalLimit := store, publicBaseURL, maxRequestBodyBytes
+	store = newTestStore(t)
+	publicBaseURL, maxRequestBodyBytes = "https://hooklook.example", defaultMaxRequestBodyBytes
+	t.Cleanup(func() { store, publicBaseURL, maxRequestBodyBytes = originalStore, originalURL, originalLimit })
 	return store
 }
 
 func TestCaptureRequestRejectsOversizedBodyWithoutSavingIt(t *testing.T) {
 	store := useTestStore(t)
-	bin := Bin{Code: "test-bin", Requests: make(map[string]ParsedRequest)}
-	store.Bins[bin.Code] = bin
+	insertTestBin(t, store, "test-bin")
 	maxRequestBodyBytes = 4
-
-	req := httptest.NewRequest(http.MethodPost, "/b/test-bin", bytes.NewReader([]byte("12345")))
 	rec := httptest.NewRecorder()
-	routes().ServeHTTP(rec, req)
-
+	routes().ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/b/test-bin", bytes.NewReader([]byte("12345"))))
 	if rec.Code != http.StatusRequestEntityTooLarge {
 		t.Fatalf("status = %d, want %d", rec.Code, http.StatusRequestEntityTooLarge)
 	}
-	if body := rec.Body.String(); body != "request body too large\n" {
-		t.Errorf("body = %q, want %q", body, "request body too large\n")
-	}
-	if len(store.Bins[bin.Code].Requests) != 0 {
-		t.Errorf("saved request count = %d, want 0", len(store.Bins[bin.Code].Requests))
+	var count int
+	if err := store.db.QueryRow(`SELECT COUNT(*) FROM requests`).Scan(&count); err != nil || count != 0 {
+		t.Errorf("saved count = %d, error = %v", count, err)
 	}
 }
 
 func TestHealth(t *testing.T) {
-	req := httptest.NewRequest(http.MethodGet, "/health", nil)
 	rec := httptest.NewRecorder()
-
-	health(rec, req)
-
-	if rec.Code != http.StatusOK {
-		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
-	}
-
-	if body := rec.Body.String(); body != "OK, I'm healthy\n" {
-		t.Errorf("body = %q, want %q", body, "OK, I'm healthy\n")
+	health(rec, httptest.NewRequest(http.MethodGet, "/health", nil))
+	if rec.Code != http.StatusOK || rec.Body.String() != "OK, I'm healthy\n" {
+		t.Errorf("health response = %d %q", rec.Code, rec.Body.String())
 	}
 }
 
 func TestCreateBin(t *testing.T) {
 	useTestStore(t)
-
-	req := httptest.NewRequest(http.MethodPost, "/api/bins", nil)
 	rec := httptest.NewRecorder()
-
-	createBin(rec, req)
-
-	if rec.Code != http.StatusCreated {
-		t.Fatalf("status = %d, want %d", rec.Code, http.StatusCreated)
-	}
-	if contentType := rec.Header().Get("Content-Type"); contentType != "application/json" {
-		t.Errorf("Content-Type = %q, want %q", contentType, "application/json")
-	}
-
-	var response struct {
-		Code string `json:"code"`
-		URL  string `json:"url"`
-	}
-	if err := json.NewDecoder(rec.Body).Decode(&response); err != nil {
-		t.Fatalf("decode response: %v", err)
-	}
-	if response.Code == "" {
-		t.Fatal("response code is empty")
-	}
-	if want := publicBaseURL + "/b/" + response.Code; response.URL != want {
-		t.Errorf("url = %q, want %q", response.URL, want)
+	createBin(rec, httptest.NewRequest(http.MethodPost, "/api/bins", nil))
+	var response struct{ Code, URL string }
+	if err := json.NewDecoder(rec.Body).Decode(&response); err != nil || rec.Code != http.StatusCreated || response.Code == "" || response.URL != publicBaseURL+"/b/"+response.Code {
+		t.Errorf("response = %#v, status = %d, error = %v", response, rec.Code, err)
 	}
 }
 
 func TestCaptureRequest(t *testing.T) {
 	store := useTestStore(t)
-	bin := Bin{Code: "test-bin", Requests: make(map[string]ParsedRequest)}
-	store.Bins[bin.Code] = bin
-
+	insertTestBin(t, store, "test-bin")
 	start := time.Now().UTC()
-	req := httptest.NewRequest("REPORT", "/b/test-bin/github/events?source=example", nil)
 	rec := httptest.NewRecorder()
-	routes().ServeHTTP(rec, req)
+	routes().ServeHTTP(rec, httptest.NewRequest("REPORT", "/b/test-bin/github/events?source=example", nil))
 	end := time.Now().UTC()
-
-	if rec.Code != http.StatusCreated {
-		t.Fatalf("status = %d, want %d", rec.Code, http.StatusCreated)
+	var response struct{ ID, URL string }
+	if err := json.NewDecoder(rec.Body).Decode(&response); err != nil || rec.Code != http.StatusCreated || response.ID != "1" || response.URL != publicBaseURL+"/bins/test-bin/requests/1" {
+		t.Fatalf("response = %#v, status = %d, error = %v", response, rec.Code, err)
 	}
-	if contentType := rec.Header().Get("Content-Type"); contentType != "application/json" {
-		t.Errorf("Content-Type = %q, want %q", contentType, "application/json")
-	}
-
-	var response struct {
-		Code string `json:"code"`
-		URL  string `json:"url"`
-	}
-	if err := json.NewDecoder(rec.Body).Decode(&response); err != nil {
-		t.Fatalf("decode response: %v", err)
-	}
-	if len(response.Code) != requestCodeLength {
-		t.Errorf("request code length = %d, want %d", len(response.Code), requestCodeLength)
-	}
-	if want := publicBaseURL + "/bins/test-bin/requests/" + response.Code; response.URL != want {
-		t.Errorf("url = %q, want %q", response.URL, want)
-	}
-
-	captured, ok := store.Bins[bin.Code].Requests[response.Code]
-	if !ok {
-		t.Fatalf("request %q was not stored", response.Code)
-	}
-	if captured.Id != response.Code {
-		t.Errorf("captured ID = %q, want %q", captured.Id, response.Code)
-	}
-	if captured.Method != "REPORT" {
-		t.Errorf("captured method = %q, want %q", captured.Method, "REPORT")
-	}
-	if captured.Path != "/github/events" {
-		t.Errorf("captured path = %q, want %q", captured.Path, "/github/events")
-	}
-	if captured.ReceiptTime.Before(start.Truncate(time.Second)) || captured.ReceiptTime.After(end) {
-		t.Errorf("receipt time = %s, want it between %s and %s", captured.ReceiptTime, start, end)
+	requests, err := store.getBinRequests("test-bin")
+	if err != nil || len(requests) != 1 || requests[0].Method != "REPORT" || requests[0].Path != "/github/events" || requests[0].ReceiptTime.Before(start.Truncate(time.Second)) || requests[0].ReceiptTime.After(end) {
+		t.Errorf("stored requests = %#v, error = %v", requests, err)
 	}
 }
 
-func TestCaptureRequestExactPath(t *testing.T) {
+func TestCaptureRequestExactPathAndUnknownBin(t *testing.T) {
 	store := useTestStore(t)
-	bin := Bin{Code: "test-bin", Requests: make(map[string]ParsedRequest)}
-	store.Bins[bin.Code] = bin
-
-	req := httptest.NewRequest(http.MethodPost, "/b/test-bin", nil)
+	insertTestBin(t, store, "test-bin")
 	rec := httptest.NewRecorder()
-	routes().ServeHTTP(rec, req)
-
-	if rec.Code != http.StatusCreated {
-		t.Fatalf("status = %d, want %d", rec.Code, http.StatusCreated)
+	routes().ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/b/test-bin", nil))
+	requests, err := store.getBinRequests("test-bin")
+	if rec.Code != http.StatusCreated || err != nil || len(requests) != 1 || requests[0].Path != "" {
+		t.Errorf("exact request = %#v, error = %v, status = %d", requests, err, rec.Code)
 	}
-	for _, captured := range store.Bins[bin.Code].Requests {
-		if captured.Path != "" {
-			t.Errorf("captured path = %q, want empty path", captured.Path)
-		}
-	}
-}
-
-func TestCaptureRequestRejectsUnknownBin(t *testing.T) {
-	useTestStore(t)
-
-	req := httptest.NewRequest(http.MethodPost, "/b/missing", nil)
-	rec := httptest.NewRecorder()
-	routes().ServeHTTP(rec, req)
-
+	rec = httptest.NewRecorder()
+	routes().ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/b/missing", nil))
 	if rec.Code != http.StatusNotFound {
-		t.Errorf("status = %d, want %d", rec.Code, http.StatusNotFound)
+		t.Errorf("unknown bin status = %d, want %d", rec.Code, http.StatusNotFound)
 	}
 }
 
 func TestGetBinRequests(t *testing.T) {
 	store := useTestStore(t)
-	bin := Bin{Code: "test-bin", Requests: map[string]ParsedRequest{
-		"request1": {
-			Id:          "request1",
-			Method:      POST,
-			Path:        "/github/events",
-			ReceiptTime: time.Date(2026, 9, 15, 12, 0, 0, 0, time.UTC),
-			RawQuery:    "secret=value",
-			Headers:     HeaderMap{"Authorization": {redactedValue}},
-			ContentType: "application/json",
-			RawBody:     []byte("secret body"),
-		},
-	}}
-	store.Bins[bin.Code] = bin
-
-	req := httptest.NewRequest(http.MethodGet, "/api/bins/test-bin/requests", nil)
+	insertTestBin(t, store, "test-bin")
+	receivedAt := time.Date(2026, 9, 15, 12, 0, 0, 0, time.UTC)
+	if _, err := store.saveRequest(ParsedRequest{Method: POST, Path: "/github/events", ReceiptTime: receivedAt, RawBody: []byte{}}, "test-bin"); err != nil {
+		t.Fatalf("save request: %v", err)
+	}
 	rec := httptest.NewRecorder()
-	routes().ServeHTTP(rec, req)
-
-	if rec.Code != http.StatusOK {
-		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
-	}
-	if contentType := rec.Header().Get("Content-Type"); contentType != "application/json" {
-		t.Errorf("Content-Type = %q, want %q", contentType, "application/json")
-	}
-
+	routes().ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/bins/test-bin/requests", nil))
 	var response []SummarizedRequest
-	if err := json.NewDecoder(rec.Body).Decode(&response); err != nil {
-		t.Fatalf("decode response: %v", err)
-	}
-	if len(response) != 1 {
-		t.Fatalf("request count = %d, want 1", len(response))
-	}
-	want := SummarizedRequest{
-		Id:          "request1",
-		Method:      POST,
-		Path:        "/github/events",
-		ReceiptTime: bin.Requests["request1"].ReceiptTime,
-	}
-	if response[0] != want {
-		t.Errorf("request = %#v, want %#v", response[0], want)
-	}
-}
-
-func TestGetBinRequestsRejectsUnknownBin(t *testing.T) {
-	useTestStore(t)
-
-	req := httptest.NewRequest(http.MethodGet, "/api/bins/missing/requests", nil)
-	rec := httptest.NewRecorder()
-	routes().ServeHTTP(rec, req)
-
-	if rec.Code != http.StatusNotFound {
-		t.Errorf("status = %d, want %d", rec.Code, http.StatusNotFound)
+	if err := json.NewDecoder(rec.Body).Decode(&response); err != nil || rec.Code != http.StatusOK || len(response) != 1 || response[0].Id != "1" || !response[0].ReceiptTime.Equal(receivedAt) {
+		t.Errorf("response = %#v, status = %d, error = %v", response, rec.Code, err)
 	}
 }

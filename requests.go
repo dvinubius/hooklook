@@ -48,6 +48,7 @@ type ParsedRequest struct {
 	Headers     HeaderMap `json:"headers"`
 	ContentType string    `json:"contentType"`
 	RawBody     []byte    `json:"rawBody"`
+	BodySizeKiB int       `json:"bodySizeKiB"`
 }
 
 type SummarizedRequest struct {
@@ -114,5 +115,6 @@ func parseRequest(req *http.Request, path string, maxBodyBytes int64) (ParsedReq
 		Headers:     headers,
 		ContentType: contentType,
 		RawBody:     rawBody,
+		BodySizeKiB: (len(rawBody) + 1023) / 1024,
 	}, nil
 }

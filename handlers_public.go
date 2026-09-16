@@ -31,10 +31,6 @@ func createBin(w http.ResponseWriter, req *http.Request) {
 
 func captureRequest(w http.ResponseWriter, req *http.Request) {
 	binCode := req.PathValue("code")
-	if !store.hasBin(binCode) {
-		http.Error(w, "bin not found", http.StatusNotFound)
-		return
-	}
 
 	path := strings.TrimPrefix(req.URL.Path, "/b/"+binCode)
 	parsedRequest, err := parseRequest(req, path, maxRequestBodyBytes)
@@ -52,15 +48,19 @@ func captureRequest(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, "bin not found", http.StatusNotFound)
 		return
 	}
+	if errors.Is(err, ErrBinFull) {
+		http.Error(w, "bin storage limit reached", http.StatusInsufficientStorage)
+		return
+	}
 	if err != nil {
 		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
 
 	response := struct {
-		Code string `json:"code"`
-		URL  string `json:"url"`
-	}{Code: requestCode, URL: publicBaseURL + "/bins/" + binCode + "/requests/" + requestCode}
+		Id  string `json:"id"`
+		URL string `json:"url"`
+	}{Id: requestCode, URL: publicBaseURL + "/bins/" + binCode + "/requests/" + requestCode}
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)

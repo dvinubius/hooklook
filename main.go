@@ -19,13 +19,15 @@ const (
 	defaultReadHeaderTimeout               = 5 * time.Second
 	defaultReadTimeout                     = 15 * time.Second
 	defaultIdleTimeout                     = 60 * time.Second
+	databasePath                           = "hooklook.db"
 )
 
 var (
 	publicBaseURL       string
 	maxRequestBodyBytes int64 = defaultMaxRequestBodyBytes
-	store                     = newBinStore()
 )
+
+var store *Store
 
 func publicBaseURLFromEnvironment() (string, error) {
 	value := strings.TrimRight(os.Getenv(publicBaseURLEnvironmentVariable), "/")
@@ -84,7 +86,7 @@ func newHTTPServer(addr string, handler http.Handler) *http.Server {
 	}
 }
 
-func main() {
+func config() {
 	configuredPublicBaseURL, err := publicBaseURLFromEnvironment()
 	if err != nil {
 		log.Fatal(err)
@@ -95,6 +97,22 @@ func main() {
 		log.Fatal(err)
 	}
 	maxRequestBodyBytes = configuredMaxRequestBodyBytes
+}
+
+func main() {
+	config()
+
+	db, err := openDB(databasePath)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer db.Close()
+
+	if err := migrate(db); err != nil {
+		log.Fatal(err)
+	}
+
+	store = newBinStore(db)
 
 	log.Fatal(newHTTPServer(":8080", routes()).ListenAndServe())
 }
