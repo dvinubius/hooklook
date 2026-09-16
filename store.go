@@ -409,7 +409,8 @@ func (s *Store) getBinRequests(binCode string) ([]SummarizedRequest, error) {
 	}
 
 	rows, err := s.db.Query(`
-		SELECT id, method, path, created_at
+		SELECT id, method, path, raw_query, created_at, content_type,
+			body_size_kib, headers_json
 		FROM requests
 		WHERE bin_code = ?
 		ORDER BY id ASC
@@ -424,15 +425,30 @@ func (s *Store) getBinRequests(binCode string) ([]SummarizedRequest, error) {
 		var request SummarizedRequest
 		var requestID int64
 		var receivedAt string
-		if err := rows.Scan(&requestID, &request.Method, &request.Path, &receivedAt); err != nil {
+		var headersJSON []byte
+		if err := rows.Scan(
+			&requestID,
+			&request.Method,
+			&request.Path,
+			&request.RawQuery,
+			&receivedAt,
+			&request.ContentType,
+			&request.BodySizeKiB,
+			&headersJSON,
+		); err != nil {
 			return nil, fmt.Errorf("scan request: %w", err)
+		}
+		var headers HeaderMap
+		if err := json.Unmarshal(headersJSON, &headers); err != nil {
+			return nil, fmt.Errorf("decode request headers: %w", err)
 		}
 		receiptTime, err := time.Parse(time.RFC3339Nano, receivedAt)
 		if err != nil {
 			return nil, fmt.Errorf("parse request created_at: %w", err)
 		}
 		request.Id = strconv.FormatInt(requestID, 10)
-		request.ReceiptTime = receiptTime
+		request.ReceivedAt = receiptTime
+		request.HeaderCount = len(headers)
 		requests = append(requests, request)
 	}
 	if err := rows.Err(); err != nil {

@@ -55,7 +55,11 @@ type SummarizedRequest struct {
 	Id          string    `json:"id"`
 	Method      reqMethod `json:"method"`
 	Path        string    `json:"path"`
-	ReceiptTime time.Time `json:"receiptTime"`
+	RawQuery    string    `json:"rawQuery"`
+	ReceivedAt  time.Time `json:"receivedAt"`
+	ContentType string    `json:"contentType"`
+	BodySizeKiB int       `json:"bodySizeKiB"`
+	HeaderCount int       `json:"headerCount"`
 }
 
 func getRedactedHeaders(req *http.Request) HeaderMap {

@@ -63,7 +63,7 @@ func TestCaptureRequest(t *testing.T) {
 		t.Fatalf("response = %#v, status = %d, error = %v", response, rec.Code, err)
 	}
 	requests, err := store.getBinRequests("test-bin")
-	if err != nil || len(requests) != 1 || requests[0].Method != "REPORT" || requests[0].Path != "/github/events" || requests[0].ReceiptTime.Before(start.Truncate(time.Second)) || requests[0].ReceiptTime.After(end) {
+	if err != nil || len(requests) != 1 || requests[0].Method != "REPORT" || requests[0].Path != "/github/events" || requests[0].ReceivedAt.Before(start.Truncate(time.Second)) || requests[0].ReceivedAt.After(end) {
 		t.Errorf("stored requests = %#v, error = %v", requests, err)
 	}
 }
@@ -88,13 +88,43 @@ func TestGetBinRequests(t *testing.T) {
 	store := useTestStore(t)
 	insertTestBin(t, store, "test-bin")
 	receivedAt := time.Date(2026, 9, 15, 12, 0, 0, 0, time.UTC)
-	if _, err := store.saveRequest(ParsedRequest{Method: POST, Path: "/github/events", ReceiptTime: receivedAt, RawBody: []byte{}}, "test-bin"); err != nil {
+	if _, err := store.saveRequest(ParsedRequest{
+		Method:      POST,
+		Path:        "/github/events",
+		ReceiptTime: receivedAt,
+		RawQuery:    "delivery=123",
+		Headers:     HeaderMap{"X-Event": {"push"}, "X-Trace-ID": {"abc", "def"}},
+		ContentType: "application/json",
+		RawBody:     []byte{},
+		BodySizeKiB: 2,
+	}, "test-bin"); err != nil {
 		t.Fatalf("save request: %v", err)
 	}
 	rec := httptest.NewRecorder()
 	routes().ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/bins/test-bin/requests", nil))
+	body := rec.Body.Bytes()
 	var response []SummarizedRequest
-	if err := json.NewDecoder(rec.Body).Decode(&response); err != nil || rec.Code != http.StatusOK || len(response) != 1 || response[0].Id != "1" || !response[0].ReceiptTime.Equal(receivedAt) {
+	if err := json.Unmarshal(body, &response); err != nil || rec.Code != http.StatusOK || len(response) != 1 {
 		t.Errorf("response = %#v, status = %d, error = %v", response, rec.Code, err)
+		return
+	}
+	got := response[0]
+	if got.Id != "1" || got.Method != POST || got.Path != "/github/events" ||
+		got.RawQuery != "delivery=123" || !got.ReceivedAt.Equal(receivedAt) ||
+		got.ContentType != "application/json" || got.BodySizeKiB != 2 || got.HeaderCount != 2 {
+		t.Errorf("summary = %#v", got)
+	}
+
+	var raw []map[string]any
+	if err := json.Unmarshal(body, &raw); err != nil {
+		t.Fatalf("decode raw response: %v", err)
+	}
+	if _, exists := raw[0]["receiptTime"]; exists {
+		t.Error("response contains deprecated receiptTime field")
+	}
+	for _, field := range []string{"rawQuery", "receivedAt", "contentType", "bodySizeKiB", "headerCount"} {
+		if _, exists := raw[0][field]; !exists {
+			t.Errorf("response is missing %q: %#v", field, raw[0])
+		}
 	}
 }
