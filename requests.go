@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -34,8 +33,6 @@ var sensitiveHeaders = map[string]bool{
 }
 
 const redactedValue = "[REDACTED]"
-
-var ErrRequestBodyTooLarge = errors.New("request body too large")
 
 type HeaderMap map[string][]string
 
@@ -88,25 +85,16 @@ func getContentType(headers HeaderMap) string {
 	return ""
 }
 
-func readBody(req *http.Request, maxBytes int64) ([]byte, error) {
+func readBody(req *http.Request) ([]byte, error) {
 	defer req.Body.Close()
-
-	body, err := io.ReadAll(io.LimitReader(req.Body, maxBytes+1))
-	if err != nil {
-		return nil, err
-	}
-	if int64(len(body)) > maxBytes {
-		return nil, ErrRequestBodyTooLarge
-	}
-
-	return body, nil
+	return io.ReadAll(req.Body)
 }
 
-func parseRequest(req *http.Request, path string, maxBodyBytes int64) (ParsedRequest, error) {
+func parseRequest(req *http.Request, path string) (ParsedRequest, error) {
 	headers := getRedactedHeaders(req)
 	contentType := getContentType(headers)
 	rawQuery := req.URL.RawQuery
-	rawBody, err := readBody(req, maxBodyBytes)
+	rawBody, err := readBody(req)
 	if err != nil {
 		return ParsedRequest{}, fmt.Errorf("read request body: %w", err)
 	}

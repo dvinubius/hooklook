@@ -1,10 +1,9 @@
 # hooklook
 
-A small, self-hosted request bin written in Go. The current backend lets
-creation-token holders create temporary endpoints, send arbitrary HTTP
-requests, and receive live capture events. The
-[production v1 plan](.agents/PROJECT_PLAN.md) replaces creation tokens with
-one cookie-associated bin per browser and adds the inspection UI.
+A small, self-hosted request bin written in Go. The current backend captures
+arbitrary HTTP requests and streams new-capture events. The
+[production v1 plan](.agents/PROJECT_PLAN.md) adds one cookie-associated bin
+per browser and an inspection UI.
 
 ## Intended v1 use
 
@@ -35,6 +34,30 @@ server shutdown also close its open event streams.
 - [Current HTTP API](docs/http-api.md)
 - [Architecture decision records](docs/adr/)
 
+## Local development
+
+`PUBLIC_BASE_URL` is required to construct capture URLs. The server binds to
+`127.0.0.1:8080`. `ADMIN_TOKEN` is required to start the server and protects
+`GET /admin/bins` through a bearer token. Configuration comes from process
+environment variables; `.env` is a shell
+convenience, not an application configuration format.
+
+```bash
+set -a
+source .env
+set +a
+export ADMIN_TOKEN=your-local-operator-secret
+go run . dev-bin   # print a local fixture bin URL
+go run .           # start the server in another terminal
+```
+
+The `dev-bin` command creates a fixture directly in SQLite. There is no
+public bin-creation route until the cookie-associated home page is built.
+The backend enforces 500 requests and 100 MB (100,000,000 bytes) of raw request
+bodies in total per bin. Headers and metadata do not count. The Go-specific
+body and header policy limits have been removed. Keep this build on loopback;
+configure Caddy body, 32 KiB total-header, and rate limits before exposing it publicly.
+
 ## Capture smoke test
 
 With the server running locally and a bin already created, exercise the current
@@ -54,25 +77,3 @@ Hooklook redacts common credential-bearing headers before storing a request.
 Webhook signature headers are retained for debugging, so treat every bin as
 sensitive. See [ADR 0002](docs/adr/0002-captured-header-redaction.md) for the
 exact header list, repeated-header behavior, and security implications.
-
-## Local configuration
-
-`PUBLIC_BASE_URL` is required to create bins because it is used to construct
-their inbound URLs. For local development:
-
-```bash
-set -a
-source .env
-set +a
-go run .
-```
-
-Hooklook reads process environment variables only; `.env` is a local shell and
-deployment convenience, not an application configuration format.
-
-### Current request-body limit
-
-`MAX_REQUEST_BODY_BYTES` sets the largest request body the current Go backend
-will capture. It defaults to `262144` (256 KiB). Oversized bodies and headers
-are rejected before storage. The production plan moves these ingress limits to
-Caddy.

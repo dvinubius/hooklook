@@ -12,24 +12,22 @@ func openDB(path string) (*sql.DB, error) {
 	if err != nil {
 		return nil, fmt.Errorf("open database: %w", err)
 	}
-
 	if err := db.Ping(); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("ping database: %w", err)
 	}
-
 	return db, nil
 }
 
+// This development schema starts with a new database. Existing database files
+// are not upgraded; no production data has been created yet.
 func migrate(db *sql.DB) error {
 	_, err := db.Exec(`
-		PRAGMA foreign_keys = ON;
-
 		CREATE TABLE IF NOT EXISTS bins (
 			code TEXT PRIMARY KEY,
 			created_at TEXT NOT NULL,
 			expires_at INTEGER NOT NULL,
-			total_stored_body_kib INTEGER NOT NULL DEFAULT 0
+			total_body_bytes INTEGER NOT NULL DEFAULT 0
 		);
 
 		CREATE TABLE IF NOT EXISTS requests (
@@ -45,20 +43,9 @@ func migrate(db *sql.DB) error {
 			body_size_kib INTEGER NOT NULL,
 			FOREIGN KEY(bin_code) REFERENCES bins(code) ON DELETE CASCADE
 		);
-
-		CREATE TABLE IF NOT EXISTS creation_tokens (
-			id TEXT PRIMARY KEY,
-			token_hash BLOB NOT NULL UNIQUE,
-			label TEXT NOT NULL,
-			created_at INTEGER NOT NULL,
-			max_uses INTEGER NOT NULL CHECK (max_uses > 0),
-			use_count INTEGER NOT NULL DEFAULT 0,
-			revoked_at INTEGER
-		);
 	`)
 	if err != nil {
 		return fmt.Errorf("create tables: %w", err)
 	}
-
 	return nil
 }

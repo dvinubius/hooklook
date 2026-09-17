@@ -12,33 +12,11 @@ func health(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintln(w, "OK, I'm healthy")
 }
 
-func createBin(w http.ResponseWriter, req *http.Request) {
-	bin, err := store.createBin()
-	if err != nil {
-		http.Error(w, "internal server error", http.StatusInternalServerError)
-		return
-	}
-	eventHub.openBin(bin.Code)
-
-	response := struct {
-		Code string `json:"code"`
-		URL  string `json:"url"`
-	}{Code: bin.Code, URL: publicBaseURL + "/b/" + bin.Code}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(response)
-}
-
 func captureRequest(w http.ResponseWriter, req *http.Request) {
 	binCode := req.PathValue("code")
 
 	path := strings.TrimPrefix(req.URL.Path, "/b/"+binCode)
-	parsedRequest, err := parseRequest(req, path, maxRequestBodyBytes)
-	if errors.Is(err, ErrRequestBodyTooLarge) {
-		http.Error(w, "request body too large", http.StatusRequestEntityTooLarge)
-		return
-	}
+	parsedRequest, err := parseRequest(req, path)
 	if err != nil {
 		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return

@@ -1,62 +1,49 @@
 # Current architecture
 
-This document describes the implementation at the end of milestone 5, before
-the cookie-based production v1 changes in the [project plan](../.agents/PROJECT_PLAN.md).
-It is a reference for migration work, not the target architecture.
+This describes the implementation after the obsolete-functionality cleanup.
+The [project plan](../.agents/PROJECT_PLAN.md) describes the production v1
+destination; cookie-associated bins and the inspection UI are next.
 
-## Process and data flow
+Hooklook is one Go `net/http` process with SQLite through
+`github.com/mattn/go-sqlite3`. `main.go` validates `PUBLIC_BASE_URL`,
+opens `hooklook.db`, migrates the schema, and listens on
+`127.0.0.1:8080` by default. It shuts down on SIGINT/SIGTERM, closing event
+streams before graceful HTTP shutdown. A separate Caddy deployment is planned
+but is not configured in this repository. The loopback listener keeps this
+transitional build private until Caddy ingress limits are installed.
 
-Hooklook is one Go `net/http` process. `main.go` reads configuration, opens
-`hooklook.db`, runs the schema creation in `db.go`, starts the HTTP server
-on `:8080`, and shuts it down on SIGINT/SIGTERM. It closes all event streams
-before graceful HTTP shutdown. The database is SQLite via
-`github.com/mattn/go-sqlite3`; there is no separate payload filesystem.
-Deployment behind Caddy is planned but is not configured in this repository.
+The router serves health, capture, request-list, SSE, and a read-only operator
+bin-list route. There are no creation-token or other admin HTTP routes.
+`GET /admin/bins` requires the configured `ADMIN_TOKEN` bearer secret.
+Until the home page creates bins, local
+development can create a fixture with `go run . dev-bin`. That command uses
+the same store but does not add an HTTP creation path.
 
-The HTTP router in `main.go` sends public API and capture requests to
-`handlers_public.go` and operator routes to `handlers_admin.go`. Creating a
-bin requires a creation-token bearer credential. The middleware consumes one
-token use before the handler inserts the bin, so a later create failure does
-not restore that use. Operator routes require `ADMIN_TOKEN` as a separate
-bearer credential.
+For inbound `/b/{code}` requests, `requests.go` copies headers while
+redacting credential-like names, reads the body, and records method, optional
+path suffix, raw query, content type, body bytes, and UTC receipt time.
+`store.go` checks the bin's unexpired state, 500-request count, and
+100 MB (100,000,000 bytes) total raw-body allowance in a transaction before inserting.
+The handler publishes a compact summary through `events.go` only after
+commit. There is currently no Go-specific body or header policy limit; the
+future Caddy edge must apply a body limit and a 32 KiB total request-header
+limit before public exposure.
 
-For an inbound `/b/{code}` request, `requests.go` copies headers while
-redacting credential-like names, reads the body with a size limit, and records
-the method, optional path suffix, raw query, content type, body bytes, and UTC
-receipt time. `store.go` atomically checks the bin's unexpired state, the
-500-request count, and the 10 MiB rounded-up body-size allowance before
-inserting the capture. It returns a SQLite-generated integer request ID
-represented as a string in JSON. The handler publishes a compact summary to
-`events.go` only after the transaction commits.
+The fresh development schema contains `bins` and `requests`; it does not
+migrate or backfill the earlier development database. Each bin has a
+`total_body_bytes` counter. Only raw request-body bytes count toward the
+100 MB bin allowance. Headers, paths, queries, and other metadata do not.
+Bin expiry remains seven days after creation and has no cleanup worker yet.
 
-The database has `bins`, `requests`, and `creation_tokens` tables. A bin
-has a random 22-character code, creation and expiration times, and a stored
-body-KiB counter. The current expiration time is seven days after creation;
-the insert path rejects expired bins, but no automatic cleanup worker exists.
-Requests store headers as JSON and raw bodies as BLOBs. The schema declares a
-foreign key with cascade deletion; the migration executes
-`PRAGMA foreign_keys = ON` during setup.
+`EventHub` is process-local and keyed by bin code. Each SSE subscriber has a
+single buffered summary event. A slow subscriber is closed instead of blocking
+ingestion; clients reconnect and refetch persisted requests. Disconnect and
+server shutdown release subscriptions. Events are not replayed.
 
-## Live events
+The Go server retains 5-second header, 15-second read, and 60-second idle
+timeouts. There is no home-page UI, cookie ownership, request-detail or
+deletion route, storage-wide cap, backup flow, cleanup worker, or metrics.
+`/health` is a static liveness response. Request lists are returned in
+insertion order without server-side sort or filters.
 
-`EventHub` is process-local and keyed by bin code. Each SSE subscriber has
-one buffered summary event. Publishing does not block on a browser: a slow
-subscriber is closed, and the client must reconnect and refetch persisted
-requests. Disconnect, operator bin deletion, and server shutdown release
-subscriptions. Events are never replayed or stored separately from captures.
-
-## Current boundaries
-
-- Go reads at most `MAX_REQUEST_BODY_BYTES + 1` bytes per capture; the
-  default limit is 256 KiB. `newHTTPServer` sets `MaxHeaderBytes` to 32 KiB,
-  plus 5-second header, 15-second read, and 60-second idle timeouts.
-- `PUBLIC_BASE_URL` and `ADMIN_TOKEN` are required; `MAX_REQUEST_BODY_BYTES`
-  is optional. The database path is currently the fixed relative
-  `hooklook.db`.
-- There is no home-page UI, cookie ownership, request-detail route, request
-  deletion route, storage-wide cap, backup flow, cleanup worker, or metrics.
-  The current `/health` is a static liveness response.
-- Request summaries are returned in insertion order. The planned sort and
-  filters are not yet implemented in the API.
-
-See the [current HTTP API](http-api.md) for exact routes and response shapes.
+See the [current HTTP API](http-api.md) for routes and response shapes.

@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/json"
-	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -13,29 +12,14 @@ import (
 
 func useTestStore(t *testing.T) *Store {
 	t.Helper()
-	originalStore, originalURL, originalLimit, originalEventHub := store, publicBaseURL, maxRequestBodyBytes, eventHub
+	originalStore, originalURL, originalEventHub := store, publicBaseURL, eventHub
 	store = newTestStore(t)
 	eventHub = newEventHub()
-	publicBaseURL, maxRequestBodyBytes = "https://hooklook.example", defaultMaxRequestBodyBytes
+	publicBaseURL = "https://hooklook.example"
 	t.Cleanup(func() {
-		store, publicBaseURL, maxRequestBodyBytes, eventHub = originalStore, originalURL, originalLimit, originalEventHub
+		store, publicBaseURL, eventHub = originalStore, originalURL, originalEventHub
 	})
 	return store
-}
-
-func TestCaptureRequestRejectsOversizedBodyWithoutSavingIt(t *testing.T) {
-	store := useTestStore(t)
-	insertTestBin(t, store, "test-bin")
-	maxRequestBodyBytes = 4
-	rec := httptest.NewRecorder()
-	routes().ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/b/test-bin", bytes.NewReader([]byte("12345"))))
-	if rec.Code != http.StatusRequestEntityTooLarge {
-		t.Fatalf("status = %d, want %d", rec.Code, http.StatusRequestEntityTooLarge)
-	}
-	var count int
-	if err := store.db.QueryRow(`SELECT COUNT(*) FROM requests`).Scan(&count); err != nil || count != 0 {
-		t.Errorf("saved count = %d, error = %v", count, err)
-	}
 }
 
 func TestHealth(t *testing.T) {
@@ -46,74 +30,17 @@ func TestHealth(t *testing.T) {
 	}
 }
 
-func TestCreateBin(t *testing.T) {
+func TestRemovedCreationAndTokenRoutes(t *testing.T) {
 	useTestStore(t)
-	rec := httptest.NewRecorder()
-	createBin(rec, httptest.NewRequest(http.MethodPost, "/api/bins", nil))
-	var response struct{ Code, URL string }
-	if err := json.NewDecoder(rec.Body).Decode(&response); err != nil || rec.Code != http.StatusCreated || response.Code == "" || response.URL != publicBaseURL+"/b/"+response.Code {
-		t.Errorf("response = %#v, status = %d, error = %v", response, rec.Code, err)
-	}
-}
-
-func TestCreateBinRequiresValidCreationToken(t *testing.T) {
-	store := useTestStore(t)
-
-	for _, token := range []string{"", "not-a-creation-token"} {
-		req := httptest.NewRequest(http.MethodPost, "/api/bins", nil)
-		if token != "" {
-			req.Header.Set("Authorization", "Bearer "+token)
-		}
+	for _, test := range []struct{ method, path string }{
+		{http.MethodPost, "/api/bins"},
+		{http.MethodPost, "/admin/tokens"},
+	} {
 		rec := httptest.NewRecorder()
-		routes().ServeHTTP(rec, req)
-		if rec.Code != http.StatusUnauthorized || rec.Header().Get("WWW-Authenticate") != "Bearer" {
-			t.Errorf("token %q response = %d, %q", token, rec.Code, rec.Header().Get("WWW-Authenticate"))
+		routes().ServeHTTP(rec, httptest.NewRequest(test.method, test.path, nil))
+		if rec.Code != http.StatusNotFound {
+			t.Errorf("%s %s status = %d, want 404", test.method, test.path, rec.Code)
 		}
-	}
-
-	var binCount int
-	if err := store.db.QueryRow(`SELECT COUNT(*) FROM bins`).Scan(&binCount); err != nil || binCount != 0 {
-		t.Errorf("created bins = %d, error = %v; want 0, nil", binCount, err)
-	}
-}
-
-func TestCreateBinConsumesCreationTokenAndRejectsExhaustedOrRevokedTokens(t *testing.T) {
-	store := useTestStore(t)
-	creationToken, token, err := store.issueCreationToken("test", 2)
-	if err != nil {
-		t.Fatalf("issue creation token: %v", err)
-	}
-
-	createBinWithToken := func(token string) *httptest.ResponseRecorder {
-		req := httptest.NewRequest(http.MethodPost, "/api/bins", nil)
-		req.Header.Set("Authorization", "Bearer "+token)
-		rec := httptest.NewRecorder()
-		routes().ServeHTTP(rec, req)
-		return rec
-	}
-	for attempt := 1; attempt <= 2; attempt++ {
-		if rec := createBinWithToken(token); rec.Code != http.StatusCreated {
-			t.Fatalf("creation attempt %d status = %d, want %d: %s", attempt, rec.Code, http.StatusCreated, rec.Body.String())
-		}
-	}
-	if rec := createBinWithToken(token); rec.Code != http.StatusUnauthorized {
-		t.Errorf("exhausted token status = %d, want %d", rec.Code, http.StatusUnauthorized)
-	}
-
-	var useCount int
-	if err := store.db.QueryRow(`SELECT use_count FROM creation_tokens WHERE id = ?`, creationToken.ID).Scan(&useCount); err != nil || useCount != 2 {
-		t.Errorf("token use count = %d, error = %v; want 2, nil", useCount, err)
-	}
-
-	revokedCreationToken, revokedToken, err := store.issueCreationToken("revoked", 1)
-	if err != nil {
-		t.Fatalf("issue revocable creation token: %v", err)
-	}
-	if err := store.revokeCreationToken(revokedCreationToken.ID); err != nil {
-		t.Fatalf("revoke creation token: %v", err)
-	}
-	if rec := createBinWithToken(revokedToken); rec.Code != http.StatusUnauthorized {
-		t.Errorf("revoked token status = %d, want %d", rec.Code, http.StatusUnauthorized)
 	}
 }
 
@@ -246,39 +173,5 @@ func TestGetBinEventsRejectsUnknownBin(t *testing.T) {
 	routes().ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/api/bins/missing/events", nil))
 	if recorder.Code != http.StatusNotFound {
 		t.Errorf("status = %d, want %d", recorder.Code, http.StatusNotFound)
-	}
-}
-
-func TestDeletingBinClosesItsEventStream(t *testing.T) {
-	store := useTestStore(t)
-	insertTestBin(t, store, "test-bin")
-	originalAdminToken := adminToken
-	adminToken = testAdminToken
-	t.Cleanup(func() { adminToken = originalAdminToken })
-
-	server := httptest.NewServer(routes())
-	t.Cleanup(server.Close)
-	response, err := server.Client().Get(server.URL + "/api/bins/test-bin/events")
-	if err != nil {
-		t.Fatalf("open event stream: %v", err)
-	}
-	t.Cleanup(func() { response.Body.Close() })
-
-	deleteRequest, err := http.NewRequest(http.MethodDelete, server.URL+"/admin/bins/test-bin", nil)
-	if err != nil {
-		t.Fatalf("create delete request: %v", err)
-	}
-	deleteRequest.Header.Set("Authorization", "Bearer "+testAdminToken)
-	deleteResponse, err := server.Client().Do(deleteRequest)
-	if err != nil {
-		t.Fatalf("delete bin: %v", err)
-	}
-	deleteResponse.Body.Close()
-	if deleteResponse.StatusCode != http.StatusNoContent {
-		t.Fatalf("delete status = %d", deleteResponse.StatusCode)
-	}
-
-	if _, err := bufio.NewReader(response.Body).ReadString('\n'); err != io.EOF {
-		t.Errorf("stream read after deletion error = %v, want EOF", err)
 	}
 }

@@ -2,7 +2,6 @@ package main
 
 import (
 	"net/http"
-	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
@@ -20,24 +19,9 @@ func TestPublicBaseURLFromEnvironment(t *testing.T) {
 	}
 }
 
-func TestMaxRequestBodyBytesFromEnvironmentDefaultsTo256KiB(t *testing.T) {
-	t.Setenv(maxRequestBodyBytesEnvironmentVariable, "")
-
-	got, err := maxRequestBodyBytesFromEnvironment()
-	if err != nil {
-		t.Fatalf("read maximum request body bytes: %v", err)
-	}
-	if got != defaultMaxRequestBodyBytes {
-		t.Errorf("maximum request body bytes = %d, want %d", got, defaultMaxRequestBodyBytes)
-	}
-}
-
 func TestNewHTTPServerSetsLimitsAndTimeouts(t *testing.T) {
 	server := newHTTPServer(":8080", http.HandlerFunc(health))
 
-	if server.MaxHeaderBytes != defaultMaxRequestHeaderBytes {
-		t.Errorf("maximum request header bytes = %d, want %d", server.MaxHeaderBytes, defaultMaxRequestHeaderBytes)
-	}
 	if server.ReadHeaderTimeout != 5*time.Second {
 		t.Errorf("read header timeout = %s, want %s", server.ReadHeaderTimeout, 5*time.Second)
 	}
@@ -52,52 +36,42 @@ func TestNewHTTPServerSetsLimitsAndTimeouts(t *testing.T) {
 	}
 }
 
-func TestHTTPServerRejectsOversizedHeaders(t *testing.T) {
-	server := httptest.NewUnstartedServer(http.HandlerFunc(health))
-	server.Config.MaxHeaderBytes = defaultMaxRequestHeaderBytes
-	server.Start()
-	t.Cleanup(server.Close)
-
-	req, err := http.NewRequest(http.MethodGet, server.URL, nil)
-	if err != nil {
-		t.Fatalf("create request: %v", err)
-	}
-	req.Header.Set("X-Large", strings.Repeat("a", defaultMaxRequestHeaderBytes*2))
-
-	response, err := server.Client().Do(req)
-	if err != nil {
-		t.Fatalf("send request: %v", err)
-	}
-	defer response.Body.Close()
-	if response.StatusCode != http.StatusRequestHeaderFieldsTooLarge {
-		t.Errorf("status = %d, want %d", response.StatusCode, http.StatusRequestHeaderFieldsTooLarge)
-	}
-}
-
-func TestMaxRequestBodyBytesFromEnvironmentReadsConfiguredValue(t *testing.T) {
-	t.Setenv(maxRequestBodyBytesEnvironmentVariable, "2048")
-
-	got, err := maxRequestBodyBytesFromEnvironment()
-	if err != nil {
-		t.Fatalf("read maximum request body bytes: %v", err)
-	}
-	if got != 2048 {
-		t.Errorf("maximum request body bytes = %d, want %d", got, 2048)
-	}
-}
-
-func TestMaxRequestBodyBytesFromEnvironmentRejectsInvalidValue(t *testing.T) {
-	t.Setenv(maxRequestBodyBytesEnvironmentVariable, "0")
-
-	if _, err := maxRequestBodyBytesFromEnvironment(); err == nil {
-		t.Fatal("read maximum request body bytes error = nil, want an error")
-	}
-}
-
 func TestPublicBaseURLFromEnvironmentRejectsInvalidValue(t *testing.T) {
 	t.Setenv(publicBaseURLEnvironmentVariable, "not-a-url")
 
 	if _, err := publicBaseURLFromEnvironment(); err == nil {
 		t.Fatal("read public base URL error = nil, want an error")
+	}
+}
+
+func TestAdminTokenFromEnvironment(t *testing.T) {
+	t.Setenv(adminTokenEnvironmentVariable, "")
+	if _, err := adminTokenFromEnvironment(); err == nil {
+		t.Fatal("missing admin token accepted")
+	}
+	t.Setenv(adminTokenEnvironmentVariable, "secret")
+	if got, err := adminTokenFromEnvironment(); err != nil || got != "secret" {
+		t.Errorf("admin token = %q, error = %v", got, err)
+	}
+}
+
+func TestCreateDevelopmentBin(t *testing.T) {
+	t.Setenv(publicBaseURLEnvironmentVariable, "http://localhost:8080")
+	path := t.TempDir() + "/hooklook.db"
+	url, err := createDevelopmentBin(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.HasPrefix(url, "http://localhost:8080/b/") {
+		t.Fatalf("development bin URL = %q", url)
+	}
+	db, err := openDB(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	var count int
+	if err := db.QueryRow(`SELECT COUNT(*) FROM bins`).Scan(&count); err != nil || count != 1 {
+		t.Errorf("bin count = %d, error = %v", count, err)
 	}
 }

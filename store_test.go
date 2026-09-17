@@ -25,7 +25,7 @@ func insertTestBin(t *testing.T, store *Store, code string) Bin {
 	t.Helper()
 	bin := Bin{Code: code, CreatedAt: time.Now().UTC().Truncate(time.Second)}
 	bin.ExpiresAt = bin.CreatedAt.Add(defaultBinTTL)
-	if _, err := store.db.Exec(`INSERT INTO bins (code, created_at, expires_at, total_stored_body_kib) VALUES (?, ?, ?, ?)`, bin.Code, bin.CreatedAt.Format(time.RFC3339Nano), bin.ExpiresAt.Unix(), 0); err != nil {
+	if _, err := store.db.Exec(`INSERT INTO bins (code, created_at, expires_at, total_body_bytes) VALUES (?, ?, ?, ?)`, bin.Code, bin.CreatedAt.Format(time.RFC3339Nano), bin.ExpiresAt.Unix(), 0); err != nil {
 		t.Fatalf("insert test bin: %v", err)
 	}
 	return bin
@@ -92,11 +92,18 @@ func TestSaveRequestPersistsRequestAndAssignsSQLiteID(t *testing.T) {
 	var method, path, query, contentType string
 	var body []byte
 	var bodyKiB int
+	var totalBodyBytes int64
 	if err := store.db.QueryRow(`SELECT method, path, raw_query, content_type, raw_body, body_size_kib FROM requests WHERE id = 1`).Scan(&method, &path, &query, &contentType, &body, &bodyKiB); err != nil {
 		t.Fatalf("read stored request: %v", err)
 	}
+	if err := store.db.QueryRow(`SELECT total_body_bytes FROM bins WHERE code = 'bin'`).Scan(&totalBodyBytes); err != nil {
+		t.Fatalf("read bin byte count: %v", err)
+	}
 	if method != "POST" || path != "/github/events" || query != "source=example" || contentType != "application/json" || string(body) != `{"ok":true}` || bodyKiB != 1 {
 		t.Errorf("stored request = %q %q %q %q %q %d", method, path, query, contentType, body, bodyKiB)
+	}
+	if totalBodyBytes != int64(len(body)) {
+		t.Errorf("total body bytes = %d, want %d", totalBodyBytes, len(body))
 	}
 }
 
@@ -106,11 +113,33 @@ func TestSaveRequestRejectsUnknownOrFullBin(t *testing.T) {
 		t.Errorf("missing bin error = %v", err)
 	}
 	bin := insertTestBin(t, store, "full")
-	if _, err := store.db.Exec(`UPDATE bins SET total_stored_body_kib = ? WHERE code = ?`, maxStoredBodyKiB, bin.Code); err != nil {
+	if _, err := store.db.Exec(`UPDATE bins SET total_body_bytes = ? WHERE code = ?`, maxStoredBodyBytes, bin.Code); err != nil {
 		t.Fatalf("fill bin budget: %v", err)
 	}
-	if _, err := store.saveRequest(ParsedRequest{BodySizeKiB: 1}, bin.Code); !errors.Is(err, ErrBinFull) {
+	if _, err := store.saveRequest(ParsedRequest{RawBody: []byte("x")}, bin.Code); !errors.Is(err, ErrBinFull) {
 		t.Errorf("full bin error = %v", err)
+	}
+}
+
+func TestSaveRequestCountsOnlyExactBodyBytes(t *testing.T) {
+	store := newTestStore(t)
+	insertTestBin(t, store, "bin")
+	if _, err := store.db.Exec(`UPDATE bins SET total_body_bytes = ? WHERE code = 'bin'`, maxStoredBodyBytes-2); err != nil {
+		t.Fatal(err)
+	}
+	request := ParsedRequest{
+		Headers: HeaderMap{"X-Large": {strings.Repeat("h", 40_000)}},
+		RawBody: []byte("xy"),
+	}
+	if _, err := store.saveRequest(request, "bin"); err != nil {
+		t.Fatalf("capture at exact body-byte limit: %v", err)
+	}
+	if _, err := store.saveRequest(ParsedRequest{RawBody: []byte("z")}, "bin"); !errors.Is(err, ErrBinFull) {
+		t.Errorf("capture over body-byte limit error = %v", err)
+	}
+	var total int64
+	if err := store.db.QueryRow(`SELECT total_body_bytes FROM bins WHERE code = 'bin'`).Scan(&total); err != nil || total != maxStoredBodyBytes {
+		t.Errorf("total body bytes = %d, error = %v", total, err)
 	}
 }
 
