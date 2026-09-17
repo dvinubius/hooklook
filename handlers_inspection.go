@@ -45,7 +45,7 @@ func resolveOwnBin(w http.ResponseWriter, req *http.Request) (Bin, bool) {
 	}
 	bin, secret, err := store.createOwnedBin()
 	if err != nil {
-		http.Error(w, "unable to create bin", http.StatusInsufficientStorage)
+		writeCapacityShell(w)
 		return Bin{}, false
 	}
 	eventHub.openBin(bin.Code)
@@ -62,6 +62,11 @@ func home(w http.ResponseWriter, req *http.Request) {
 	http.Redirect(w, req, "/bins/"+bin.Code, http.StatusSeeOther)
 }
 
+// inspectorPage serves the application for both `/bins/{code}` and the detail
+// URL `/bins/{code}/requests/{id}` that a capture reports. Authorization and
+// the redirect to the visitor's own bin happen here, before any document is
+// written; the request id is resolved inside the application afterwards. A
+// guest's invitation stays in the query string and is read there too.
 func inspectorPage(w http.ResponseWriter, req *http.Request) {
 	noStore(w)
 	code := req.PathValue("code")
@@ -78,12 +83,7 @@ func inspectorPage(w http.ResponseWriter, req *http.Request) {
 		http.Redirect(w, req, "/bins/"+bin.Code, http.StatusSeeOther)
 		return
 	}
-	if frontendDev() {
-		writeShell(w, devShell)
-		return
-	}
-	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-	w.Write([]byte("Inspector frontend pending. Use the authorized API endpoints.\n"))
+	writePageShell(w)
 }
 
 func authorizedAccess(w http.ResponseWriter, req *http.Request) (BinAccess, bool) {

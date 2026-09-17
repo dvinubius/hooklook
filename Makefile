@@ -21,9 +21,12 @@ dev-web:
 	cd frontend && npm run dev
 
 ## Production frontend build. Must run before `go build`: the binary embeds
-## frontend/dist, so the assets have to exist at Go build time.
+## frontend/dist, so the assets have to exist at Go build time. Vite empties the
+## directory, so the committed placeholder — which is what lets `go build`
+## succeed on a fresh checkout — is put back afterwards.
 build-web:
 	cd frontend && npm ci && npm run build
+	touch frontend/dist/.gitkeep
 
 ## Full production build, in the required order.
 build: build-web

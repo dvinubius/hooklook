@@ -1,12 +1,14 @@
 # Current HTTP API
 
-This is the backend contract prepared for the Inspection UI. The page route currently returns a plain-text placeholder after authorization; the Vue frontend is not yet built. The server binds to `127.0.0.1:8080` by default.
+This is the contract the Inspection UI is built on. The page routes serve the built Vue application after authorization; the interface inside it is still being built out. The server binds to `127.0.0.1:8080` by default.
 
 | Method and path | Behavior |
 | --- | --- |
 | `GET /` | Resolve the browser's cookie-associated bin, creating one when needed, then `303` to `/bins/{code}`. |
-| `GET /bins/{code}` | Authorize owner cookie or `?invite={identifier}` while sharing is enabled. Unauthorized visitors are redirected to their own bin. Currently returns a placeholder. |
-| Any method `/b/{code}` or `/b/{code}/{path...}` | Capture an HTTP request and return `201` with its ID and future UI detail URL. Missing or expired bin: `404`; full bin: `507`. |
+| `GET /bins/{code}` | Authorize owner cookie or `?invite={identifier}` while sharing is enabled, then serve the application document. Unauthorized visitors are `303`-redirected to their own bin, resolved or created, before any request data loads. |
+| `GET /bins/{code}/requests/{id}` | The detail URL a capture reports. Same authorization and same document as the bin page; the request id is resolved inside the application, so an unknown id is not a server error. A guest's `?invite=` is preserved in the URL. |
+| `GET /assets/{path...}`, `GET /fonts/{path...}` | The embedded frontend build. Deliberately outside bin authorization: no captured data, identical for every visitor, and required by a page the server has already handed over. Hashed JavaScript and CSS are `immutable`; fonts get an ordinary lifetime. Unknown files: `404`. |
+| Any method `/b/{code}` or `/b/{code}/{path...}` | Capture an HTTP request and return `201` with its ID and the UI detail URL that opens it. Missing or expired bin: `404`; full bin: `507`. |
 | `GET /api/bins/{code}` | Authorized bin metadata. Owners also receive `inviteId` and sharing state. |
 | `GET /api/bins/{code}/requests` | Authorized body-free request summaries in ascending ID order. |
 | `GET /api/bins/{code}/requests/{id}` | Authorized full detail, including redacted stored headers and `rawBody` encoded as base64 by JSON. |

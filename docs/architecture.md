@@ -2,7 +2,21 @@
 
 Hooklook is one Go `net/http` service using SQLite through `github.com/mattn/go-sqlite3`. It validates `PUBLIC_BASE_URL` and `ADMIN_TOKEN`, opens `hooklook.db`, creates a fresh development schema, and listens on `127.0.0.1:8080`. It shuts down on SIGINT/SIGTERM, closing event streams before graceful HTTP shutdown. Caddy is planned but not yet configured in this repository.
 
-A home visit creates or resolves one cookie-associated bin and redirects to `/bins/{code}`. Codes are readable adjective-noun-number addresses. A cryptographically random ownership secret is stored only as a SHA-256 digest in SQLite and sent in an `HttpOnly` browser cookie. Each bin has a distinct reusable invitation identifier. The owner can enable guest read access; disabling it revokes API access and closes existing streams. The inspector page currently shows a placeholder while the Vue frontend awaits review.
+A home visit creates or resolves one cookie-associated bin and redirects to `/bins/{code}`. Codes are readable adjective-noun-number addresses. A cryptographically random ownership secret is stored only as a SHA-256 digest in SQLite and sent in an `HttpOnly` browser cookie. Each bin has a distinct reusable invitation identifier. The owner can enable guest read access; disabling it revokes API access and closes existing streams. Authorized page requests are answered with the Vue application itself.
+
+The frontend build is embedded in the binary with `go:embed`, so the binary is
+the whole deployment. `frontend/dist` must therefore exist at Go build time;
+the committed placeholder keeps a fresh checkout compilable, and a binary built
+without real assets reports the missing build on its page routes rather than
+serving an empty document. Both `/bins/{code}` and the capture-reported detail
+URL `/bins/{code}/requests/{id}` serve the same document after the same
+authorization, and the application resolves the request id itself. Because the
+document references its assets by absolute path, direct navigation and reloads
+work at either depth. Asset routes skip bin authorization; page routes keep
+`Cache-Control: no-store` and `Referrer-Policy: no-referrer`. Under
+`FRONTEND_DEV` the page routes serve a shell pointing at Vite's module graph
+instead, so development keeps one browser origin without bypassing
+authorization.
 
 The list, detail, metadata, and SSE routes check owner or guest authorization. Destructive routes require the owner cookie and same-origin `Origin` header. Detail sends the stored raw body as JSON base64 so binary data remains faithful. Deleting requests adjusts `total_body_bytes` in the same SQLite transaction. Bin replacement creates the new bin and deletes the old bin and captures in one transaction, then changes the cookie. SQLite foreign keys are enabled.
 
