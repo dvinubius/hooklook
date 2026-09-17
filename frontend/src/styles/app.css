@@ -1,0 +1,108 @@
+/* hooklook application shell.
+   Brand rules held throughout: square corners, no shadows, no gradients, flat
+   fills and 1px hairlines for separation, accent kept to the mark, one primary
+   action and the selection rule. */
+
+*,*::before,*::after{box-sizing:border-box;}
+
+html,body,#app{height:100%;}
+#app{display:flex;flex-direction:column;min-height:100%;}
+
+button{font:inherit;color:inherit;border-radius:0;}
+input,select{font:inherit;border-radius:0;}
+::selection{background:var(--accent-glyph);}
+
+/* ---- text roles ------------------------------------------------------- */
+
+.mono{font-family:var(--font-mono);}
+.meta{
+  font-family:var(--font-mono);
+  font-size:var(--text-mono-meta);
+  color:var(--text-muted);
+  letter-spacing:0.01em;
+}
+.meta-caps{
+  font-family:var(--font-mono);
+  font-size:var(--text-mono-micro);
+  font-weight:500;
+  letter-spacing:0.12em;
+  text-transform:uppercase;
+  color:var(--text-muted);
+}
+.micro{font-family:var(--font-mono);font-size:var(--text-mono-micro);color:var(--text-muted);}
+.heading{
+  font-size:var(--text-title);
+  font-weight:500;
+  letter-spacing:var(--track-heading);
+  margin:0;
+}
+.muted{color:var(--text-muted);}
+.truncate{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+
+/* ---- surfaces --------------------------------------------------------- */
+
+.panel{background:var(--surface-card);}
+.shade{background:var(--surface-shade);}
+.rule{border:0;border-top:1px solid var(--hairline);margin:0;}
+
+/* ---- controls --------------------------------------------------------- */
+
+.btn{
+  display:inline-flex;align-items:center;gap:8px;
+  font-family:var(--font-sans);font-size:13px;font-weight:500;
+  padding:9px 16px;border:1px solid transparent;background:transparent;
+  cursor:pointer;white-space:nowrap;text-decoration:none;
+}
+.btn:disabled{opacity:0.45;cursor:not-allowed;}
+.btn-primary{background:var(--accent);color:var(--ink);}
+[data-theme="light"] .btn-primary{color:var(--paper);}
+.btn-primary:not(:disabled):hover{background:var(--accent-on-hover);}
+[data-theme="dark"] .btn-primary:not(:disabled):hover{background:var(--paper);color:var(--ink);}
+.btn-outline{border-color:var(--hairline);color:var(--text-body);}
+.btn-outline:not(:disabled):hover{border-color:var(--text-body);}
+.btn-quiet{padding:6px 0;color:var(--text-muted);}
+.btn-quiet:not(:disabled):hover{color:var(--text-body);}
+.btn-danger{border-color:var(--hairline);color:var(--text-muted);}
+.btn-danger:not(:disabled):hover{border-color:var(--text-body);color:var(--text-body);}
+.btn-sm{padding:6px 10px;font-size:12px;}
+
+.field{
+  font-family:var(--font-mono);font-size:var(--text-mono-meta);
+  padding:7px 9px;background:var(--surface-page);color:var(--text-body);
+  border:1px solid var(--hairline);min-width:0;
+}
+.field::placeholder{color:var(--text-muted);}
+.field:focus{outline:1px solid var(--text-muted);outline-offset:-1px;border-color:var(--text-muted);}
+select.field{cursor:pointer;}
+
+:focus-visible{outline:2px solid var(--accent);outline-offset:1px;}
+
+/* ---- code surfaces ---------------------------------------------------- */
+/* Always the dark code surface, in both themes: on light pages code sits on
+   Ink with no border, on dark pages on Panel with a hairline. */
+
+.code-surface{
+  background:var(--surface-code);
+  border:1px solid var(--code-border);
+  font-family:var(--font-mono);
+  font-size:var(--text-small);
+  line-height:var(--leading-code);
+  color:var(--muted-strong);
+}
+.tok-recede{color:var(--muted-on-dark);}
+.tok-body{color:var(--muted-strong);}
+.tok-emphasis{color:var(--paper);}
+
+/* ---- scrollbars ------------------------------------------------------- */
+
+.scroll{overflow:auto;scrollbar-width:thin;scrollbar-color:var(--hairline) transparent;}
+.scroll::-webkit-scrollbar{width:10px;height:10px;}
+.scroll::-webkit-scrollbar-thumb{background:var(--hairline);}
+.scroll::-webkit-scrollbar-track{background:transparent;}
+
+/* ---- visually hidden -------------------------------------------------- */
+
+.sr-only{
+  position:absolute;width:1px;height:1px;padding:0;margin:-1px;
+  overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0;
+}

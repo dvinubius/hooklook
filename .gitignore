@@ -15,3 +15,9 @@ coverage.out
 
 
 test-bins
+
+# Frontend dependencies and build output. `frontend/dist` must exist at Go
+# build time because the binary embeds it, so the directory is kept.
+frontend/node_modules
+frontend/dist/*
+!frontend/dist/.gitkeep

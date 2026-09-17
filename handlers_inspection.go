@@ -78,6 +78,10 @@ func inspectorPage(w http.ResponseWriter, req *http.Request) {
 		http.Redirect(w, req, "/bins/"+bin.Code, http.StatusSeeOther)
 		return
 	}
+	if frontendDev() {
+		writeShell(w, devShell)
+		return
+	}
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	w.Write([]byte("Inspector frontend pending. Use the authorized API endpoints.\n"))
 }
