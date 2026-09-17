@@ -80,6 +80,7 @@ func TestCaptureRequestExactPathAndUnknownBin(t *testing.T) {
 func TestGetBinRequests(t *testing.T) {
 	store := useTestStore(t)
 	insertTestBin(t, store, "test-bin")
+	authorizeTestBin(t, store, "test-bin")
 	receivedAt := time.Date(2026, 9, 15, 12, 0, 0, 0, time.UTC)
 	if _, err := store.saveRequest(ParsedRequest{
 		Method:      POST,
@@ -94,7 +95,9 @@ func TestGetBinRequests(t *testing.T) {
 		t.Fatalf("save request: %v", err)
 	}
 	rec := httptest.NewRecorder()
-	routes().ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/bins/test-bin/requests", nil))
+	req := httptest.NewRequest(http.MethodGet, "/api/bins/test-bin/requests", nil)
+	req.AddCookie(&http.Cookie{Name: ownerCookieName, Value: "test-owner"})
+	routes().ServeHTTP(rec, req)
 	body := rec.Body.Bytes()
 	var response []SummarizedRequest
 	if err := json.Unmarshal(body, &response); err != nil || rec.Code != http.StatusOK || len(response) != 1 {
@@ -125,10 +128,13 @@ func TestGetBinRequests(t *testing.T) {
 func TestGetBinEventsStreamsPersistedRequestSummary(t *testing.T) {
 	store := useTestStore(t)
 	insertTestBin(t, store, "test-bin")
+	authorizeTestBin(t, store, "test-bin")
 	server := httptest.NewServer(routes())
 	t.Cleanup(server.Close)
 
-	response, err := server.Client().Get(server.URL + "/api/bins/test-bin/events")
+	req, _ := http.NewRequest(http.MethodGet, server.URL+"/api/bins/test-bin/events", nil)
+	req.AddCookie(&http.Cookie{Name: ownerCookieName, Value: "test-owner"})
+	response, err := server.Client().Do(req)
 	if err != nil {
 		t.Fatalf("open event stream: %v", err)
 	}
@@ -173,5 +179,12 @@ func TestGetBinEventsRejectsUnknownBin(t *testing.T) {
 	routes().ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/api/bins/missing/events", nil))
 	if recorder.Code != http.StatusNotFound {
 		t.Errorf("status = %d, want %d", recorder.Code, http.StatusNotFound)
+	}
+}
+
+func authorizeTestBin(t *testing.T, store *Store, code string) {
+	t.Helper()
+	if _, err := store.db.Exec(`UPDATE bins SET owner_digest = ? WHERE code = ?`, digestSecret("test-owner"), code); err != nil {
+		t.Fatal(err)
 	}
 }

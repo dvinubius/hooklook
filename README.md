@@ -1,9 +1,6 @@
 # hooklook
 
-A small, self-hosted request bin written in Go. The current backend captures
-arbitrary HTTP requests and streams new-capture events. The
-[production v1 plan](.agents/PROJECT_PLAN.md) adds one cookie-associated bin
-per browser and an inspection UI.
+A small, self-hosted request bin written in Go. The backend now creates one cookie-associated bin per browser, captures arbitrary HTTP requests, and provides owner or invited-guest inspection APIs. The inspector page is still a placeholder; the Vue frontend is next.
 
 ## Intended v1 use
 
@@ -14,10 +11,9 @@ and planned production limits differ; see the
 
 ## Live request events
 
-`GET /api/bins/{binCode}/events` opens a Server-Sent Events stream for one
-existing bin. Each successfully persisted inbound request produces one
+`GET /api/bins/{binCode}/events` opens an authorized Server-Sent Events stream. Owners send their cookie; guests append their invitation identifier as `?invite=...`. Each successfully persisted inbound request produces one
 `request` event whose `data` is the same compact request summary returned by
-the request-list endpoint. Events are intentionally ephemeral: clients must
+the request-list endpoint. Deletion and clearing publish a `refresh` event. Events are intentionally ephemeral: clients must
 refetch the list after reconnecting.
 
 Each subscriber has a one-event buffer. If it cannot consume the next event,
@@ -47,12 +43,12 @@ set -a
 source .env
 set +a
 export ADMIN_TOKEN=your-local-operator-secret
-go run . dev-bin   # print a local fixture bin URL
-go run .           # start the server in another terminal
+go run .           # start the server
+# Open http://localhost:8080/ in a browser to create a bin
+# Optional: go run . dev-bin prints a fixture capture URL
 ```
 
-The `dev-bin` command creates a fixture directly in SQLite. There is no
-public bin-creation route until the cookie-associated home page is built.
+The `dev-bin` command creates a fixture directly in SQLite. Normal browser use starts at `/`, which creates or reuses a bin and redirects to its inspector page. The page currently shows a placeholder while the frontend is under review. See the [HTTP API](docs/http-api.md) for inspection and owner mutation routes.
 The backend enforces 500 requests and 100 MB (100,000,000 bytes) of raw request
 bodies in total per bin. Headers and metadata do not count. The Go-specific
 body and header policy limits have been removed. Keep this build on loopback;

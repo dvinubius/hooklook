@@ -59,6 +59,9 @@ func captureRequest(w http.ResponseWriter, req *http.Request) {
 
 func getBinRequests(w http.ResponseWriter, req *http.Request) {
 	binCode := req.PathValue("code")
+	if _, ok := authorizedAccess(w, req); !ok {
+		return
+	}
 
 	requests, err := store.getBinRequests(binCode)
 	if errors.Is(err, ErrBinNotFound) {
@@ -77,16 +80,13 @@ func getBinRequests(w http.ResponseWriter, req *http.Request) {
 
 func getBinEvents(w http.ResponseWriter, req *http.Request) {
 	binCode := req.PathValue("code")
-	if _, err := store.getBinRequests(binCode); err != nil {
-		if errors.Is(err, ErrBinNotFound) {
-			http.Error(w, "bin not found", http.StatusNotFound)
-			return
-		}
-		http.Error(w, "internal server error", http.StatusInternalServerError)
+	streamAccessMu.Lock()
+	if _, ok := authorizedAccess(w, req); !ok {
+		streamAccessMu.Unlock()
 		return
 	}
-
 	events, ok := eventHub.subscribe(binCode)
+	streamAccessMu.Unlock()
 	if !ok {
 		http.Error(w, "server is shutting down", http.StatusServiceUnavailable)
 		return
@@ -112,6 +112,15 @@ func getBinEvents(w http.ResponseWriter, req *http.Request) {
 				return // channel drained (closed)
 			}
 
+			if summarizedRequest.Id == "" {
+				if _, err := fmt.Fprint(w, "event: refresh\ndata: {}\n\n"); err != nil {
+					return
+				}
+				if err := responseController.Flush(); err != nil {
+					return
+				}
+				continue
+			}
 			encoded, err := json.Marshal(summarizedRequest)
 			if err != nil {
 				return

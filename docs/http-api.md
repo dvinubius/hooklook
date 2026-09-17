@@ -1,52 +1,23 @@
 # Current HTTP API
 
-This is the API after removing creation tokens and obsolete admin routes. The
-[production v1 plan](../.agents/PROJECT_PLAN.md) adds a cookie-associated home
-page, detail and deletion endpoints, and Caddy edge limits.
+This is the backend contract prepared for the Inspection UI. The page route currently returns a plain-text placeholder after authorization; the Vue frontend is not yet built. The server binds to `127.0.0.1:8080` by default.
 
-The Go service listens on `127.0.0.1:8080` by default. JSON responses use
-`Content-Type: application/json`; handler errors use plain text. The server
-requires `ADMIN_TOKEN` as an operator bearer secret. No HTTP
-route currently creates a bin. For local testing, run `go run . dev-bin` to
-print a new capture URL before starting the server.
-
-| Method and path | Current behavior |
+| Method and path | Behavior |
 | --- | --- |
-| `GET /health` | `200` with `OK, I'm healthy`. |
-| Any method `/b/{code}` or `/b/{code}/{path...}` | Captures the request. Returns `201` with `{"id":"…","url":"<PUBLIC_BASE_URL>/bins/{code}/requests/{id}"}`. The detail URL is a placeholder: no matching route exists yet. Missing/expired bin: `404`; full bin: `507`; internal failure: `500`. |
-| `GET /api/bins/{code}/requests` | `200` with a JSON array of summaries, ordered by increasing request ID. Missing bin: `404`. Sort/filter query parameters are not yet implemented. |
-| `GET /api/bins/{code}/events` | `200` with `text/event-stream` for an existing bin. Each persisted capture sends `event: request` and a JSON summary in `data:`. Missing bin: `404`; hub closing during startup: `503`. No replay or event IDs. |
-| `GET /admin/bins` | Requires `Authorization: Bearer <ADMIN_TOKEN>`. Returns `200` with bin summaries containing `code`, `createdAt`, `expiresAt`, `totalBodyBytes`, and `requestCount`. Missing or invalid bearer token: `401` with `WWW-Authenticate: Bearer`. |
+| `GET /` | Resolve the browser's cookie-associated bin, creating one when needed, then `303` to `/bins/{code}`. |
+| `GET /bins/{code}` | Authorize owner cookie or `?invite={identifier}` while sharing is enabled. Unauthorized visitors are redirected to their own bin. Currently returns a placeholder. |
+| Any method `/b/{code}` or `/b/{code}/{path...}` | Capture an HTTP request and return `201` with its ID and future UI detail URL. Missing or expired bin: `404`; full bin: `507`. |
+| `GET /api/bins/{code}` | Authorized bin metadata. Owners also receive `inviteId` and sharing state. |
+| `GET /api/bins/{code}/requests` | Authorized body-free request summaries in ascending ID order. |
+| `GET /api/bins/{code}/requests/{id}` | Authorized full detail, including redacted stored headers and `rawBody` encoded as base64 by JSON. |
+| `GET /api/bins/{code}/events` | Authorized SSE. `request` events contain summaries. `refresh` events tell clients to refetch after deletion or clearing. Reconnect and refetch after a stream closes. |
+| `DELETE /api/bins/{code}/requests/{id}` | Owner only. Delete one request and reclaim its exact raw-body bytes. |
+| `DELETE /api/bins/{code}/requests` | Owner only. Clear requests while retaining the bin address and invitation. |
+| `PUT /api/bins/{code}/sharing` | Owner only. JSON body `{"enabled":true}` or `{"enabled":false}`; disabling sharing closes current SSE streams. Re-enabling uses the same invitation. |
+| `POST /api/bins/{code}/replace` | Owner only. Atomically replace the bin, set a new cookie, and `303` to its page. Old capture and invitation links stop working. |
+| `GET /admin/bins` | Operator-only list. Requires `Authorization: Bearer <ADMIN_TOKEN>`. |
+| `GET /health` | Static liveness response. |
 
-`POST /api/bins` and all other `/admin/*` routes have been removed and return
-`404`. The Go handler no longer returns `413` for body size and does not
-set a custom header-size limit. Public deployment must apply its body-size
-limit and a 32 KiB total-header-size limit at Caddy before proxying traffic.
-The Go service enforces a per-bin maximum of 500 captures and 100 MB
-(100,000,000 bytes) of raw request bodies in total. Headers and metadata do
-not count toward that bin allowance.
+For authorized GET endpoints, owners use the `hooklook_owner` cookie and guests provide `?invite={identifier}` on **each** API and SSE request. The cookie is `HttpOnly`, `SameSite=Lax`, `Secure` when `PUBLIC_BASE_URL` uses HTTPS, and expires with the bin. A bin code alone does not permit inspection. Owner mutation requests require the cookie and an `Origin` header matching `PUBLIC_BASE_URL`. Responses involving access state use `Cache-Control: no-store` and `Referrer-Policy: no-referrer`.
 
-## Request summary
-
-The list response and SSE `request` event use the same shape:
-
-```json
-{
-  "id": "1",
-  "method": "POST",
-  "path": "/github/events",
-  "rawQuery": "source=example",
-  "receivedAt": "2026-09-17T12:00:00Z",
-  "contentType": "application/json",
-  "bodySizeKiB": 1,
-  "headerCount": 2
-}
-```
-
-`bodySizeKiB` is body length rounded up to whole KiB; `headerCount` counts
-distinct stored header names. Bodies and full headers are in SQLite but have
-no detail endpoint yet. Common credential header values are replaced with
-`[REDACTED]` before storage; see [ADR 0002](adr/0002-captured-header-redaction.md).
-The optional capture URL suffix becomes `path`; capture at exactly
-`/b/{code}` has an empty path. The raw query is preserved as received, and
-inbound methods are unrestricted.
+New codes have an adjective-noun-eight-digit format. Bins currently expire seven days after creation; renewal and cleanup are in the next milestone. Each bin accepts at most 500 captures and 100 MB (100,000,000 bytes) of raw request bodies. Headers and metadata do not count. Common credential headers are redacted before storage. Public Caddy body, total-header, and rate limits are still required before internet exposure.

@@ -2,7 +2,9 @@ package main
 
 import (
 	"crypto/rand"
+	"crypto/sha256"
 	"database/sql"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -14,7 +16,6 @@ import (
 
 const (
 	storeCodeAlphabet  = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
-	binCodeLength      = 22
 	defaultBinTTL      = 7 * 24 * time.Hour
 	maxStoredRequests  = 500
 	maxStoredBodyBytes = 100_000_000
@@ -50,7 +51,16 @@ func newBinStore(db *sql.DB) *Store {
 }
 
 func generateCode() (string, error) {
-	return randomString(storeCodeAlphabet, binCodeLength)
+	adjectives := [...]string{"amber", "brisk", "calm", "clear", "crisp", "gentle", "green", "lively", "mellow", "quiet", "silver", "swift"}
+	nouns := [...]string{"badger", "cedar", "comet", "falcon", "harbor", "lantern", "meadow", "otter", "pebble", "river", "sparrow", "willow"}
+	b := make([]byte, 6)
+	if _, err := rand.Read(b); err != nil {
+		return "", err
+	}
+	a := int(b[0]) % len(adjectives)
+	n := int(b[1]) % len(nouns)
+	number := uint32(b[2])<<24 | uint32(b[3])<<16 | uint32(b[4])<<8 | uint32(b[5])
+	return fmt.Sprintf("%s-%s-%08d", adjectives[a], nouns[n], number%100_000_000), nil
 }
 
 func randomString(alphabet string, length int) (string, error) {
@@ -85,10 +95,23 @@ func isUniqueConstraint(err error) bool {
 // PUBLIC CRUD
 
 func (s *Store) createBin() (Bin, error) {
+	bin, _, err := s.createOwnedBin()
+	return bin, err
+}
+
+func (s *Store) createOwnedBin() (Bin, string, error) {
+	return s.createOwnedBinWith(s.db)
+}
+
+type binInserter interface {
+	Exec(string, ...any) (sql.Result, error)
+}
+
+func (s *Store) createOwnedBinWith(executor binInserter) (Bin, string, error) {
 	for {
 		code, err := s.generateCode()
 		if err != nil {
-			return Bin{}, fmt.Errorf("generate bin code: %w", err)
+			return Bin{}, "", fmt.Errorf("generate bin code: %w", err)
 		}
 
 		bin := Bin{
@@ -96,11 +119,19 @@ func (s *Store) createBin() (Bin, error) {
 			CreatedAt: time.Now().UTC().Truncate(time.Second),
 		}
 		bin.ExpiresAt = bin.CreatedAt.Add(defaultBinTTL)
-		_, err = s.db.Exec(`
-			INSERT INTO bins (code, created_at, expires_at, total_body_bytes)
-			VALUES (?, ?, ?, ?)
-		`, bin.Code, bin.CreatedAt.Format(time.RFC3339Nano),
-			bin.ExpiresAt.Unix(), bin.TotalBodyBytes)
+		owner, err := randomString(storeCodeAlphabet, 48)
+		if err != nil {
+			return Bin{}, "", err
+		}
+		invite, err := randomString(storeCodeAlphabet, 48)
+		if err != nil {
+			return Bin{}, "", err
+		}
+		_, err = executor.Exec(`
+            INSERT INTO bins (code, created_at, expires_at, total_body_bytes, owner_digest, invite_id)
+            VALUES (?, ?, ?, ?, ?, ?)
+        `, bin.Code, bin.CreatedAt.Format(time.RFC3339Nano),
+			bin.ExpiresAt.Unix(), bin.TotalBodyBytes, digestSecret(owner), invite)
 		if err != nil {
 			if isUniqueConstraint(err) {
 				// The database is the authority on uniqueness. Generate a new code
@@ -108,10 +139,10 @@ func (s *Store) createBin() (Bin, error) {
 				// intentionally excluded from the minimal DB metrics.
 				continue
 			}
-			return Bin{}, err
+			return Bin{}, "", err
 		}
 
-		return bin, nil
+		return bin, owner, nil
 	}
 }
 
@@ -272,4 +303,9 @@ func (s *Store) getBinRequests(binCode string) ([]SummarizedRequest, error) {
 	}
 
 	return requests, nil
+}
+
+func digestSecret(secret string) string {
+	sum := sha256.Sum256([]byte(secret))
+	return hex.EncodeToString(sum[:])
 }

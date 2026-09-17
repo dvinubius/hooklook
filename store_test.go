@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -37,7 +38,7 @@ func TestGenerateBinCode(t *testing.T) {
 		if err != nil {
 			t.Fatalf("generate bin code: %v", err)
 		}
-		if len(code) != binCodeLength || strings.Trim(code, storeCodeAlphabet) != "" {
+		if !regexp.MustCompile(`^[a-z]+-[a-z]+-[0-9]{8}$`).MatchString(code) {
 			t.Errorf("invalid bin code %q", code)
 		}
 	}
@@ -45,7 +46,7 @@ func TestGenerateBinCode(t *testing.T) {
 
 func TestCreateRetriesCodeCollision(t *testing.T) {
 	store := newTestStore(t)
-	existing, fresh := strings.Repeat("A", binCodeLength), strings.Repeat("B", binCodeLength)
+	existing, fresh := "amber-otter-12345678", "silver-comet-87654321"
 	insertTestBin(t, store, existing)
 	codes := []string{existing, fresh}
 	store.generateCode = func() (string, error) { code := codes[0]; codes = codes[1:]; return code, nil }

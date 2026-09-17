@@ -8,7 +8,8 @@ import (
 )
 
 func openDB(path string) (*sql.DB, error) {
-	db, err := sql.Open("sqlite3", path)
+	db, err := sql.Open("sqlite3", path+"?_foreign_keys=on&_busy_timeout=5000")
+	db.SetMaxOpenConns(1)
 	if err != nil {
 		return nil, fmt.Errorf("open database: %w", err)
 	}
@@ -27,7 +28,10 @@ func migrate(db *sql.DB) error {
 			code TEXT PRIMARY KEY,
 			created_at TEXT NOT NULL,
 			expires_at INTEGER NOT NULL,
-			total_body_bytes INTEGER NOT NULL DEFAULT 0
+			total_body_bytes INTEGER NOT NULL DEFAULT 0,
+			owner_digest TEXT NOT NULL DEFAULT '',
+			invite_id TEXT NOT NULL DEFAULT '',
+			sharing_enabled INTEGER NOT NULL DEFAULT 0
 		);
 
 		CREATE TABLE IF NOT EXISTS requests (

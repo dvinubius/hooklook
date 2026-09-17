@@ -73,6 +73,14 @@ func requireAdminToken(next http.Handler) http.Handler {
 func routes() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /health", health)
+	mux.HandleFunc("GET /{$}", home)
+	mux.HandleFunc("GET /bins/{code}", inspectorPage)
+	mux.HandleFunc("GET /api/bins/{code}", binInfo)
+	mux.HandleFunc("GET /api/bins/{code}/requests/{id}", requestDetail)
+	mux.HandleFunc("DELETE /api/bins/{code}/requests/{id}", deleteOneRequest)
+	mux.HandleFunc("DELETE /api/bins/{code}/requests", clearBinRequests)
+	mux.HandleFunc("PUT /api/bins/{code}/sharing", sharingSetting)
+	mux.HandleFunc("POST /api/bins/{code}/replace", replaceBin)
 
 	mux.HandleFunc("GET /api/bins/{code}/requests", getBinRequests)
 	mux.HandleFunc("GET /api/bins/{code}/events", getBinEvents)
