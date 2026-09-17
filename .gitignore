@@ -12,3 +12,6 @@
 webhook-inspector
 coverage.out
 .DS_Store
+
+
+test-bins

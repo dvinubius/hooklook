@@ -1,19 +1,17 @@
 # hooklook
 
-A small, self-hosted request bin written in Go. Hooklook token holders can
-create temporary endpoints, send arbitrary HTTP requests, and inspect what was
-captured live.
-
-This is a learning project focused on Go's HTTP model, safe handling of
-untrusted payloads, SQLite persistence, live Server-Sent Events, and a small
-complete service.
+A small, self-hosted request bin written in Go. The current backend lets
+creation-token holders create temporary endpoints, send arbitrary HTTP
+requests, and receive live capture events. The
+[production v1 plan](.agents/PROJECT_PLAN.md) replaces creation tokens with
+one cookie-associated bin per browser and adds the inspection UI.
 
 ## Intended v1 use
 
-Hooklook is designed for one developer testing integrations at a time, with at
-most five bins actively receiving requests. It is not a high-throughput webhook
-platform or a file-transfer service; the service limits reflect that expected
-use. See [ADR 0001](docs/adr/0001-public-ingress-limits.md) for the details.
+Hooklook is designed for small-scale integration testing. The current limits
+and planned production limits differ; see the
+[current architecture](docs/architecture.md) and
+[production design notes](.agents/design-notes.md).
 
 ## Live request events
 
@@ -32,6 +30,9 @@ server shutdown also close its open event streams.
 
 - [Plan](.agents/PROJECT_PLAN.md)
 - [Current progress](.agents/PROGRESS.md)
+- [Completed milestones](.agents/done-milestones.md)
+- [Current architecture](docs/architecture.md)
+- [Current HTTP API](docs/http-api.md)
 - [Architecture decision records](docs/adr/)
 
 ## Capture smoke test
@@ -69,9 +70,9 @@ go run .
 Hooklook reads process environment variables only; `.env` is a local shell and
 deployment convenience, not an application configuration format.
 
-### Request-body limit
+### Current request-body limit
 
-`MAX_REQUEST_BODY_BYTES` sets the largest request body hooklook will capture.
-It defaults to `262144` (256 KiB). Oversized bodies and headers are rejected
-before storage. See [ADR 0001](docs/adr/0001-public-ingress-limits.md) for the
-complete resource, retention, and public-ingress policy.
+`MAX_REQUEST_BODY_BYTES` sets the largest request body the current Go backend
+will capture. It defaults to `262144` (256 KiB). Oversized bodies and headers
+are rejected before storage. The production plan moves these ingress limits to
+Caddy.

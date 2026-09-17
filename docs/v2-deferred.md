@@ -1,5 +1,9 @@
 # Deferred V2 hardening
 
+Historical note: the updated [production v1 plan](../.agents/PROJECT_PLAN.md)
+now requires Caddy rate limiting and header-size enforcement. The policies
+below describe the earlier plan and are not the current milestone direction.
+
 ## Edge rate limiting
 
 Rate limiting is deferred from v1. Hooklook is expected to serve one developer
