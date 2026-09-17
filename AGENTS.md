@@ -6,6 +6,7 @@ Small, self-hosted Go request bin for learning practical HTTP/backend work. Keep
 
 - Read `.agents/PROGRESS.md` and `.agents/PROJECT_PLAN.md` at the start of implementation work.
 - Before moving on, confirm the current milestone works and update `PROGRESS.md` with the outcome and next step.
+- Do not run frontend test (browser preview, playwright etc.); i'm eyeballing the results myself
 
 ## Technical constraints
 
