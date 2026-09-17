@@ -5,6 +5,9 @@
  * owner cookie is HttpOnly and is never read here. */
 
 export interface PageLocation {
+  /** The origin the browser is actually on, which is the one every capture,
+   *  share and API URL must be built from. */
+  origin: string
   /** Bin code from `/bins/{code}` — empty when the path is not a bin page. */
   code: string
   /** Selected request id from `/bins/{code}/requests/{id}`, or null. */
@@ -18,8 +21,9 @@ const binPath = /^\/bins\/([^/]+)(?:\/requests\/([^/]+))?\/?$/
 export function parseLocation(url: string, origin: string): PageLocation {
   const parsed = new URL(url, origin)
   const match = binPath.exec(parsed.pathname)
-  if (!match) return { code: '', requestId: null, invite: '' }
+  if (!match) return { origin: parsed.origin, code: '', requestId: null, invite: '' }
   return {
+    origin: parsed.origin,
     code: decodeURIComponent(match[1]!),
     requestId: match[2] ? decodeURIComponent(match[2]) : null,
     invite: parsed.searchParams.get('invite') ?? '',
