@@ -11,6 +11,7 @@ import BodyView from '../components/BodyView.vue'
 import HeadersView from '../components/HeadersView.vue'
 import RequestDetailView from '../components/RequestDetail.vue'
 import RequestList from '../components/RequestList.vue'
+import SelectMenu from '../components/SelectMenu.vue'
 import { describeBody } from '../lib/body'
 import type { RequestDetail, RequestSummary } from '../types'
 
@@ -50,6 +51,8 @@ const listProps = {
   stream: 'live',
   error: '',
   selectedId: null,
+  owner: true,
+  deleting: false,
 }
 
 describe('BodyView', () => {
@@ -69,6 +72,20 @@ describe('BodyView', () => {
     expect(textOf(html)).toContain('"<img src=x onerror=1>"')
   })
 
+  it('offers raw and formatted views, formatted by default, and a copy control', async () => {
+    const html = await render(BodyView, { body: describeBody(btoa('{"a":1}'), 'application/json') })
+    expect(html).toMatch(/aria-pressed="false"[^>]*>\s*raw\s*</)
+    expect(html).toMatch(/aria-pressed="true"[^>]*>\s*formatted\s*</)
+    expect(html).toContain('aria-label="Copy raw body"')
+    expect(html).not.toContain('Copy body<')
+  })
+
+  it('has no view choice when there is nothing to format', async () => {
+    const html = await render(BodyView, { body: describeBody(btoa('plain words'), 'text/plain') })
+    expect(html).not.toContain('aria-pressed')
+    expect(html).toContain('aria-label="Copy raw body"')
+  })
+
   it('escapes an XML capture too, tags and all', async () => {
     const body = describeBody(btoa('<a><b>t &amp; u</b></a>'), 'application/xml')
     const html = await render(BodyView, { body })
@@ -80,7 +97,7 @@ describe('BodyView', () => {
 
   it('says a body is empty rather than showing an empty box', async () => {
     const html = await render(BodyView, { body: describeBody('', '') })
-    expect(html).toContain('this request had no body')
+    expect(html).toContain('no body')
   })
 
   it('shows bytes as a hex dump and names the encoding of text', async () => {
@@ -108,7 +125,6 @@ describe('HeadersView', () => {
       headers: { Authorization: ['[REDACTED]'], 'Content-Type': ['application/json'] },
     })
     expect(html).toContain('[REDACTED]')
-    expect(html).toContain('cannot be recovered')
     expect(html).toContain('application/json')
   })
 
@@ -130,7 +146,7 @@ describe('RequestList', () => {
     expect(html).toContain('POST')
     expect(html).toContain('/orders/42')
     expect(html).toContain('?retry=1')
-    expect(html).toContain('1 captured')
+    expect(html).toContain('total: 1')
   })
 
   it('distinguishes nothing-yet from nothing-matching', async () => {
@@ -141,9 +157,10 @@ describe('RequestList', () => {
     expect(loading).toContain('loading captured requests')
   })
 
-  it('names the stream state in words rather than animating it', async () => {
+  it('shows a live stream as a status dot and names every other state in words', async () => {
     const live = await render(RequestList, listProps)
-    expect(live).toContain('// live')
+    expect(live).toContain('class="live"')
+    expect(textOf(live)).toContain('streaming')
     const down = await render(RequestList, { ...listProps, stream: 'reconnecting' })
     expect(down).toContain('reconnecting')
   })
@@ -152,6 +169,19 @@ describe('RequestList', () => {
     const html = await render(RequestList, { ...listProps, error: 'The request list could not be loaded just now.' })
     expect(html).toContain('could not be loaded')
     expect(html).toContain('Reload list')
+  })
+
+  it('gives an owner a delete control on the selected row only, and a guest none', async () => {
+    const unselected = await render(RequestList, listProps)
+    expect(unselected).not.toContain('Delete request')
+
+    const owner = await render(RequestList, { ...listProps, selectedId: '12' })
+    expect(owner).toContain('aria-label="Delete request"')
+
+    const guest = await render(RequestList, { ...listProps, selectedId: '12', owner: false })
+    expect(guest).not.toContain('Delete request')
+    // The guest still sees the request itself; only the mutation is absent.
+    expect(guest).toContain('/orders/42')
   })
 })
 
@@ -162,23 +192,25 @@ describe('RequestDetail', () => {
     rawBody: btoa('{"a":1}'),
   }
 
-  it('gives an owner a delete control and a guest none', async () => {
-    const owner = await render(RequestDetailView, {
-      detail, selectedId: '12', loading: false, error: '', missing: false, owner: true, deleting: false,
+  it('leaves deleting to the list', async () => {
+    const html = await render(RequestDetailView, {
+      detail, selectedId: '12', loading: false, error: '', missing: false,
     })
-    expect(owner).toContain('Delete request')
+    expect(html).not.toContain('Delete request')
+    expect(html).toContain('/orders/42')
+  })
 
-    const guest = await render(RequestDetailView, {
-      detail, selectedId: '12', loading: false, error: '', missing: false, owner: false, deleting: false,
+  it('says by the headers label that redacted values cannot be recovered', async () => {
+    const html = await render(RequestDetailView, {
+      detail, selectedId: '12', loading: false, error: '', missing: false,
     })
-    expect(guest).not.toContain('Delete request')
-    // The guest still sees the request itself; only the mutation is absent.
-    expect(guest).toContain('/orders/42')
+    expect(html).toContain('aria-label="About redacted headers"')
+    expect(html).toContain('cannot be recovered')
   })
 
   it('explains a selection the bin no longer holds', async () => {
     const html = await render(RequestDetailView, {
-      detail: null, selectedId: '12', loading: false, error: '', missing: true, owner: true, deleting: false,
+      detail: null, selectedId: '12', loading: false, error: '', missing: true,
     })
     expect(html).toContain('is not in this bin')
     expect(html).toContain('Back to the list')
@@ -186,8 +218,25 @@ describe('RequestDetail', () => {
 
   it('prompts when nothing is selected', async () => {
     const html = await render(RequestDetailView, {
-      detail: null, selectedId: null, loading: false, error: '', missing: false, owner: true, deleting: false,
+      detail: null, selectedId: null, loading: false, error: '', missing: false,
     })
-    expect(html).toContain('no request selected')
+    expect(html).toContain('// Select a request')
+  })
+})
+
+describe('SelectMenu', () => {
+  it('shows the current choice and marks it among the options', async () => {
+    const html = await render(SelectMenu, {
+      modelValue: 'oldest',
+      options: [
+        { value: 'newest', label: 'newest first' },
+        { value: 'oldest', label: 'oldest first' },
+      ],
+      label: 'Order',
+    })
+    expect(html).toContain('role="combobox"')
+    expect(html).toContain('aria-expanded="false"')
+    expect(textOf(html)).toMatch(/^\s*oldest first/)
+    expect(html).toMatch(/aria-selected="true"[^>]*>\s*oldest first/)
   })
 })

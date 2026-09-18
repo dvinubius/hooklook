@@ -143,6 +143,15 @@ func TestGetBinEventsStreamsPersistedRequestSummary(t *testing.T) {
 		t.Fatalf("event stream response = %d, %q", response.StatusCode, response.Header.Get("Content-Type"))
 	}
 
+	// The stream opens with a comment before any capture, so a buffering proxy
+	// has body bytes to pass on and the client's open is not left waiting.
+	reader := bufio.NewReader(response.Body)
+	for _, want := range []string{": connected\n", "\n"} {
+		if line, err := reader.ReadString('\n'); err != nil || line != want {
+			t.Fatalf("opening line = %q, want %q, error = %v", line, want, err)
+		}
+	}
+
 	captureResponse, err := server.Client().Post(server.URL+"/b/test-bin/github/events?source=example", "application/json", bytes.NewBufferString(`{"ok":true}`))
 	if err != nil {
 		t.Fatalf("capture request: %v", err)
@@ -152,7 +161,6 @@ func TestGetBinEventsStreamsPersistedRequestSummary(t *testing.T) {
 		t.Fatalf("capture status = %d", captureResponse.StatusCode)
 	}
 
-	reader := bufio.NewReader(response.Body)
 	line, err := reader.ReadString('\n')
 	if err != nil || line != "event: request\n" {
 		t.Fatalf("event line = %q, error = %v", line, err)

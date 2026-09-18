@@ -81,7 +81,7 @@ function closed(): void {
 .panel-body {
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 32px;
   padding: 20px 24px 24px;
 }
 .head {
@@ -92,10 +92,11 @@ function closed(): void {
 }
 .head h2 {
   margin: 0;
+  font-size: 20px;
 }
 .close {
-  padding: 0 4px;
-  font-size: 22px;
+  padding: 0 0px;
+  font-size: 28px;
   line-height: 1;
 }
 </style>

@@ -8,18 +8,22 @@
    a guest who calls these endpoints directly is refused there, not here. The
    invitation is never rendered except as the owner's own share link. */
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import AboutDialog from './AboutDialog.vue'
 import CaptureTarget from './CaptureTarget.vue'
-import IconCog from './IconCog.vue'
-import InfoPopover from './InfoPopover.vue'
+import ClearConfirm from './ClearConfirm.vue'
+import HelpGuide from './HelpGuide.vue'
+import IconHelp from './IconHelp.vue'
+import IconGithub from './IconGithub.vue'
+import IconSweep from './IconSweep.vue'
+import LoadingSpinner from './LoadingSpinner.vue'
 import ModalDialog from './ModalDialog.vue'
-import OwnerControls from './OwnerControls.vue'
 import RequestDetailView from './RequestDetail.vue'
 import RequestList from './RequestList.vue'
+import ThemeToggle from './ThemeToggle.vue'
+import ToggleSwitch from './ToggleSwitch.vue'
 import { api, ApiError } from '../api'
 import { browserFeedEnvironment, createFeed } from '../lib/feed'
-import { formatInstant, untilExpiry } from '../lib/format'
-import { pagePath, parseLocation } from '../lib/location'
-import { theme, toggleTheme } from '../lib/theme'
+import { captureUrl, inviteUrl, pagePath, parseLocation } from '../lib/location'
 import type { BinSession } from '../lib/session'
 import type { BinAccess, RequestDetail } from '../types'
 
@@ -27,12 +31,6 @@ const props = defineProps<{ session: BinSession; access: BinAccess }>()
 
 const page = props.session.page
 const code = computed(() => props.access.bin.code)
-// Ticks so the countdown moves down to "any second now" on an open page.
-const now = ref(Date.now())
-const clock = setInterval(() => (now.value = Date.now()), 15_000)
-const expiry = computed(() => untilExpiry(props.access.bin.expiresAt, now.value))
-// A guest is only ever here through an enabled invitation.
-const shared = computed(() => !props.access.owner || props.access.sharingEnabled)
 
 // ---- the live list ----------------------------------------------------
 
@@ -115,9 +113,17 @@ watch([feed.summaries, feed.loaded], () => {
 
 // ---- owner mutations --------------------------------------------------
 
-const busy = ref('')
+const requestList = ref<InstanceType<typeof RequestList> | null>(null)
+
+// Each kind of change is pending on its own: the server takes them
+// independently, so saving access does not hold up clearing, or the reverse.
+// A second click on the same kind while it is pending is ignored.
+type Mutation = 'sharing' | 'clear' | 'delete'
+const pending = ref(new Set<Mutation>())
 const mutationError = ref('')
-const settingsOpen = ref(false)
+const clearOpen = ref(false)
+const aboutOpen = ref(false)
+const helpOpen = ref(false)
 
 function describeFailure(cause: unknown): string {
   if (cause instanceof ApiError && cause.status === 403) {
@@ -132,16 +138,16 @@ function describeFailure(cause: unknown): string {
   return 'hooklook could not be reached, so nothing was changed.'
 }
 
-async function mutate(name: string, run: () => Promise<void>): Promise<void> {
-  if (busy.value !== '') return
-  busy.value = name
+async function mutate(name: Mutation, run: () => Promise<void>): Promise<void> {
+  if (pending.value.has(name)) return
+  pending.value.add(name)
   mutationError.value = ''
   try {
     await run()
   } catch (cause) {
     mutationError.value = describeFailure(cause)
   } finally {
-    busy.value = ''
+    pending.value.delete(name)
   }
 }
 
@@ -152,19 +158,30 @@ function setSharing(enabled: boolean): void {
   })
 }
 
-function clearRequests(): void {
-  void mutate('clear', async () => {
+// The confirmation closes once the bin is empty; a failure keeps it open,
+// with the reason, so it can be retried.
+async function clearRequests(): Promise<void> {
+  await mutate('clear', async () => {
     await api.clearRequests(code.value)
     select(null, true)
     await feed.refetch()
   })
+  if (mutationError.value === '') clearOpen.value = false
 }
+
+const guestLink = computed(() =>
+  props.access.inviteId ? inviteUrl(code.value, props.access.inviteId, page.origin) : '',
+)
 
 function removeRequest(id: string): void {
   void mutate('delete', async () => {
     await api.deleteRequest(code.value, id)
     feed.forget(id)
-    if (selectedId.value === id) select(null, true)
+    // The top row of the list as shown takes over, and keeps the keyboard:
+    // the delete control that had focus went with the deleted row.
+    const next = requestList.value?.topId() ?? null
+    select(next, true)
+    if (next !== null) requestList.value?.focusRow(next)
     await feed.refetch()
   })
 }
@@ -181,7 +198,6 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
-  clearInterval(clock)
   window.removeEventListener('popstate', readSelectionFromUrl)
   feed.stop()
   detailRequest?.abort()
@@ -193,68 +209,84 @@ onBeforeUnmount(() => {
     <header class="top">
       <div class="mark"><span class="bracket">[</span> hooklook <span class="bracket">]</span></div>
       <div class="top-end">
-        <span class="meta role">{{ access.owner ? 'your bin' : 'shared with you' }}</span>
-        <button class="btn btn-quiet" type="button" @click="toggleTheme">// {{ theme }}</button>
+        <button class="about-link" type="button" aria-haspopup="dialog" @click="aboutOpen = true">
+          // About
+        </button>
+        <ThemeToggle />
       </div>
     </header>
+    <AboutDialog :open="aboutOpen" @close="aboutOpen = false" />
     <hr class="rule" />
 
     <main class="body">
       <section class="identity">
-        <div class="heading-row">
-          <h1 class="title">{{ access.owner ? 'Your bin' : 'Shared bin' }}</h1>
-          <button
-            v-if="access.owner"
-            class="btn btn-outline settings"
-            type="button"
-            aria-label="Bin settings"
-            title="Bin settings"
-            aria-haspopup="dialog"
-            @click="settingsOpen = true"
-          >
-            <IconCog class="cog" />
-          </button>
-        </div>
+        <!-- A guest sees no heading; the page still names itself to a screen reader. -->
+        <h1 v-if="!access.owner" class="sr-only">Shared bin</h1>
         <CaptureTarget :code="access.bin.code" :origin="page.origin">
-          <div class="facts-row">
-            <dl class="facts">
-              <div class="fact">
-                <dt class="meta">created</dt>
-                <dd>{{ formatInstant(access.bin.createdAt) }}</dd>
-              </div>
-              <div class="fact">
-                <dt class="meta">expires</dt>
-                <dd :title="formatInstant(access.bin.expiresAt)">{{ expiry }}</dd>
-              </div>
-              <div class="fact">
-                <dt class="meta">access</dt>
-                <dd class="access">
-                  {{ shared ? 'shared' : 'private' }}
-                  <InfoPopover label="About the capture URL">
-                    Anyone holding this URL can send requests to your bin. It does not let them
-                    read what arrives here.
-                  </InfoPopover>
-                </dd>
-              </div>
-            </dl>
-          </div>
+          <template v-if="access.owner" #heading>
+            <h1 class="title">Your bin</h1>
+          </template>
+          <template v-if="access.owner" #tools>
+            <div class="heading-actions">
+              <button
+                class="btn btn-outline icon-button"
+                type="button"
+                aria-label="How to"
+                title="How to"
+                aria-haspopup="dialog"
+                @click="helpOpen = true"
+              >
+                <IconHelp class="icon" />
+              </button>
+              <button
+                class="btn btn-outline icon-button"
+                type="button"
+                aria-label="Clear all requests"
+                title="Clear all requests"
+                aria-haspopup="dialog"
+                :disabled="feed.summaries.value.length === 0 || pending.has('clear')"
+                @click="clearOpen = true"
+              >
+                <IconSweep class="icon" />
+              </button>
+            </div>
+          </template>
+          <template v-if="access.owner" #actions>
+            <!-- The switch shows what the server holds: it flips once the
+                 change is saved, not on the click. -->
+            <div class="access-toggle">
+              <LoadingSpinner v-if="pending.has('sharing')" class="pending" label="Saving access" />
+              <ToggleSwitch
+                :model-value="access.sharingEnabled"
+                label="Guest access"
+                :disabled="pending.has('sharing')"
+                @update:model-value="setSharing"
+              />
+            </div>
+          </template>
         </CaptureTarget>
       </section>
 
+      <ModalDialog class="help-modal" :open="helpOpen" title="How to" @close="helpOpen = false">
+        <HelpGuide
+          :capture-url="captureUrl(access.bin.code, page.origin)"
+          :guest-link="guestLink"
+          :origin="page.origin"
+        />
+      </ModalDialog>
+
       <template v-if="access.owner">
-        <ModalDialog :open="settingsOpen" title="Bin settings" @close="settingsOpen = false">
-          <OwnerControls
-            :access="access"
-            :origin="page.origin"
+        <ModalDialog :open="clearOpen" title="Empty the bin" @close="clearOpen = false">
+          <ClearConfirm
             :request-count="feed.summaries.value.length"
-            :busy="busy"
+            :clearing="pending.has('clear')"
             :error="mutationError"
-            @sharing="setSharing"
-            @clear="clearRequests"
+            @confirm="clearRequests"
+            @cancel="clearOpen = false"
           />
         </ModalDialog>
-        <!-- Deleting one request fails out here, not in the modal. -->
-        <p v-if="mutationError && !settingsOpen" class="failure">{{ mutationError }}</p>
+        <!-- Emptying the bin fails inside its dialog; everything else out here. -->
+        <p v-if="mutationError && !clearOpen" class="failure">{{ mutationError }}</p>
       </template>
       <p v-else class="meta guest">
         // read-only: this bin is shared with you, so nothing here can be changed or deleted
@@ -264,14 +296,18 @@ onBeforeUnmount(() => {
 
       <div class="workspace">
         <RequestList
+          ref="requestList"
           :summaries="feed.summaries.value"
           :loading="feed.loading.value"
           :loaded="feed.loaded.value"
           :stream="feed.stream.value"
           :error="feed.error.value"
           :selected-id="selectedId"
+          :owner="access.owner"
+          :deleting="pending.has('delete')"
           @select="select"
           @retry="feed.refetch()"
+          @remove="removeRequest"
         />
         <RequestDetailView
           :detail="detail"
@@ -279,29 +315,35 @@ onBeforeUnmount(() => {
           :loading="detailLoading"
           :error="detailError"
           :missing="detailMissing"
-          :owner="access.owner"
-          :deleting="busy === 'delete'"
           @retry="loadDetail()"
           @clear="select(null, true)"
-          @remove="removeRequest"
         />
       </div>
     </main>
 
+    <!-- As in zibs: the personal wordmark and a quiet link home, with the
+         credit — pointing at the source — between them. -->
     <footer class="foot">
-      <span class="wordmark"
-        ><span class="bracket">[</span> Dinu Barbu <span class="bracket">]</span></span
-      >
-      <span class="micro">↳ dvinubius</span>
+      <p class="wordmark">
+        <span class="bracket">[ </span>Dinu Barbu<span class="bracket"> ]</span>
+      </p>
+      <a class="credit" href="https://github.com/dvinubius/hooklook" title="hooklook on GitHub">
+        ↳ dvinubius
+        <IconGithub class="github" />
+        <span class="sr-only">— hooklook on GitHub</span>
+      </a>
+      <a class="foot-link" href="https://dinubarbu.com">→ dinubarbu.com</a>
     </footer>
   </div>
 </template>
 
 <style scoped>
+/* Exactly one viewport high, so the footer is always on screen: the list and
+   the detail take what is left and scroll inside it. */
 .page {
   display: flex;
   flex-direction: column;
-  min-height: 100%;
+  height: 100%;
   max-width: 1180px;
   width: 100%;
   margin: 0 auto;
@@ -326,82 +368,77 @@ onBeforeUnmount(() => {
 .top-end {
   display: flex;
   align-items: baseline;
-  gap: 18px;
+  gap: 24px;
+}
+/* An aside, but set at zibs' size so the two apps' About links match. */
+.about-link {
+  background: none;
+  border: none;
+  padding: 4px 0;
+  font-family: var(--font-mono);
+  font-size: 14px;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.about-link:hover {
+  color: var(--text-body);
 }
 .body {
   display: flex;
   flex-direction: column;
   gap: 28px;
   flex: 1;
+  min-height: 0;
 }
-/* The heading row matches the left column CaptureTarget lays out below it. */
+/* Sizes the capture row lays the link field and the icon buttons out with. */
 .identity {
   --lead-width: 400px;
   --row-height: 44px;
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
-}
-.heading-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  max-width: var(--lead-width);
 }
 .title {
+  flex: none;
   margin: 0;
   font-size: 26px;
   font-weight: 500;
   letter-spacing: var(--track-heading);
   line-height: var(--leading-heading);
 }
-/* One row as high as the link field above it. */
-.facts-row {
-  display: flex;
-  align-items: stretch;
-  height: var(--row-height);
+/* The help dialog stays at most 680px tall and scrolls inside past that. */
+.help-modal {
+  max-height: min(680px, calc(100vh - 32px));
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--hairline) transparent;
 }
-.facts {
-  flex: 1 1 auto;
+.heading-actions {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 24px;
-  min-width: 0;
-  margin: 0;
-  padding: 0;
-  border: 0;
+  gap: 8px;
 }
-.settings {
+/* The guest access switch, alone at the row's far right; its spinner hangs
+   16px to the left of the label, in the row's free space, so nothing moves
+   while a change is saving. */
+.access-toggle {
+  position: relative;
+  display: inline-flex;
+}
+.pending {
+  position: absolute;
+  top: 50%;
+  right: calc(100% + 16px);
+  transform: translateY(-50%);
+}
+/* Square icon buttons, as high as the link field below them. */
+.icon-button {
   flex: none;
   width: var(--row-height);
   height: var(--row-height);
   padding: 0;
   justify-content: center;
 }
-.cog {
-  width: 26px;
-  height: 26px;
-}
-.fact {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  line-height: 1.4;
-}
-.fact dt {
-  white-space: nowrap;
-}
-.fact dd {
-  margin: 0;
-  font-size: var(--text-small);
-  white-space: nowrap;
-}
-.access {
-  display: flex;
-  align-items: center;
-  gap: 6px;
+.icon {
+  width: 22px;
+  height: 22px;
 }
 .guest {
   margin: 0;
@@ -412,28 +449,71 @@ onBeforeUnmount(() => {
   background: var(--surface-shade);
   font-size: var(--text-small);
 }
+/* A window too short to leave this much makes the page scroll instead. */
 .workspace {
+  --list-width: 360px;
+  --column-gap: 32px;
+  position: relative;
+  flex: 1;
+  min-height: 280px;
   display: grid;
-  grid-template-columns: minmax(300px, 400px) minmax(0, 1fr);
-  gap: 32px;
-  align-items: start;
+  grid-template-columns: var(--list-width) minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+  gap: var(--column-gap);
 }
-@media (max-width: 900px) {
-  .workspace {
-    grid-template-columns: minmax(0, 1fr);
-  }
+/* A hairline down the middle of the gap between the list and the detail. */
+.workspace::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: calc(var(--list-width) + var(--column-gap) / 2);
+  width: 1px;
+  background: var(--hairline);
 }
 .foot {
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
   align-items: baseline;
-  gap: 12px;
-  padding-top: 16px;
+  gap: 24px;
+  padding-top: 20px;
   border-top: 1px solid var(--hairline);
 }
 .wordmark {
-  font-size: var(--text-small);
+  margin: 0;
+  font-size: 16px;
   font-weight: 500;
   letter-spacing: var(--track-wordmark);
+  white-space: nowrap;
+}
+/* Quiet link: body text over a 1px accent rule, with a leading arrow. */
+/* The credit sits dead centre, whatever the two ends measure. */
+.credit {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-mono);
+  font-size: var(--text-mono-micro);
   color: var(--text-muted);
+  text-decoration: none;
+}
+.credit:hover {
+  color: var(--text-body);
+}
+.github {
+  width: 14px;
+  height: 14px;
+}
+.foot-link {
+  justify-self: end;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-body);
+  text-decoration: none;
+  border-bottom: 1px solid var(--accent);
+  padding-bottom: 1px;
+}
+.foot-link:hover {
+  color: var(--accent-on-hover);
 }
 </style>

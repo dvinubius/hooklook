@@ -17,6 +17,9 @@ authorization. The application resolves the request id itself, so an unknown id
 is not a server error. Because the document references its assets by absolute
 path, a direct navigation or a reload works at either depth.
 
+The page is laid out for viewports 1024px wide and up, and has no media
+queries: narrower screens are not supported.
+
 In development the browser stays on the **Vite** origin, and Vite proxies the
 home, page, API, SSE and capture routes back to Go. One origin is what makes the
 `HttpOnly` owner cookie, Go's `Origin` check on mutations, and `EventSource` all
@@ -86,15 +89,18 @@ itself refused needs no recheck — that request *was* the check.
 
 Loading, empty, filtered-empty, reconnecting and recoverable-error are each
 distinct states named in words. The brand defines no motion, so a reconnecting
-stream says so rather than pulsing.
+stream says so rather than pulsing. A live stream reads "streaming" beside a
+still green dot.
 
 ## One request in full
 
 The list stays body-free, so selecting a row fetches that request's detail on
 its own. The selection lives in the **URL**, which is what makes back, forward
 and a capture's own detail link select the same thing; `history.pushState`
-records a choice, `replaceState` is used when clearing a selection that no
-longer exists so the history does not gain a dead entry.
+records a click, `replaceState` is used when clearing a selection that no
+longer exists so the history does not gain a dead entry. Up and down arrows move
+the selection through the list as shown, also with `replaceState`, so walking
+the list does not leave one history entry per row.
 
 A selection that changes while a detail request is in flight aborts it, and a
 response that arrives anyway is discarded by sequence number. A `404` on a
@@ -142,21 +148,26 @@ real rendered output.
 ### Headers
 
 Shown as stored, sorted by name. Values the server replaced with `[REDACTED]`
-before writing them down are marked, and the page says they cannot be recovered
-here — there is nothing that tries.
+before writing them down are marked, and an info note by the section's label
+says they cannot be recovered here — there is nothing that tries.
 
 ## Owner actions, and what a guest is
 
 Owners get sharing on/off, the invitation link, delete one request, and clear all
-requests. Capability comes from `owner` in the metadata
-response. Everything but deleting one request lives in the settings modal,
-opened from the **Settings** button beside the bin's facts. It is a native
-`<dialog>` and closes on its ×, on Esc, or on a click on the backdrop; its
-contents are unmounted while closed, so a half-confirmed action does not
-survive closing it.
+requests. Capability comes from `owner` in the metadata response. The bin's top
+row carries the owner's controls at its right end: the **Guest access** switch,
+a help button and a sweep button. Deleting one request is an icon at the right
+end of the selected row in the list; afterwards the top row of the list, as
+sorted and filtered, is selected and focused.
 
-Clearing confirms in place while naming what it destroys. **Clearing keeps the
-bin** — same capture URL and same invitation.
+The help button opens a dialog with two sections: an example request against
+the capture URL, and the invitation link with a note that it only works while
+guest access is on. The sweep button opens a confirmation that names what
+clearing destroys; a failure is reported in the dialog, which stays open. Both
+are native `<dialog>`s that close on their ×, on Esc, or on a click on the
+backdrop; their contents are unmounted while closed, so a half-confirmed action
+does not survive closing one. **Clearing keeps the bin** — same capture URL and
+same invitation.
 
 Disabling sharing does not change the invitation link; it stops the link
 working, and closes any stream open on it. Enabling it again makes the same link
@@ -165,8 +176,11 @@ work.
 **Hiding the owner controls from a guest is presentation only.** The server
 re-checks ownership, the cookie and the request `Origin` on every mutation, so a
 guest calling those endpoints directly is refused there — `403` — not here.
-Mutation failures are reported by kind (`403`, `404`, other status, unreachable)
-and never claim a success that did not happen.
+Each kind of change — saving access, clearing, deleting one request — is pending
+on its own, so one never disables the controls of another; a repeat click on the
+same kind while it is pending is ignored. Mutation failures are reported by kind
+(`403`, `404`, other status, unreachable) and never claim a success that did not
+happen.
 
 ## Modules
 
@@ -179,7 +193,7 @@ and never claim a success that did not happen.
 | `lib/body.ts` | Base64 → bytes → text → formatted → tokens, plus the hex dump. Pure functions. |
 | `lib/location.ts` | Bin code, request id and invitation read from the URL; capture and invitation URLs built on the origin the browser is really on. |
 | `lib/format.ts`, `lib/clipboard.ts`, `lib/theme.ts` | Times and byte counts, a clipboard that is allowed to be unavailable, a dark-by-default theme toggle. |
-| `components/` | `BinPage` wires the feed, selection, detail and mutations; the rest render. |
+| `components/` | `BinPage` wires the feed, selection, detail and mutations; the rest render. `AboutDialog` and `ThemeToggle` mirror their zibs counterparts. |
 
 ## Tests
 

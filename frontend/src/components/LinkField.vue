@@ -1,18 +1,30 @@
 <script setup lang="ts">
 /* A URL in a code field with its copy control inside, at the right end. The
    URL stays selectable text, so a refused clipboard still leaves a way to
-   copy it. */
+   copy it.
+
+   `base`, when the URL starts with it, recedes — it is the same for every
+   link hooklook shows, so what follows it is what tells one link from
+   another. The copy control and the tooltip still carry the whole URL. */
+import { computed } from 'vue'
 import CopyButton from './CopyButton.vue'
 
-withDefaults(defineProps<{ url: string; copyLabel: string; muted?: boolean }>(), {
-  muted: false,
-})
+const props = withDefaults(
+  defineProps<{ url: string; copyLabel: string; base?: string }>(),
+  { base: '' },
+)
+
+const parts = computed(() =>
+  props.base !== '' && props.url.startsWith(props.base)
+    ? { base: props.base, rest: props.url.slice(props.base.length) }
+    : { base: '', rest: props.url },
+)
 </script>
 
 <template>
   <div class="code-surface link-field">
-    <p class="url" :title="url">{{ url }}</p>
-    <CopyButton :text="url" :label="copyLabel" variant="icon" :muted="muted" />
+    <p class="url" :title="url"><span v-if="parts.base" class="tok-recede">{{ parts.base }}</span>{{ parts.rest }}</p>
+    <CopyButton :text="url" :label="copyLabel" variant="icon" />
   </div>
 </template>
 

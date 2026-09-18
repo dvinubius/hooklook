@@ -9,6 +9,19 @@ html,body,#app{height:100%;}
 #app{display:flex;flex-direction:column;min-height:100%;}
 
 button{font:inherit;color:inherit;border-radius:0;}
+
+/* Danger: Brick, the earthy red sibling of Ember that zibs uses for errors,
+   paired like the accent — Brick on light, Brick Light on dark. Only for a
+   destructive action, never decoration. */
+[data-theme="light"]{--danger:#A03028;--danger-text-on:var(--paper);}
+[data-theme="dark"]{--danger:#E0756A;--danger-text-on:var(--ink);}
+
+/* Hover feedback on buttons, links and list items eases in and out over
+   150ms rather than snapping; list items opt in with --hover-transition. */
+:root{
+  --hover-transition:color 150ms ease-in-out,background-color 150ms ease-in-out,border-color 150ms ease-in-out;
+}
+button,.btn,a{transition:var(--hover-transition);}
 input,select{font:inherit;border-radius:0;}
 ::selection{background:var(--accent-glyph);}
 
@@ -39,6 +52,10 @@ input,select{font:inherit;border-radius:0;}
 .muted{color:var(--text-muted);}
 .truncate{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 
+/* A short upright hairline that parts a section label from its facts in a
+   header row; the facts keep their own · between them. */
+.separator{align-self:center;flex:none;width:1px;height:12px;background:var(--text-muted);opacity:0.5;}
+
 /* ---- surfaces --------------------------------------------------------- */
 
 .panel{background:var(--surface-card);}
@@ -62,8 +79,8 @@ input,select{font:inherit;border-radius:0;}
 .btn-outline:not(:disabled):hover{border-color:var(--text-body);}
 .btn-quiet{padding:6px 0;color:var(--text-muted);}
 .btn-quiet:not(:disabled):hover{color:var(--text-body);}
-.btn-danger{border-color:var(--hairline);color:var(--text-muted);}
-.btn-danger:not(:disabled):hover{border-color:var(--text-body);color:var(--text-body);}
+.btn-danger{border-color:var(--danger);color:var(--danger);}
+.btn-danger:not(:disabled):hover{background:var(--danger);color:var(--danger-text-on);}
 .btn-sm{padding:6px 10px;font-size:12px;}
 
 .field{
@@ -73,7 +90,6 @@ input,select{font:inherit;border-radius:0;}
 }
 .field::placeholder{color:var(--text-muted);}
 .field:focus{outline:1px solid var(--text-muted);outline-offset:-1px;border-color:var(--text-muted);}
-select.field{cursor:pointer;}
 
 :focus-visible{outline:2px solid var(--accent);outline-offset:1px;}
 

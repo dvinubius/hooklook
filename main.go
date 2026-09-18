@@ -76,6 +76,8 @@ func routes() http.Handler {
 	mux.HandleFunc("GET /{$}", home)
 	mux.HandleFunc("GET /bins/{code}", inspectorPage)
 	mux.HandleFunc("GET /bins/{code}/requests/{id}", inspectorPage)
+	mux.HandleFunc("GET /bins/{code}/{$}", withoutTrailingSlash)
+	mux.HandleFunc("GET /bins/{code}/requests/{id}/{$}", withoutTrailingSlash)
 	mux.HandleFunc("GET /assets/{path...}", builtAsset(hashedAssetCache))
 	mux.HandleFunc("GET /fonts/{path...}", builtAsset(staticFileCache))
 	mux.HandleFunc("GET /api/bins/{code}", binInfo)

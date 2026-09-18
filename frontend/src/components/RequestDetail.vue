@@ -4,6 +4,7 @@
 import { computed } from 'vue'
 import BodyView from './BodyView.vue'
 import HeadersView from './HeadersView.vue'
+import InfoPopover from './InfoPopover.vue'
 import { describeBody } from '../lib/body'
 import { formatInstant } from '../lib/format'
 import type { RequestDetail } from '../types'
@@ -14,11 +15,9 @@ const props = defineProps<{
   loading: boolean
   error: string
   missing: boolean
-  owner: boolean
-  deleting: boolean
 }>()
 
-defineEmits<{ retry: []; clear: []; remove: [id: string] }>()
+defineEmits<{ retry: []; clear: [] }>()
 
 const body = computed(() =>
   props.detail ? describeBody(props.detail.rawBody, props.detail.contentType) : null,
@@ -26,11 +25,8 @@ const body = computed(() =>
 </script>
 
 <template>
-  <section class="detail">
-    <p v-if="selectedId === null" class="placeholder shade">
-      <span class="meta">// no request selected</span>
-      <span class="hint">Choose a request from the list to see its headers and body.</span>
-    </p>
+  <section class="detail scroll">
+    <p v-if="selectedId === null" class="meta prompt">// Select a request</p>
 
     <p v-else-if="missing" class="placeholder shade">
       <span class="meta">// request {{ selectedId }} is not in this bin</span>
@@ -58,38 +54,21 @@ const body = computed(() =>
             class="query"
           >?{{ detail.rawQuery }}</span></span>
         </div>
-        <button
-          v-if="owner"
-          class="btn btn-danger btn-sm"
-          type="button"
-          :disabled="deleting"
-          @click="$emit('remove', detail.id)"
-        >
-          {{ deleting ? 'Deleting…' : 'Delete request' }}
-        </button>
+        <p class="facts">
+          <span>{{ formatInstant(detail.receivedAt) }}</span>
+          <span class="separator" aria-hidden="true"></span>
+          <span><span class="muted">id</span> {{ detail.id }}</span>
+        </p>
       </header>
 
-      <dl class="facts">
-        <div class="fact">
-          <dt class="meta">received</dt>
-          <dd>{{ formatInstant(detail.receivedAt) }}</dd>
-        </div>
-        <div class="fact">
-          <dt class="meta">content type</dt>
-          <dd>{{ detail.contentType || '—' }}</dd>
-        </div>
-        <div class="fact">
-          <dt class="meta">headers</dt>
-          <dd>{{ detail.headerCount }}</dd>
-        </div>
-        <div class="fact">
-          <dt class="meta">request id</dt>
-          <dd class="mono">{{ detail.id }}</dd>
-        </div>
-      </dl>
-
       <section class="headers-block">
-        <h2 class="meta-caps">Headers</h2>
+        <div class="headers-title">
+          <h2 class="meta-caps">Headers</h2>
+          <InfoPopover label="About redacted headers">
+            Credential headers are replaced with [REDACTED] before storage. The original values
+            were never written down and cannot be recovered here.
+          </InfoPopover>
+        </div>
         <HeadersView :headers="detail.headers" />
       </section>
 
@@ -99,11 +78,18 @@ const body = computed(() =>
 </template>
 
 <style scoped>
+/* Scrolls as a whole inside its column, the headers and body with it. */
 .detail {
   display: flex;
   flex-direction: column;
   gap: 22px;
   min-width: 0;
+  min-height: 0;
+  padding-right: 16px;
+}
+/* Centred in the whole pane, on the page itself — no fill. */
+.prompt {
+  margin: auto;
 }
 .placeholder {
   display: flex;
@@ -117,12 +103,11 @@ const body = computed(() =>
 .hint {
   color: var(--text-muted);
 }
+/* The request line, and under it its facts on one line of their own. */
 .head {
   display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 16px;
-  flex-wrap: wrap;
+  flex-direction: column;
+  gap: 6px;
 }
 .line {
   display: flex;
@@ -132,37 +117,36 @@ const body = computed(() =>
 }
 .method {
   font-weight: 500;
-  font-size: var(--text-title);
+  font-size: 20px;
 }
 .target {
-  font-size: var(--text-small);
+  font-size: 20px;
   word-break: break-all;
 }
 .query {
   color: var(--text-muted);
 }
+/* Received time | id, all mono, parted by the shared hairline separator. */
 .facts {
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px 32px;
+  align-items: center;
+  gap: 12px;
   margin: 0;
-}
-.fact {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-.fact dd {
-  margin: 0;
-  font-size: var(--text-small);
-  word-break: break-all;
+  font-family: var(--font-mono);
+  font-size: var(--text-mono-meta);
 }
 .headers-block {
   display: flex;
   flex-direction: column;
   gap: 10px;
 }
+.headers-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
 .headers-block h2 {
   margin: 0;
+  font-size: 14px;
 }
 </style>

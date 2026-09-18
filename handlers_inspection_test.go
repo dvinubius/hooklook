@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -156,6 +157,10 @@ func TestDisablingSharingClosesGuestStream(t *testing.T) {
 	defer stream.Body.Close()
 	if stream.StatusCode != 200 {
 		t.Fatalf("guest stream status = %d", stream.StatusCode)
+	}
+	opening := make([]byte, len(": connected\n\n"))
+	if _, err := io.ReadFull(stream.Body, opening); err != nil {
+		t.Fatalf("read opening comment: %v", err)
 	}
 	if got := callInspector(t, "PUT", "/api/bins/"+bin.Code+"/sharing", `{"enabled":false}`, owner).Code; got != 204 {
 		t.Fatalf("disable status = %d", got)

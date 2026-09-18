@@ -121,6 +121,22 @@ func TestUnauthorizedPageVisitRedirectsToTheVisitorsOwnBin(t *testing.T) {
 	}
 }
 
+func TestPageURLsWithATrailingSlashRedirectToTheCanonicalOnes(t *testing.T) {
+	useTestStore(t)
+	for path, want := range map[string]string{
+		"/bins/keen-canyon-30/":                     "/bins/keen-canyon-30",
+		"/bins/keen-canyon-30/?invite=abc":          "/bins/keen-canyon-30?invite=abc",
+		"/bins/keen-canyon-30/requests/7/":          "/bins/keen-canyon-30/requests/7",
+		"/bins/keen-canyon-30/requests/7/?invite=x": "/bins/keen-canyon-30/requests/7?invite=x",
+	} {
+		page := get(t, path, "")
+		if page.Code != http.StatusMovedPermanently || page.Header().Get("Location") != want {
+			t.Errorf("GET %s = %d → %q, want %d → %q",
+				path, page.Code, page.Header().Get("Location"), http.StatusMovedPermanently, want)
+		}
+	}
+}
+
 var shellAssetReference = regexp.MustCompile(`(?:src|href)="(/[^"]+)"`)
 
 // The built document references its assets by absolute path, which is what lets

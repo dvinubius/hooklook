@@ -98,6 +98,13 @@ func getBinEvents(w http.ResponseWriter, req *http.Request) {
 	w.Header().Set("Connection", "keep-alive")
 	w.Header().Set("X-Accel-Buffering", "no")
 
+	// Open with a comment line — EventSource ignores it — so the response has a
+	// body from the start. A proxy that holds headers back until the first body
+	// bytes (the Vite dev server does) would otherwise keep the client's `open`
+	// waiting for the first capture.
+	if _, err := fmt.Fprint(w, ": connected\n\n"); err != nil {
+		return
+	}
 	responseController := http.NewResponseController(w)
 	if err := responseController.Flush(); err != nil {
 		return

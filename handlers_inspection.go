@@ -62,6 +62,18 @@ func home(w http.ResponseWriter, req *http.Request) {
 	http.Redirect(w, req, "/bins/"+bin.Code, http.StatusSeeOther)
 }
 
+// withoutTrailingSlash sends a page URL written with a trailing slash to the
+// one the application answers on. The query string is kept — a guest's
+// invitation lives there — and nothing is looked up first: the canonical URL
+// is then authorized like any other visit, so this reveals nothing.
+func withoutTrailingSlash(w http.ResponseWriter, req *http.Request) {
+	target := strings.TrimRight(req.URL.EscapedPath(), "/")
+	if req.URL.RawQuery != "" {
+		target += "?" + req.URL.RawQuery
+	}
+	http.Redirect(w, req, target, http.StatusMovedPermanently)
+}
+
 // inspectorPage serves the application for both `/bins/{code}` and the detail
 // URL `/bins/{code}/requests/{id}` that a capture reports. Authorization and
 // the redirect to the visitor's own bin happen here, before any document is

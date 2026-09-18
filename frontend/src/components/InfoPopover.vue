@@ -3,7 +3,7 @@
    browser toggles it from the button, and closes it on Esc or a click
    elsewhere. The note is placed under the button just before it opens; it
    has a fixed width so nothing has to be measured first. */
-import { ref, useId } from 'vue'
+import { onBeforeUnmount, ref, useId } from 'vue'
 
 defineProps<{ label: string }>()
 
@@ -14,8 +14,18 @@ const note = ref<HTMLElement | null>(null)
 const width = 280
 const gutter = 16
 
+// The note is placed once, so a scroll anywhere — the page or a pane inside
+// it — would leave it behind; it closes instead.
+function dismiss(): void {
+  note.value?.hidePopover()
+}
+
 function place(event: Event): void {
-  if ((event as ToggleEvent).newState !== 'open') return
+  if ((event as ToggleEvent).newState !== 'open') {
+    window.removeEventListener('scroll', dismiss, true)
+    return
+  }
+  window.addEventListener('scroll', dismiss, true)
   const button = trigger.value?.getBoundingClientRect()
   const element = note.value
   if (!button || !element) return
@@ -24,6 +34,8 @@ function place(event: Event): void {
   element.style.top = `${button.bottom + window.scrollY + 6}px`
   element.style.left = `${left + window.scrollX}px`
 }
+
+onBeforeUnmount(() => window.removeEventListener('scroll', dismiss, true))
 </script>
 
 <template>

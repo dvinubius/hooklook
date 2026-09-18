@@ -1,29 +1,20 @@
-/** The bin page's header pieces — the capture link and example, the info
- *  popover, the settings modal and the owner controls it holds — rendered
- *  through Vue's server renderer like the other component tests. */
+/** The bin page's header pieces — the capture link, the help guide and its
+ *  example, the clear confirmation, the switch, the info popover and the modal
+ *  that holds them — rendered through Vue's server renderer like the other
+ *  component tests. */
 
 import { describe, expect, it } from 'vitest'
 import { createSSRApp, h } from 'vue'
 import { renderToString } from 'vue/server-renderer'
 import CaptureTarget from '../components/CaptureTarget.vue'
+import ClearConfirm from '../components/ClearConfirm.vue'
+import ExampleRequest from '../components/ExampleRequest.vue'
+import HelpGuide from '../components/HelpGuide.vue'
 import InfoPopover from '../components/InfoPopover.vue'
 import ModalDialog from '../components/ModalDialog.vue'
-import OwnerControls from '../components/OwnerControls.vue'
-import type { BinAccess } from '../types'
+import ToggleSwitch from '../components/ToggleSwitch.vue'
 
 const origin = 'https://hooklook.test'
-
-const access: BinAccess = {
-  bin: {
-    code: 'plucky-heron-07',
-    createdAt: '2026-09-18T08:00:00Z',
-    expiresAt: '2026-09-25T08:00:00Z',
-    totalBodyBytes: 0,
-  },
-  owner: true,
-  sharingEnabled: true,
-  inviteId: 'abc123',
-}
 
 function renderModal(open: boolean): Promise<string> {
   return renderToString(
@@ -49,43 +40,105 @@ describe('ModalDialog', () => {
   })
 })
 
-function renderOwner(bin: BinAccess): Promise<string> {
-  return renderToString(
-    createSSRApp({
-      render: () => h(OwnerControls, { access: bin, origin, requestCount: 0, busy: '', error: '' }),
-    }),
-  )
+function render(component: Parameters<typeof h>[0], props: Record<string, unknown>): Promise<string> {
+  return renderToString(createSSRApp({ render: () => h(component, props) }))
 }
 
-describe('OwnerControls', () => {
-  it('shows the guest link with a copy control inside its field', async () => {
-    const html = await renderOwner(access)
-    expect(html).toContain('Guest link')
-    expect(html).toContain(`${origin}/bins/plucky-heron-07?invite=abc123`)
+/** What a reader sees, with the markup taken off: highlighted phrases are
+ *  wrapped in their own element, so the words are checked as text. */
+function textOf(html: string): string {
+  return html.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ')
+}
+
+describe('HelpGuide', () => {
+  const props = {
+    captureUrl: `${origin}/b/plucky-heron-07`,
+    guestLink: `${origin}/bins/plucky-heron-07?invite=abc123`,
+    origin,
+  }
+
+  it('explains capturing, with the example request under it', async () => {
+    const html = await render(HelpGuide, props)
+    expect(html).toContain('capture requests')
+    expect(html).toContain('as a base URL')
+    expect(html).toContain('aria-label="Copy example request"')
+    expect(textOf(html)).toContain('roughly 100MB')
+    expect(textOf(html)).toContain('at most 500 requests')
+  })
+
+  it('says how a bin is kept', async () => {
+    const html = await render(HelpGuide, props)
+    expect(html).toContain('Preserve the Bin')
+    expect(textOf(html)).toContain('3 days of inactivity')
+  })
+
+  it('offers the guest link and says it only works while guest access is on', async () => {
+    const html = await render(HelpGuide, props)
+    expect(html).toContain('share the bin')
+    expect(textOf(html)).toContain('only valid when you enable guest access')
+    expect(html).toContain('invite=abc123')
     expect(html).toContain('aria-label="Copy guest link"')
   })
 
-  it('accents the guest link copy control only while access is shared', async () => {
-    expect(await renderOwner(access)).not.toContain('copy-icon muted')
-    expect(await renderOwner({ ...access, sharingEnabled: false })).toContain('copy-icon muted')
+  it('leaves out sharing when there is no guest link to give', async () => {
+    const html = await render(HelpGuide, { ...props, guestLink: '' })
+    expect(html).not.toContain('share the bin')
+  })
+})
+
+describe('ClearConfirm', () => {
+  it('says what emptying the bin deletes and what it keeps', async () => {
+    const html = await render(ClearConfirm, { requestCount: 3, clearing: false, error: '' })
+    expect(html).toContain('all 3 captured requests')
+    expect(html).toContain('its guest link all stay')
+    expect(html).toContain('Delete all 3')
   })
 
-  it('marks the current access mode in its toggle', async () => {
-    const checked = (html: string) => /aria-checked="true"[^>]*>\s*(\w+)/.exec(html)?.[1]
-    expect(checked(await renderOwner(access))).toBe('shared')
-    expect(checked(await renderOwner({ ...access, sharingEnabled: false }))).toBe('private')
+  it('shows progress, then a failure, in place', async () => {
+    const clearing = await render(ClearConfirm, { requestCount: 3, clearing: true, error: '' })
+    expect(clearing).toContain('Clearing…')
+    const failed = await render(ClearConfirm, {
+      requestCount: 3,
+      clearing: false,
+      error: 'hooklook could not be reached, so nothing was changed.',
+    })
+    expect(failed).toContain('nothing was changed')
+  })
+})
+
+describe('ToggleSwitch', () => {
+  it('is a labelled switch in its state, and can be held disabled', async () => {
+    const on = await render(ToggleSwitch, { modelValue: true, label: 'Guest access' })
+    expect(on).toContain('Guest access')
+    expect(on).toMatch(/role="switch" aria-checked="true"/)
+    const held = await render(ToggleSwitch, { modelValue: false, label: 'Guest access', disabled: true })
+    expect(held).toMatch(/role="switch" aria-checked="false"[^>]*disabled/)
   })
 })
 
 describe('CaptureTarget', () => {
-  it('shows the link and a curl request against a path under it', async () => {
+  it('shows the link, its origin receding, and no example of its own', async () => {
     const html = await renderToString(
       createSSRApp({ render: () => h(CaptureTarget, { code: 'plucky-heron-07', origin }) }),
     )
     const url = `${origin}/b/plucky-heron-07`
-    expect(html).toContain(`>${url}<`)
+    // The shared origin recedes; the bin's own path follows it at full strength.
+    expect(html).toMatch(new RegExp(`<span class="tok-recede"[^>]*>${origin}</span>/b/plucky-heron-07<`))
+    expect(html).toContain(`title="${url}"`)
+    // The example request lives in the help dialog now.
+    expect(html).not.toContain('curl')
+  })
+})
+
+describe('ExampleRequest', () => {
+  it('shows a curl request against a path under the capture URL', async () => {
+    const url = `${origin}/b/plucky-heron-07`
+    const html = await renderToString(createSSRApp({ render: () => h(ExampleRequest, { url }) }))
     expect(html).toContain(`curl`)
-    expect(html).toContain(`&#39;${url}/orders/42?retry=1&#39;`)
+    expect(html).toContain(`&#39;${url}&#39;`)
+    expect(html).toContain(`&quot;$BASE_URL/orders/42?retry=1&quot;`)
+    // Its copy control is the muted one: the accent is not spent on it.
+    expect(html).toMatch(/class="copy-icon muted[^"]*"[^>]*aria-label="Copy example request"/)
   })
 })
 

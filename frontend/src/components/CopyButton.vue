@@ -12,7 +12,8 @@ const props = withDefaults(
     text: string
     label: string
     variant?: 'primary' | 'outline' | 'icon'
-    /** Icon variant only: muted instead of accent, for a link not in use. */
+    /** Icon variant only: muted instead of accent — for a link not in use, or
+     *  a code block where the accent is not spent. */
     muted?: boolean
   }>(),
   { variant: 'primary', muted: false },
@@ -76,18 +77,20 @@ onBeforeUnmount(() => clearTimeout(reset))
 .copy-icon:hover {
   color: var(--accent-on-hover);
 }
+/* The icon variant always sits on a code surface, which is dark in both
+   themes, so muted takes the code ramp's greys rather than the page's. */
 .copy-icon.muted {
-  color: var(--text-muted);
+  color: var(--muted-on-dark);
 }
 .copy-icon.muted:hover {
-  color: var(--text-body);
+  color: var(--paper);
 }
 [data-theme="dark"] .copy-icon:hover {
   color: var(--paper);
 }
 .glyph {
-  width: 26px;
-  height: 26px;
+  width: 22px;
+  height: 22px;
 }
 .said {
   font-family: var(--font-mono);
