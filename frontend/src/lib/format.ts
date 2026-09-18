@@ -16,19 +16,19 @@ function count(value: number, unit: string): string {
   return `${value} ${unit}${value === 1 ? '' : 's'}`
 }
 
-/** How long a bin has left, in whole units, so the phrase always agrees with
- *  the exact timestamp beside it. */
+/** How long a bin has left, in its largest whole unit: days, then hours,
+ *  then minutes, and under a minute no number at all. */
 export function untilExpiry(iso: string, now: number): string {
   const at = new Date(iso).getTime()
   if (Number.isNaN(at)) return ''
   const seconds = Math.floor((at - now) / 1000)
   if (seconds <= 0) return 'expired'
-  if (seconds < 60) return `in ${count(seconds, 'second')}`
+  if (seconds < 60) return 'any second now'
   const minutes = Math.floor(seconds / 60)
-  if (minutes < 60) return `in ${count(minutes, 'minute')}`
+  if (minutes < 60) return count(minutes, 'minute')
   const hours = Math.floor(minutes / 60)
-  if (hours < 48) return `in ${count(hours, 'hour')}`
-  return `in ${count(Math.floor(hours / 24), 'day')}`
+  if (hours < 24) return count(hours, 'hour')
+  return count(Math.floor(hours / 24), 'day')
 }
 
 const clockFormat = new Intl.DateTimeFormat(undefined, { timeStyle: 'medium' })

@@ -30,8 +30,9 @@ server shutdown also close its open event streams.
 ## Inspecting a webhook bin
 
 Open `/` and hooklook resolves or creates the bin your browser owns, then takes
-you to its page. The page shows the capture URL to send requests to, the live
-list of what has arrived, and the full detail of whichever request is selected.
+you to its page. The page shows the capture URL to send requests to, with a
+`curl` example beside it, the live list of what has arrived, and the full
+detail of whichever request is selected.
 
 - **The list updates itself.** Captures appear without a reload, over the SSE
   stream. Because the stream replays nothing, the list is refetched from SQLite
@@ -50,11 +51,11 @@ list of what has arrived, and the full detail of whichever request is selected.
 - **Redacted headers stay redacted.** The values were replaced before storage
   and the page says so rather than implying they could be recovered.
 - **Owners get settings; guests get none.** Sharing on or off, the invitation
-  link, delete one request, clear all requests, and replace the bin. Clearing
-  keeps the bin, its capture URL and its invitation; replacing keeps none of
-  them, and says so before you confirm. Hiding the controls is presentation
-  only — the server re-checks ownership, the cookie and the request origin on
-  every mutation.
+  link, clearing all requests and replacing the bin sit behind the Settings
+  button; deleting one request is on the request itself. Clearing keeps the bin,
+  its capture URL and its invitation; replacing keeps none of them, and says so
+  before you confirm. Hiding the controls is presentation only — the server
+  re-checks ownership, the cookie and the request origin on every mutation.
 
 A shared link is read-only, and it is the invitation — not the bin code — that
 grants it. Disabling sharing stops that link working and closes any stream it

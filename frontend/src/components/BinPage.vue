@@ -9,6 +9,9 @@
    invitation is never rendered except as the owner's own share link. */
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import CaptureTarget from './CaptureTarget.vue'
+import IconCog from './IconCog.vue'
+import InfoPopover from './InfoPopover.vue'
+import ModalDialog from './ModalDialog.vue'
 import OwnerControls from './OwnerControls.vue'
 import RequestDetailView from './RequestDetail.vue'
 import RequestList from './RequestList.vue'
@@ -24,7 +27,12 @@ const props = defineProps<{ session: BinSession; access: BinAccess }>()
 
 const page = props.session.page
 const code = computed(() => props.access.bin.code)
-const expiry = computed(() => untilExpiry(props.access.bin.expiresAt, Date.now()))
+// Ticks so the countdown moves down to "any second now" on an open page.
+const now = ref(Date.now())
+const clock = setInterval(() => (now.value = Date.now()), 15_000)
+const expiry = computed(() => untilExpiry(props.access.bin.expiresAt, now.value))
+// A guest is only ever here through an enabled invitation.
+const shared = computed(() => !props.access.owner || props.access.sharingEnabled)
 
 // ---- the live list ----------------------------------------------------
 
@@ -109,6 +117,7 @@ watch([feed.summaries, feed.loaded], () => {
 
 const busy = ref('')
 const mutationError = ref('')
+const settingsOpen = ref(false)
 
 function describeFailure(cause: unknown): string {
   if (cause instanceof ApiError && cause.status === 403) {
@@ -160,17 +169,6 @@ function removeRequest(id: string): void {
   })
 }
 
-function replaceBin(): void {
-  void mutate('replace', async () => {
-    await api.replaceBin(code.value)
-    // The cookie now owns a different bin. Everything here belongs to the old
-    // one, so the page is torn down and `/` resolves whatever is owned now.
-    feed.stop()
-    props.session.stop()
-    window.location.assign('/')
-  })
-}
-
 // ---- lifecycle --------------------------------------------------------
 
 onMounted(() => {
@@ -183,6 +181,7 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
+  clearInterval(clock)
   window.removeEventListener('popstate', readSelectionFromUrl)
   feed.stop()
   detailRequest?.abort()
@@ -202,39 +201,61 @@ onBeforeUnmount(() => {
 
     <main class="body">
       <section class="identity">
-        <h1 class="code mono">{{ access.bin.code }}</h1>
-        <dl class="facts">
-          <div class="fact">
-            <dt class="meta">created</dt>
-            <dd>{{ formatInstant(access.bin.createdAt) }}</dd>
+        <div class="heading-row">
+          <h1 class="title">{{ access.owner ? 'Your bin' : 'Shared bin' }}</h1>
+          <button
+            v-if="access.owner"
+            class="btn btn-outline settings"
+            type="button"
+            aria-label="Bin settings"
+            title="Bin settings"
+            aria-haspopup="dialog"
+            @click="settingsOpen = true"
+          >
+            <IconCog class="cog" />
+          </button>
+        </div>
+        <CaptureTarget :code="access.bin.code" :origin="page.origin">
+          <div class="facts-row">
+            <dl class="facts">
+              <div class="fact">
+                <dt class="meta">created</dt>
+                <dd>{{ formatInstant(access.bin.createdAt) }}</dd>
+              </div>
+              <div class="fact">
+                <dt class="meta">expires</dt>
+                <dd :title="formatInstant(access.bin.expiresAt)">{{ expiry }}</dd>
+              </div>
+              <div class="fact">
+                <dt class="meta">access</dt>
+                <dd class="access">
+                  {{ shared ? 'shared' : 'private' }}
+                  <InfoPopover label="About the capture URL">
+                    Anyone holding this URL can send requests to your bin. It does not let them
+                    read what arrives here.
+                  </InfoPopover>
+                </dd>
+              </div>
+            </dl>
           </div>
-          <div class="fact">
-            <dt class="meta">expires</dt>
-            <dd>
-              {{ expiry }}
-              <span class="micro">· {{ formatInstant(access.bin.expiresAt) }}</span>
-            </dd>
-          </div>
-          <div v-if="access.owner" class="fact">
-            <dt class="meta">sharing</dt>
-            <dd>{{ access.sharingEnabled ? 'enabled' : 'disabled' }}</dd>
-          </div>
-        </dl>
+        </CaptureTarget>
       </section>
 
-      <CaptureTarget :code="access.bin.code" :origin="page.origin" />
-
-      <OwnerControls
-        v-if="access.owner"
-        :access="access"
-        :origin="page.origin"
-        :request-count="feed.summaries.value.length"
-        :busy="busy"
-        :error="mutationError"
-        @sharing="setSharing"
-        @clear="clearRequests"
-        @replace="replaceBin"
-      />
+      <template v-if="access.owner">
+        <ModalDialog :open="settingsOpen" title="Bin settings" @close="settingsOpen = false">
+          <OwnerControls
+            :access="access"
+            :origin="page.origin"
+            :request-count="feed.summaries.value.length"
+            :busy="busy"
+            :error="mutationError"
+            @sharing="setSharing"
+            @clear="clearRequests"
+          />
+        </ModalDialog>
+        <!-- Deleting one request fails out here, not in the modal. -->
+        <p v-if="mutationError && !settingsOpen" class="failure">{{ mutationError }}</p>
+      </template>
       <p v-else class="meta guest">
         // read-only: this bin is shared with you, so nothing here can be changed or deleted
       </p>
@@ -313,36 +334,83 @@ onBeforeUnmount(() => {
   gap: 28px;
   flex: 1;
 }
+/* The heading row matches the left column CaptureTarget lays out below it. */
 .identity {
+  --lead-width: 400px;
+  --row-height: 44px;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 18px;
 }
-.code {
+.heading-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  max-width: var(--lead-width);
+}
+.title {
   margin: 0;
-  font-size: var(--text-heading);
+  font-size: 26px;
   font-weight: 500;
   letter-spacing: var(--track-heading);
   line-height: var(--leading-heading);
-  word-break: break-all;
+}
+/* One row as high as the link field above it. */
+.facts-row {
+  display: flex;
+  align-items: stretch;
+  height: var(--row-height);
 }
 .facts {
+  flex: 1 1 auto;
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px 36px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  min-width: 0;
   margin: 0;
+  padding: 0;
+  border: 0;
+}
+.settings {
+  flex: none;
+  width: var(--row-height);
+  height: var(--row-height);
+  padding: 0;
+  justify-content: center;
+}
+.cog {
+  width: 26px;
+  height: 26px;
 }
 .fact {
   display: flex;
   flex-direction: column;
   gap: 2px;
+  line-height: 1.4;
+}
+.fact dt {
+  white-space: nowrap;
 }
 .fact dd {
   margin: 0;
   font-size: var(--text-small);
+  white-space: nowrap;
+}
+.access {
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 .guest {
   margin: 0;
+}
+.failure {
+  margin: 0;
+  padding: 12px 14px;
+  background: var(--surface-shade);
+  font-size: var(--text-small);
 }
 .workspace {
   display: grid;

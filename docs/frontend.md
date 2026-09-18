@@ -149,7 +149,11 @@ here — there is nothing that tries.
 
 Owners get sharing on/off, the invitation link, delete one request, clear all
 requests, and replace the bin. Capability comes from `owner` in the metadata
-response.
+response. Everything but deleting one request lives in the settings modal,
+opened from the **Settings** button beside the bin's facts. It is a native
+`<dialog>` and closes on its ×, on Esc, or on a click on the backdrop; its
+contents are unmounted while closed, so a half-confirmed action does not
+survive closing it.
 
 Clearing and replacing are deliberately different, and both confirm in place
 while naming what they destroy. **Clearing keeps the bin** — same capture URL,

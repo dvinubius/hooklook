@@ -1,13 +1,13 @@
 <script setup lang="ts">
-/* The owner's settings. This component is not rendered for a guest at all,
+/* The owner's settings, shown inside the settings modal, which supplies the
+   title. This component is not rendered for a guest at all,
    and hiding it is presentation only: the server re-checks ownership, the
    cookie and the request origin on every one of these calls.
 
-   The two destructive actions ask first, in place, and say what they destroy.
-   Clearing keeps the bin — same capture URL, same invitation. Replacing does
-   not: it is a different bin, and every link anyone holds stops working. */
-import { computed, ref } from 'vue'
-import CopyButton from './CopyButton.vue'
+   Clearing, the one destructive action, asks first, in place, and says what it
+   destroys — and what it keeps: the bin, its capture URL and its invitation. */
+import { computed, ref, useId } from 'vue'
+import LinkField from './LinkField.vue'
 import { inviteUrl } from '../lib/location'
 import type { BinAccess } from '../types'
 
@@ -22,55 +22,60 @@ const props = defineProps<{
 const emit = defineEmits<{
   sharing: [enabled: boolean]
   clear: []
-  replace: []
 }>()
 
-const confirming = ref<'clear' | 'replace' | ''>('')
+const accessLabel = useId()
+const accessOptions = [
+  { value: 'private', shared: false },
+  { value: 'shared', shared: true },
+] as const
+
+const confirming = ref(false)
 
 const link = computed(() =>
   props.access.inviteId ? inviteUrl(props.access.bin.code, props.access.inviteId, props.origin) : '',
 )
 
-function confirm(action: 'clear' | 'replace'): void {
-  if (confirming.value !== action) {
-    confirming.value = action
+function confirmClear(): void {
+  if (!confirming.value) {
+    confirming.value = true
     return
   }
-  confirming.value = ''
-  if (action === 'clear') emit('clear')
-  else emit('replace')
+  confirming.value = false
+  emit('clear')
 }
 </script>
 
 <template>
   <section class="owner">
-    <h2 class="meta-caps">Bin settings</h2>
-
     <div class="block">
       <div class="row">
-        <span class="label">Sharing</span>
-        <span class="value">{{ access.sharingEnabled ? 'enabled' : 'disabled' }}</span>
-        <button
-          class="btn btn-outline btn-sm"
-          type="button"
-          :disabled="busy !== ''"
-          @click="emit('sharing', !access.sharingEnabled)"
-        >
-          {{ busy === 'sharing' ? 'Saving…' : access.sharingEnabled ? 'Disable sharing' : 'Enable sharing' }}
-        </button>
-      </div>
-
-      <template v-if="link">
-        <div class="row">
-          <p class="code-surface link">{{ link }}</p>
-          <CopyButton :text="link" label="Copy invitation link" variant="outline" />
+        <span :id="accessLabel" class="label">Access</span>
+        <div class="toggle" role="radiogroup" :aria-labelledby="accessLabel">
+          <button
+            v-for="option in accessOptions"
+            :key="option.value"
+            class="option"
+            type="button"
+            role="radio"
+            :aria-checked="option.shared === access.sharingEnabled"
+            :disabled="busy !== ''"
+            @click="option.shared !== access.sharingEnabled && emit('sharing', option.shared)"
+          >
+            {{ option.value }}
+          </button>
         </div>
-        <p class="note">
-          Anyone with this link can read what arrives in this bin, but cannot change or delete
-          anything. The link stays the same while sharing is off — it simply stops working, and
-          works again the moment you turn sharing back on.
-        </p>
-      </template>
+        <span v-if="busy === 'sharing'" class="value">saving…</span>
+      </div>
+    </div>
+
+    <div v-if="link" class="block">
+      <span class="label">Guest link</span>
+      <!-- The link only works while access is shared, so only then is it accented. -->
+      <LinkField :url="link" copy-label="Copy guest link" :muted="!access.sharingEnabled" />
+      <p class="note">
+        In shared access mode, guests can view the bin page, but cannot change or delete anything.
+      </p>
     </div>
 
     <div class="block">
@@ -81,62 +86,28 @@ function confirm(action: 'clear' | 'replace'): void {
           class="btn btn-danger btn-sm"
           type="button"
           :disabled="busy !== '' || requestCount === 0"
-          @click="confirm('clear')"
+          @click="confirmClear"
         >
           {{
             busy === 'clear'
               ? 'Clearing…'
-              : confirming === 'clear'
+              : confirming
                 ? `Confirm: delete all ${requestCount}`
                 : 'Clear all requests'
           }}
         </button>
         <button
-          v-if="confirming === 'clear'"
+          v-if="confirming"
           class="btn btn-quiet btn-sm"
           type="button"
-          @click="confirming = ''"
+          @click="confirming = false"
         >
           cancel
         </button>
       </div>
-      <p v-if="confirming === 'clear'" class="note">
+      <p v-if="confirming" class="note">
         This deletes every captured request and frees the space they used. The bin, its capture URL
         and its invitation link all stay as they are.
-      </p>
-    </div>
-
-    <div class="block">
-      <div class="row">
-        <span class="label">This bin</span>
-        <span class="value mono">{{ access.bin.code }}</span>
-        <button
-          class="btn btn-danger btn-sm"
-          type="button"
-          :disabled="busy !== ''"
-          @click="confirm('replace')"
-        >
-          {{
-            busy === 'replace'
-              ? 'Replacing…'
-              : confirming === 'replace'
-                ? 'Confirm: replace this bin'
-                : 'Replace bin'
-          }}
-        </button>
-        <button
-          v-if="confirming === 'replace'"
-          class="btn btn-quiet btn-sm"
-          type="button"
-          @click="confirming = ''"
-        >
-          cancel
-        </button>
-      </div>
-      <p v-if="confirming === 'replace'" class="note">
-        You get a new bin with a new code, and this one is gone along with everything in it. The
-        capture URL you have given out stops working, and so does the invitation link — anyone
-        still using them will need the new ones.
       </p>
     </div>
 
@@ -149,9 +120,6 @@ function confirm(action: 'clear' | 'replace'): void {
   display: flex;
   flex-direction: column;
   gap: 14px;
-}
-.owner h2 {
-  margin: 0;
 }
 .block {
   display: flex;
@@ -175,13 +143,33 @@ function confirm(action: 'clear' | 'replace'): void {
   flex: 1;
   word-break: break-all;
 }
-.link {
-  flex: 1 1 320px;
-  margin: 0;
-  padding: 9px 12px;
-  color: var(--paper);
-  overflow-x: auto;
-  white-space: nowrap;
+/* Two square segments; the chosen one is filled. */
+.toggle {
+  display: inline-flex;
+  border: 1px solid var(--hairline);
+}
+.option {
+  padding: 6px 14px;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-mono-meta);
+  cursor: pointer;
+}
+.option + .option {
+  border-left: 1px solid var(--hairline);
+}
+.option[aria-checked='true'] {
+  background: var(--surface-shade);
+  color: var(--text-body);
+  cursor: default;
+}
+.option:not([aria-checked='true']):not(:disabled):hover {
+  color: var(--text-body);
+}
+.option:disabled {
+  cursor: not-allowed;
 }
 .note {
   margin: 0;
