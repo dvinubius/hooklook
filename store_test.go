@@ -38,15 +38,30 @@ func TestGenerateBinCode(t *testing.T) {
 		if err != nil {
 			t.Fatalf("generate bin code: %v", err)
 		}
-		if !regexp.MustCompile(`^[a-z]+-[a-z]+-[0-9]{8}$`).MatchString(code) {
+		if !regexp.MustCompile(`^[a-z]+-[a-z]+-[0-9]{2}$`).MatchString(code) {
 			t.Errorf("invalid bin code %q", code)
+		}
+	}
+}
+
+func TestBinCodeWordsAreDistinct(t *testing.T) {
+	for name, words := range map[string][]string{"adjectives": codeAdjectives[:], "nouns": codeNouns[:]} {
+		seen := map[string]bool{}
+		for _, word := range words {
+			if seen[word] {
+				t.Errorf("duplicate %s word %q", name, word)
+			}
+			seen[word] = true
+		}
+		if len(seen) != 36 {
+			t.Errorf("%s has %d distinct words, want 36", name, len(seen))
 		}
 	}
 }
 
 func TestCreateRetriesCodeCollision(t *testing.T) {
 	store := newTestStore(t)
-	existing, fresh := "amber-otter-12345678", "silver-comet-87654321"
+	existing, fresh := "amber-otter-12", "silver-comet-87"
 	insertTestBin(t, store, existing)
 	codes := []string{existing, fresh}
 	store.generateCode = func() (string, error) { code := codes[0]; codes = codes[1:]; return code, nil }

@@ -31,7 +31,7 @@ mutation requests require the cookie and an `Origin` header matching
 `PUBLIC_BASE_URL`. Responses involving access state use
 `Cache-Control: no-store` and `Referrer-Policy: no-referrer`.
 
-New codes have an adjective-noun-eight-digit format. Bins currently expire seven
+New codes have an adjective-noun-two-digit format. Bins currently expire seven
 days after creation; renewal and cleanup are in the next milestone. Each bin
 accepts at most 500 captures and 100 MB (100,000,000 bytes) of raw request
 bodies. Headers and metadata do not count. Common credential headers are

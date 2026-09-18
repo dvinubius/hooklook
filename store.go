@@ -50,39 +50,64 @@ func newBinStore(db *sql.DB) *Store {
 	}
 }
 
+// Bin code words. 36 × 36 × 100 two-digit suffixes gives 129,600 codes;
+// collisions are retried against the database.
+var (
+	codeAdjectives = [...]string{
+		"amber", "bold", "bright", "brisk", "calm", "cheery", "clear", "cozy", "crisp",
+		"dapper", "eager", "fancy", "fleet", "fresh", "frosty", "gentle", "golden", "green",
+		"happy", "jolly", "keen", "lively", "lucky", "mellow", "merry", "misty", "nimble",
+		"plucky", "quiet", "rosy", "silver", "sunny", "swift", "tidy", "witty", "zesty",
+	}
+	codeNouns = [...]string{
+		"acorn", "aspen", "badger", "beacon", "birch", "canyon", "cedar", "clover", "comet",
+		"coral", "cricket", "dolphin", "ember", "falcon", "fern", "glacier", "harbor", "heron",
+		"island", "lantern", "maple", "marten", "meadow", "orchard", "otter", "pebble", "puffin",
+		"raven", "river", "sparrow", "summit", "thistle", "tundra", "walrus", "willow", "zephyr",
+	}
+)
+
 func generateCode() (string, error) {
-	adjectives := [...]string{"amber", "brisk", "calm", "clear", "crisp", "gentle", "green", "lively", "mellow", "quiet", "silver", "swift"}
-	nouns := [...]string{"badger", "cedar", "comet", "falcon", "harbor", "lantern", "meadow", "otter", "pebble", "river", "sparrow", "willow"}
-	b := make([]byte, 6)
-	if _, err := rand.Read(b); err != nil {
+	a, err := randomIndex(len(codeAdjectives))
+	if err != nil {
 		return "", err
 	}
-	a := int(b[0]) % len(adjectives)
-	n := int(b[1]) % len(nouns)
-	number := uint32(b[2])<<24 | uint32(b[3])<<16 | uint32(b[4])<<8 | uint32(b[5])
-	return fmt.Sprintf("%s-%s-%08d", adjectives[a], nouns[n], number%100_000_000), nil
+	n, err := randomIndex(len(codeNouns))
+	if err != nil {
+		return "", err
+	}
+	number, err := randomIndex(100)
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%s-%s-%02d", codeAdjectives[a], codeNouns[n], number), nil
 }
 
 func randomString(alphabet string, length int) (string, error) {
 	out := make([]byte, length)
-	validByteLimit := 256 - (256 % len(alphabet))
-
 	for i := range out {
-		for {
-			var randomByte [1]byte
-			if _, err := rand.Read(randomByte[:]); err != nil {
-				return "", fmt.Errorf("read cryptographic randomness: %w", err)
-			}
-			if int(randomByte[0]) >= validByteLimit {
-				continue
-			}
+		index, err := randomIndex(len(alphabet))
+		if err != nil {
+			return "", err
+		}
+		out[i] = alphabet[index]
+	}
+	return string(out), nil
+}
 
-			out[i] = alphabet[int(randomByte[0])%len(alphabet)]
-			break
+// randomIndex returns a uniform index in [0, n) for n <= 256, rejecting bytes
+// past the last whole multiple of n so no index is favoured.
+func randomIndex(n int) (int, error) {
+	validByteLimit := 256 - (256 % n)
+	for {
+		var randomByte [1]byte
+		if _, err := rand.Read(randomByte[:]); err != nil {
+			return 0, fmt.Errorf("read cryptographic randomness: %w", err)
+		}
+		if int(randomByte[0]) < validByteLimit {
+			return int(randomByte[0]) % n, nil
 		}
 	}
-
-	return string(out), nil
 }
 
 func isUniqueConstraint(err error) bool {
