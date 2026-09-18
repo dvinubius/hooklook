@@ -1,20 +1,26 @@
 # hooklook
 
-A small, self-hosted request bin written in Go, helping you to test and debug webhook integrations. The backend creates one cookie-associated bin per browser, captures arbitrary HTTP requests, and provides owner or invited-guest inspection APIs. The Go binary serves the built Vue inspector frontend on its authorized bin pages, so one binary is the whole deployment.
+A small, self-hosted request bin written in Go, helping you to test and debug
+webhook integrations. The backend creates one cookie-associated bin per browser,
+captures arbitrary HTTP requests, and provides owner or invited-guest inspection
+APIs. The Go binary serves the built Vue inspector frontend on its authorized
+bin pages, so one binary is the whole deployment.
 
 ## Intended v1 use
 
-Hooklook is designed for small-scale integration testing of systems using webhooks. The current limits
-and planned production limits differ; see the
+Hooklook is designed for small-scale integration testing of systems using
+webhooks. The current limits and planned production limits differ; see the
 [current architecture](docs/architecture.md) and
 [production design notes](.agents/design-notes.md).
 
 ## Live request events
 
-`GET /api/bins/{binCode}/events` opens an authorized Server-Sent Events stream. Owners send their cookie; guests append their invitation identifier as `?invite=...`. Each successfully persisted inbound request produces one
-`request` event whose `data` is the same compact request summary returned by
-the request-list endpoint. Deletion and clearing publish a `refresh` event. Events are intentionally ephemeral: clients must
-refetch the list after reconnecting.
+`GET /api/bins/{binCode}/events` opens an authorized Server-Sent Events stream.
+Owners send their cookie; guests append their invitation identifier as
+`?invite=...`. Each successfully persisted inbound request produces one
+`request` event whose `data` is the same compact request summary returned by the
+request-list endpoint. Deletion and clearing publish a `refresh` event. Events
+are intentionally ephemeral: clients must refetch the list after reconnecting.
 
 Each subscriber has a one-event buffer. If it cannot consume the next event,
 hooklook closes that stream immediately; this prevents a slow browser from
@@ -108,9 +114,10 @@ page. See the [HTTP API](docs/http-api.md) for inspection and owner mutation
 routes.
 
 The backend enforces 500 requests and 100 MB (100,000,000 bytes) of raw request
-bodies in total per bin. Headers and metadata do not count. The Go-specific
-body and header policy limits have been removed. Keep this build on loopback;
-configure Caddy body, 32 KiB total-header, and rate limits before exposing it publicly.
+bodies in total per bin. Headers and metadata do not count. The Go-specific body
+and header policy limits have been removed. Keep this build on loopback;
+configure Caddy body, 32 KiB total-header, and rate limits before exposing it
+publicly.
 
 ## Tests
 

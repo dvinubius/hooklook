@@ -1,6 +1,9 @@
 # Current HTTP API
 
-This is the contract the Inspection UI ("inspector") is built on; the [frontend](frontend.md) describes how it consumes it. The page routes serve the built Vue application after authorization. The server binds to `127.0.0.1:8080` by default.
+This is the contract the Inspection UI ("inspector") is built on; the
+[frontend](frontend.md) describes how it consumes it. The page routes serve the
+built Vue application after authorization. The server binds to `127.0.0.1:8080`
+by default.
 
 | Method and path | Behavior |
 | --- | --- |
@@ -20,6 +23,17 @@ This is the contract the Inspection UI ("inspector") is built on; the [frontend]
 | `GET /admin/bins` | Operator-only list. Requires `Authorization: Bearer <ADMIN_TOKEN>`. |
 | `GET /health` | Static liveness response. |
 
-For authorized GET endpoints, owners use the `hooklook_owner` cookie and guests provide `?invite={identifier}` on **each** API and SSE request. The cookie is `HttpOnly`, `SameSite=Lax`, `Secure` when `PUBLIC_BASE_URL` uses HTTPS, and expires with the bin. A bin code alone does not permit inspection. Owner mutation requests require the cookie and an `Origin` header matching `PUBLIC_BASE_URL`. Responses involving access state use `Cache-Control: no-store` and `Referrer-Policy: no-referrer`.
+For authorized GET endpoints, owners use the `hooklook_owner` cookie and guests
+provide `?invite={identifier}` on **each** API and SSE request. The cookie is
+`HttpOnly`, `SameSite=Lax`, `Secure` when `PUBLIC_BASE_URL` uses HTTPS, and
+expires with the bin. A bin code alone does not permit inspection. Owner
+mutation requests require the cookie and an `Origin` header matching
+`PUBLIC_BASE_URL`. Responses involving access state use
+`Cache-Control: no-store` and `Referrer-Policy: no-referrer`.
 
-New codes have an adjective-noun-eight-digit format. Bins currently expire seven days after creation; renewal and cleanup are in the next milestone. Each bin accepts at most 500 captures and 100 MB (100,000,000 bytes) of raw request bodies. Headers and metadata do not count. Common credential headers are redacted before storage. Public Caddy body, total-header, and rate limits are still required before internet exposure.
+New codes have an adjective-noun-eight-digit format. Bins currently expire seven
+days after creation; renewal and cleanup are in the next milestone. Each bin
+accepts at most 500 captures and 100 MB (100,000,000 bytes) of raw request
+bodies. Headers and metadata do not count. Common credential headers are
+redacted before storage. Public Caddy body, total-header, and rate limits are
+still required before internet exposure.

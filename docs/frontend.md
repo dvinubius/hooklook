@@ -90,19 +90,19 @@ stream says so rather than pulsing.
 
 ## One request in full
 
-The list stays body-free, so selecting a row fetches that request's detail on its
-own. The selection lives in the **URL**, which is what makes back, forward and a
-capture's own detail link select the same thing; `history.pushState` records a
-choice, `replaceState` is used when clearing a selection that no longer exists so
-the history does not gain a dead entry.
+The list stays body-free, so selecting a row fetches that request's detail on
+its own. The selection lives in the **URL**, which is what makes back, forward
+and a capture's own detail link select the same thing; `history.pushState`
+records a choice, `replaceState` is used when clearing a selection that no
+longer exists so the history does not gain a dead entry.
 
 A selection that changes while a detail request is in flight aborts it, and a
-response that arrives anyway is discarded by sequence number. A `404` on a detail
-fetch means *this request* is not in the bin — a stale link, a deleted row — and
-is reported as such; it never invalidates the session, because the list fetch and
-the stream are what discover revoked access. A selection the refreshed list no
-longer contains is reported the same way instead of leaving stale detail on
-screen.
+response that arrives anyway is discarded by sequence number. A `404` on a
+detail fetch means *this request* is not in the bin — a stale link, a deleted
+row — and is reported as such; it never invalidates the session, because the
+list fetch and the stream are what discover revoked access. A selection the
+refreshed list no longer contains is reported the same way instead of leaving
+stale detail on screen.
 
 ### Bodies
 
@@ -111,33 +111,33 @@ something readable, in this order:
 
 1. **Decode** the base64 to a `Uint8Array`. An absent body arrives as an empty
    string, not `null`, and is reported as *empty* rather than as empty text.
-2. **Binary or text.** A NUL byte is decisive; otherwise it takes more than 5% of
-   C0 controls, so one stray byte in a log line does not turn a readable body
+2. **Binary or text.** A NUL byte is decisive; otherwise it takes more than 5%
+   of C0 controls, so one stray byte in a log line does not turn a readable body
    into a hex dump.
 3. **Decode text** by trying the declared `charset`, then UTF-8, then
    `windows-1252` — which maps every byte and so always succeeds. The encoding
    that won is named on screen, and a fallback is stated rather than hidden: it
    is the honest "these bytes are not UTF-8", not a guess dressed as a fact.
 4. **Format** JSON and XML, chosen by content type or sniffed from the first
-   character. Both formatters are dependency-free; the XML one walks the text and
-   prints it back, and refuses input it cannot account for (an unclosed or
-   mismatched element) rather than repairing it. Formatting failure keeps the raw
-   view and explains itself locally. Bodies over 256 KiB skip formatting.
+   character. Both formatters are dependency-free; the XML one walks the text
+   and prints it back, and refuses input it cannot account for (an unclosed or
+   mismatched element) rather than repairing it. Formatting failure keeps the
+   raw view and explains itself locally. Bodies over 256 KiB skip formatting.
 5. **Highlight** into tokens carrying a brightness tier — emphasis for JSON keys
-   and XML element names, body for values and text, recede for punctuation. It is
-   a brightness ramp, not a syntax palette.
+   and XML element names, body for values and text, recede for punctuation. It
+   is a brightness ramp, not a syntax palette.
 
-Binary bodies get a hex dump — offset, sixteen bytes, printable ASCII — capped at
-4 KiB with the truncation stated.
+Binary bodies get a hex dump — offset, sixteen bytes, printable ASCII — capped
+at 4 KiB with the truncation stated.
 
 ### Captured content never becomes markup
 
 This is the property the whole pipeline exists to protect. Highlighting produces
-**token data**, and components render it through text interpolation; nothing uses
-`v-html`, and captured bytes are never handed to a DOM parser — which is also why
-the XML formatter is hand-written. A body containing `<script>` is characters on
-a page. `src/tests/render.test.ts` asserts exactly this against real rendered
-output.
+**token data**, and components render it through text interpolation; nothing
+uses `v-html`, and captured bytes are never handed to a DOM parser — which is
+also why the XML formatter is hand-written. A body containing `<script>` is
+characters on a page. `src/tests/render.test.ts` asserts exactly this against
+real rendered output.
 
 ### Headers
 
