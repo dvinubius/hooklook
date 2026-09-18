@@ -38,9 +38,8 @@ renders captured bytes as text and never as markup. The
 The list, detail, metadata, and SSE routes check owner or guest authorization.
 Destructive routes require the owner cookie and same-origin `Origin` header.
 Detail sends the stored raw body as JSON base64 so binary data remains faithful.
-Deleting requests adjusts `total_body_bytes` in the same SQLite transaction. Bin
-replacement creates the new bin and deletes the old bin and captures in one
-transaction, then changes the cookie. SQLite foreign keys are enabled.
+Deleting requests adjusts `total_body_bytes` in the same SQLite transaction.
+There is no bin replacement endpoint. SQLite foreign keys are enabled.
 
 Public `/b/{code}` capture remains open to anyone with the code. `requests.go`
 redacts credential-like header names and preserves method, path suffix, raw

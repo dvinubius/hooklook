@@ -125,14 +125,6 @@ func (s *Store) createBin() (Bin, error) {
 }
 
 func (s *Store) createOwnedBin() (Bin, string, error) {
-	return s.createOwnedBinWith(s.db)
-}
-
-type binInserter interface {
-	Exec(string, ...any) (sql.Result, error)
-}
-
-func (s *Store) createOwnedBinWith(executor binInserter) (Bin, string, error) {
 	for {
 		code, err := s.generateCode()
 		if err != nil {
@@ -152,7 +144,7 @@ func (s *Store) createOwnedBinWith(executor binInserter) (Bin, string, error) {
 		if err != nil {
 			return Bin{}, "", err
 		}
-		_, err = executor.Exec(`
+		_, err = s.db.Exec(`
             INSERT INTO bins (code, created_at, expires_at, total_body_bytes, owner_digest, invite_id)
             VALUES (?, ?, ?, ?, ?, ?)
         `, bin.Code, bin.CreatedAt.Format(time.RFC3339Nano),

@@ -2,7 +2,7 @@
 
 # Exercises the whole inspection flow against the built binary: first visit,
 # capture, list, detail, the live stream, owner mutations, guest invitation,
-# revocation and replacement.
+# revocation and removal of the replacement route.
 #
 # It starts its own server over a throwaway SQLite database in a temporary
 # directory, so the repository's hooklook.db is left alone. The server binds
@@ -168,8 +168,6 @@ check "guest deletion is refused" \
   "$(status_of --request DELETE --header "Origin: $base" "$base/api/bins/$code/requests/$id_json?invite=$invite")" "403"
 check "guest clear is refused" \
   "$(status_of --request DELETE --header "Origin: $base" "$base/api/bins/$code/requests?invite=$invite")" "403"
-check "guest replace is refused" \
-  "$(status_of --request POST --header "Origin: $base" "$base/api/bins/$code/replace?invite=$invite")" "403"
 check "guest sharing change is refused" \
   "$(status_of --request PUT --header "Origin: $base" --header 'Content-Type: application/json' \
     --data '{"enabled":false}' "$base/api/bins/$code/sharing?invite=$invite")" "403"
@@ -182,7 +180,7 @@ check "revoked guest is refused" "$(status_of "$base/api/bins/$code?invite=$invi
 set_sharing true
 check "the same link works again" "$(status_of "$base/api/bins/$code?invite=$invite")" "200"
 
-echo "== clearing keeps the address, replacement does not"
+echo "== clearing keeps the address"
 curl --silent --output /dev/null --request DELETE --cookie "$owner" --header "Origin: $base" \
   "$base/api/bins/$code/requests"
 check "clearing empties the list" "$(curl --silent --cookie "$owner" "$base/api/bins/$code/requests")" "[]"
@@ -193,16 +191,10 @@ check "clearing keeps the capture URL working" \
   "$(status_of --request POST "$base/b/$code/after-clear")" "201"
 printf '  (total body bytes before clearing: %s)\n' "$bytes_before"
 
-new_location=$(curl --silent --output /dev/null --request POST --cookie "$owner" --cookie-jar "$owner" \
-  --header "Origin: $base" --write-out '%{redirect_url}' "$base/api/bins/$code/replace")
-new_code=${new_location##*/bins/}
-[[ -n "$new_code" && "$new_code" != "$code" ]] &&
-  pass "replacement gives a new bin $new_code" || fail "replacement"
-check "the old capture URL stops working" "$(status_of --request POST "$base/b/$code/gone")" "404"
-check "the old invitation link stops working" "$(status_of "$base/api/bins/$code?invite=$invite")" "404"
-check "the new bin is reachable with the new cookie" \
-  "$(status_of --cookie "$owner" "$base/bins/$new_code")" "200"
-check "the new capture URL works" "$(status_of --request POST "$base/b/$new_code/fresh")" "201"
+check "replacement route is absent" \
+  "$(status_of --request POST --cookie "$owner" --header "Origin: $base" "$base/api/bins/$code/replace")" "404"
+check "bin remains after refused replacement" \
+  "$(status_of --cookie "$owner" "$base/bins/$code")" "200"
 
 echo "== logs carry no cookie or invitation"
 grep -q "$invite" "$work/server.log" && fail "invitation appears in the log" || pass "no invitation in the log"

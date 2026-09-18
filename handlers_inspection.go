@@ -196,22 +196,3 @@ func sharingSetting(w http.ResponseWriter, req *http.Request) {
 	}
 	w.WriteHeader(http.StatusNoContent)
 }
-
-func replaceBin(w http.ResponseWriter, req *http.Request) {
-	if !requireOwnerMutation(w, req) {
-		return
-	}
-	oldCode := req.PathValue("code")
-	streamAccessMu.Lock()
-	defer streamAccessMu.Unlock()
-	bin, secret, err := store.replaceBin(oldCode)
-	if err != nil {
-		http.Error(w, "unable to replace bin", 500)
-		return
-	}
-	eventHub.closeBin(oldCode)
-	eventHub.openBin(bin.Code)
-	setOwnerCookie(w, secret, bin.ExpiresAt)
-	noStore(w)
-	http.Redirect(w, req, "/bins/"+bin.Code, http.StatusSeeOther)
-}

@@ -147,20 +147,16 @@ here — there is nothing that tries.
 
 ## Owner actions, and what a guest is
 
-Owners get sharing on/off, the invitation link, delete one request, clear all
-requests, and replace the bin. Capability comes from `owner` in the metadata
+Owners get sharing on/off, the invitation link, delete one request, and clear all
+requests. Capability comes from `owner` in the metadata
 response. Everything but deleting one request lives in the settings modal,
 opened from the **Settings** button beside the bin's facts. It is a native
 `<dialog>` and closes on its ×, on Esc, or on a click on the backdrop; its
 contents are unmounted while closed, so a half-confirmed action does not
 survive closing it.
 
-Clearing and replacing are deliberately different, and both confirm in place
-while naming what they destroy. **Clearing keeps the bin** — same capture URL,
-same invitation. **Replacing keeps none of it**: a new bin, a new cookie, and
-every capture and invitation link anyone holds stops working. After a
-replacement the page tears down its stream and state and navigates to `/`, which
-resolves whatever the new cookie owns.
+Clearing confirms in place while naming what it destroys. **Clearing keeps the
+bin** — same capture URL and same invitation.
 
 Disabling sharing does not change the invitation link; it stops the link
 working, and closes any stream open on it. Enabling it again makes the same link

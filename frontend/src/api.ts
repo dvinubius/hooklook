@@ -59,11 +59,8 @@ async function mutate(method: string, path: string, body?: unknown): Promise<Res
     cache: 'no-store',
     headers: body === undefined ? {} : { 'Content-Type': 'application/json' },
     body: body === undefined ? undefined : JSON.stringify(body),
-    // The replace endpoint answers 303 to the new bin page. Following it would
-    // fetch HTML we do not want; we read the location ourselves instead.
-    redirect: 'manual',
   })
-  if (!response.ok && response.type !== 'opaqueredirect' && response.status !== 303) {
+  if (!response.ok) {
     throw await failure(response)
   }
   return response
@@ -88,8 +85,4 @@ export const api = {
   setSharing: (code: string, enabled: boolean) =>
     mutate('PUT', apiPath(code, '/sharing', ''), { enabled }).then(() => undefined),
 
-  /** Replaces the bin and sets a new owner cookie. Returns nothing usable: the
-   *  caller navigates to `/` so Go resolves whatever the cookie now owns. */
-  replaceBin: (code: string) =>
-    mutate('POST', apiPath(code, '/replace', '')).then(() => undefined),
 }

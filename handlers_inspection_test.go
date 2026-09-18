@@ -103,33 +103,18 @@ func TestGuestAccessAndOwnerMutations(t *testing.T) {
 	}
 }
 
-func TestReplaceBinInvalidatesOldAddressAndInvitation(t *testing.T) {
+func TestBinReplacementRouteDoesNotExist(t *testing.T) {
 	s := useTestStore(t)
-	old, owner, err := s.createOwnedBin()
+	bin, owner, err := s.createOwnedBin()
 	if err != nil {
 		t.Fatal(err)
 	}
-	info := callInspector(t, "GET", "/api/bins/"+old.Code, "", owner)
-	var access BinAccess
-	if err := json.Unmarshal(info.Body.Bytes(), &access); err != nil {
-		t.Fatal(err)
+	response := callInspector(t, "POST", "/api/bins/"+bin.Code+"/replace", "", owner)
+	if response.Code != http.StatusNotFound {
+		t.Errorf("replacement route status = %d, want 404", response.Code)
 	}
-	response := callInspector(t, "POST", "/api/bins/"+old.Code+"/replace", "", owner)
-	if response.Code != 303 || len(response.Result().Cookies()) != 1 {
-		t.Fatalf("replace: %d %s", response.Code, response.Body.String())
-	}
-	fresh := response.Result().Cookies()[0]
-	if fresh.Value == owner || response.Header().Get("Location") == "/bins/"+old.Code {
-		t.Error("replacement reused identity")
-	}
-	if _, err := s.ownedBin(owner); err != ErrBinNotFound {
-		t.Errorf("old owner lookup: %v", err)
-	}
-	if got := callInspector(t, "GET", "/api/bins/"+old.Code+"/requests?invite="+access.InviteID, "", "").Code; got != 404 {
-		t.Errorf("old invite status = %d", got)
-	}
-	if got := callInspector(t, "POST", "/b/"+old.Code, "", "").Code; got != 404 {
-		t.Errorf("old capture status = %d", got)
+	if _, err := s.ownedBin(owner); err != nil {
+		t.Errorf("original bin was changed: %v", err)
 	}
 }
 

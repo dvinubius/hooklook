@@ -19,7 +19,6 @@ by default.
 | `DELETE /api/bins/{code}/requests/{id}` | Owner only. Delete one request and reclaim its exact raw-body bytes. |
 | `DELETE /api/bins/{code}/requests` | Owner only. Clear requests while retaining the bin address and invitation. |
 | `PUT /api/bins/{code}/sharing` | Owner only. JSON body `{"enabled":true}` or `{"enabled":false}`; disabling sharing closes current SSE streams. Re-enabling uses the same invitation. |
-| `POST /api/bins/{code}/replace` | Owner only. Atomically replace the bin, set a new cookie, and `303` to its page. Old capture and invitation links stop working. |
 | `GET /admin/bins` | Operator-only list. Requires `Authorization: Bearer <ADMIN_TOKEN>`. |
 | `GET /health` | Static liveness response. |
 
@@ -37,3 +36,7 @@ accepts at most 500 captures and 100 MB (100,000,000 bytes) of raw request
 bodies. Headers and metadata do not count. Common credential headers are
 redacted before storage. Public Caddy body, total-header, and rate limits are
 still required before internet exposure.
+
+Guest inspection endpoints are read-only. The public `/b/{code}` capture route
+is separate: anyone who knows a bin code, including an invited guest, can send
+requests to it. The bin replacement endpoint has been removed.

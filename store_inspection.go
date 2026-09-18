@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"strconv"
 	"time"
 )
@@ -156,31 +155,4 @@ func (s *Store) setSharing(code string, enabled bool) error {
 		return ErrBinNotFound
 	}
 	return nil
-}
-
-func (s *Store) replaceBin(oldCode string) (Bin, string, error) {
-	tx, err := s.db.Begin()
-	if err != nil {
-		return Bin{}, "", err
-	}
-	defer tx.Rollback()
-	bin, secret, err := s.createOwnedBinWith(tx)
-	if err != nil {
-		return Bin{}, "", err
-	}
-	result, err := tx.Exec(`DELETE FROM bins WHERE code = ?`, oldCode)
-	if err != nil {
-		return Bin{}, "", fmt.Errorf("delete old bin: %w", err)
-	}
-	n, err := result.RowsAffected()
-	if err != nil {
-		return Bin{}, "", err
-	}
-	if n == 0 {
-		return Bin{}, "", ErrBinNotFound
-	}
-	if err := tx.Commit(); err != nil {
-		return Bin{}, "", err
-	}
-	return bin, secret, nil
 }

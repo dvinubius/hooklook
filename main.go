@@ -83,7 +83,6 @@ func routes() http.Handler {
 	mux.HandleFunc("DELETE /api/bins/{code}/requests/{id}", deleteOneRequest)
 	mux.HandleFunc("DELETE /api/bins/{code}/requests", clearBinRequests)
 	mux.HandleFunc("PUT /api/bins/{code}/sharing", sharingSetting)
-	mux.HandleFunc("POST /api/bins/{code}/replace", replaceBin)
 
 	mux.HandleFunc("GET /api/bins/{code}/requests", getBinRequests)
 	mux.HandleFunc("GET /api/bins/{code}/events", getBinEvents)

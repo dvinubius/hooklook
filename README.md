@@ -137,7 +137,7 @@ reviewed in a browser by hand.
 
 Exercises the whole flow against the built binary — first visit, capture of
 every body shape, list, detail, the live stream, owner mutations, guest
-invitation, revocation and replacement — and checks that no owner cookie or
+invitation and revocation — and checks that no owner cookie or
 invitation reaches the log:
 
 ```bash
