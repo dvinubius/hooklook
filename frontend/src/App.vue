@@ -10,18 +10,13 @@ import { useThemeAttribute } from './lib/theme'
 useThemeAttribute()
 
 const session = createSession(browserEnvironment())
-const { page, state, access, message } = session
+const { state, access, message } = session
 
 onMounted(() => void session.start())
 onBeforeUnmount(() => session.stop())
 </script>
 
 <template>
-  <BinPage
-    v-if="state === 'ready' && access"
-    :access="access"
-    :origin="page.origin"
-    :selected-request-id="page.requestId"
-  />
+  <BinPage v-if="state === 'ready' && access" :session="session" :access="access" />
   <SessionNotice v-else :state="state" :message="message" @retry="session.retry()" />
 </template>

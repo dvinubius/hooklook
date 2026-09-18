@@ -106,6 +106,9 @@ export interface BinSession {
   readonly signal: AbortSignal
   start(): Promise<void>
   retry(): Promise<void>
+  /** Re-reads role and sharing state after the owner changed them, without
+   *  tearing the page down: this is a settings update, not a bootstrap. */
+  refreshAccess(): Promise<void>
   /** Call when the server says access is gone: the page leaves through `/`. */
   invalidate(): void
   /** Register a stream or subscription to close when the session ends. */
@@ -171,6 +174,20 @@ export function createSession(env: SessionEnvironment): BinSession {
     }
   }
 
+  async function refreshAccess(): Promise<void> {
+    if (controller.signal.aborted) return
+    try {
+      const authorized = await env.fetchAccess(page.code, page.invite, controller.signal)
+      if (controller.signal.aborted) return
+      access.value = authorized
+    } catch (cause) {
+      if (controller.signal.aborted) return
+      // An owner who just made a change is not thrown off their own page over
+      // a failed re-read; the change either applied or reported its own error.
+      if (invalidates(cause)) leave()
+    }
+  }
+
   async function start(): Promise<void> {
     // Go only serves this application on bin pages, so a path without a code
     // means the browser is somewhere it was never handed — send it home.
@@ -191,6 +208,7 @@ export function createSession(env: SessionEnvironment): BinSession {
     },
     start,
     retry: load,
+    refreshAccess,
     invalidate: leave,
     onStop: (teardown) => void teardowns.push(teardown),
     stop,

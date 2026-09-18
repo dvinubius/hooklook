@@ -30,3 +30,12 @@ export function untilExpiry(iso: string, now: number): string {
   if (hours < 48) return `in ${count(hours, 'hour')}`
   return `in ${count(Math.floor(hours / 24), 'day')}`
 }
+
+const clockFormat = new Intl.DateTimeFormat(undefined, { timeStyle: 'medium' })
+
+/** Time of day alone, for list rows where the date is the same all the way
+ *  down and the second is what distinguishes one capture from the next. */
+export function formatClock(iso: string): string {
+  const at = new Date(iso).getTime()
+  return Number.isNaN(at) ? iso : clockFormat.format(at)
+}
