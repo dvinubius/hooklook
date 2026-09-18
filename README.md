@@ -1,10 +1,10 @@
 # hooklook
 
-A small, self-hosted request bin written in Go. The backend creates one cookie-associated bin per browser, captures arbitrary HTTP requests, and provides owner or invited-guest inspection APIs. The Go binary now serves the built Vue application on its authorized bin pages; the interface inside it is still being built out.
+A small, self-hosted request bin written in Go, helping you to test and debug webhook integrations. The backend creates one cookie-associated bin per browser, captures arbitrary HTTP requests, and provides owner or invited-guest inspection APIs. The Go binary serves the built Vue inspector frontend on its authorized bin pages, so one binary is the whole deployment.
 
 ## Intended v1 use
 
-Hooklook is designed for small-scale integration testing. The current limits
+Hooklook is designed for small-scale integration testing of systems using webhooks. The current limits
 and planned production limits differ; see the
 [current architecture](docs/architecture.md) and
 [production design notes](.agents/design-notes.md).
@@ -21,6 +21,39 @@ hooklook closes that stream immediately; this prevents a slow browser from
 blocking ingestion or accumulating unbounded work. Deleting a bin and graceful
 server shutdown also close its open event streams.
 
+## Inspecting a webhook bin
+
+Open `/` and hooklook resolves or creates the bin your browser owns, then takes
+you to its page. The page shows the capture URL to send requests to, the live
+list of what has arrived, and the full detail of whichever request is selected.
+
+- **The list updates itself.** Captures appear without a reload, over the SSE
+  stream. Because the stream replays nothing, the list is refetched from SQLite
+  after every reconnect and whenever a disconnected tab comes back to the
+  foreground, so a tab that was asleep converges instead of drifting.
+- **Sort and filter are local** — newest or oldest first, and substring
+  filters on method, path and raw query. Live captures keep arriving while a
+  filter is on.
+- **The selected request is in the URL**, so back, forward and the detail link
+  a capture returns (`/bins/{code}/requests/{id}`) all select the same one.
+- **Bodies are shown as the bytes they are.** JSON and XML are pretty-printed
+  and highlighted; a body that is not valid says so and keeps its raw view.
+  Text that is not UTF-8 is decoded with a named fallback, and the encoding
+  used is stated. Bytes that are not text get a hex dump. Nothing captured is
+  ever rendered as markup.
+- **Redacted headers stay redacted.** The values were replaced before storage
+  and the page says so rather than implying they could be recovered.
+- **Owners get settings; guests get none.** Sharing on or off, the invitation
+  link, delete one request, clear all requests, and replace the bin. Clearing
+  keeps the bin, its capture URL and its invitation; replacing keeps none of
+  them, and says so before you confirm. Hiding the controls is presentation
+  only — the server re-checks ownership, the cookie and the request origin on
+  every mutation.
+
+A shared link is read-only, and it is the invitation — not the bin code — that
+grants it. Disabling sharing stops that link working and closes any stream it
+has open; enabling it again makes the same link work.
+
 ## Project documentation
 
 - [Plan](.agents/PROJECT_PLAN.md)
@@ -28,6 +61,7 @@ server shutdown also close its open event streams.
 - [Completed milestones](.agents/done-milestones.md)
 - [Current architecture](docs/architecture.md)
 - [Current HTTP API](docs/http-api.md)
+- [Frontend behavior and mechanisms](docs/frontend.md)
 - [Architecture decision records](docs/adr/)
 
 ## Local development
@@ -77,6 +111,37 @@ The backend enforces 500 requests and 100 MB (100,000,000 bytes) of raw request
 bodies in total per bin. Headers and metadata do not count. The Go-specific
 body and header policy limits have been removed. Keep this build on loopback;
 configure Caddy body, 32 KiB total-header, and rate limits before exposing it publicly.
+
+## Tests
+
+```bash
+make test        # frontend (vitest) and Go tests
+make test-race   # Go race detector
+make vet
+```
+
+Frontend tests run in Node. The component tests render through Vue's own server
+renderer rather than a browser, which is what checks that a captured body
+reaches the page as characters and never as markup. Browser-visible behavior is
+reviewed in a browser by hand.
+
+## Inspection exercise
+
+Exercises the whole flow against the built binary — first visit, capture of
+every body shape, list, detail, the live stream, owner mutations, guest
+invitation, revocation and replacement — and checks that no owner cookie or
+invitation reaches the log:
+
+```bash
+make build
+./scripts/exercise-inspection.sh
+```
+
+It starts its own server over a throwaway database in a temporary directory,
+so it leaves the repository's `hooklook.db` alone, and it cleans both up on the
+way out. The server binds `127.0.0.1:8080`. Every check runs even after one
+fails; the exit status is the number of failures. `BINARY` overrides the
+binary it runs.
 
 ## Capture smoke test
 

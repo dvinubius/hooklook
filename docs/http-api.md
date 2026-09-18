@@ -1,6 +1,6 @@
 # Current HTTP API
 
-This is the contract the Inspection UI is built on. The page routes serve the built Vue application after authorization; the interface inside it is still being built out. The server binds to `127.0.0.1:8080` by default.
+This is the contract the Inspection UI ("inspector") is built on; the [frontend](frontend.md) describes how it consumes it. The page routes serve the built Vue application after authorization. The server binds to `127.0.0.1:8080` by default.
 
 | Method and path | Behavior |
 | --- | --- |
@@ -11,7 +11,7 @@ This is the contract the Inspection UI is built on. The page routes serve the bu
 | Any method `/b/{code}` or `/b/{code}/{path...}` | Capture an HTTP request and return `201` with its ID and the UI detail URL that opens it. Missing or expired bin: `404`; full bin: `507`. |
 | `GET /api/bins/{code}` | Authorized bin metadata. Owners also receive `inviteId` and sharing state. |
 | `GET /api/bins/{code}/requests` | Authorized body-free request summaries in ascending ID order. |
-| `GET /api/bins/{code}/requests/{id}` | Authorized full detail, including redacted stored headers and `rawBody` encoded as base64 by JSON. |
+| `GET /api/bins/{code}/requests/{id}` | Authorized full detail, including redacted stored headers and `rawBody` encoded as base64 by JSON. A request that is not in the bin is `404`, which the UI reports as a stale selection rather than as revoked access. |
 | `GET /api/bins/{code}/events` | Authorized SSE. `request` events contain summaries. `refresh` events tell clients to refetch after deletion or clearing. Reconnect and refetch after a stream closes. |
 | `DELETE /api/bins/{code}/requests/{id}` | Owner only. Delete one request and reclaim its exact raw-body bytes. |
 | `DELETE /api/bins/{code}/requests` | Owner only. Clear requests while retaining the bin address and invitation. |

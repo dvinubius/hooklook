@@ -18,10 +18,16 @@ work at either depth. Asset routes skip bin authorization; page routes keep
 instead, so development keeps one browser origin without bypassing
 authorization.
 
+Inside that document the application treats the server as the only authority on
+access: it fetches `GET /api/bins/{code}` before anything private renders, keeps
+the request list reconciled against SQLite rather than against the stream, and
+renders captured bytes as text and never as markup. The
+[frontend](frontend.md) describes those mechanisms.
+
 The list, detail, metadata, and SSE routes check owner or guest authorization. Destructive routes require the owner cookie and same-origin `Origin` header. Detail sends the stored raw body as JSON base64 so binary data remains faithful. Deleting requests adjusts `total_body_bytes` in the same SQLite transaction. Bin replacement creates the new bin and deletes the old bin and captures in one transaction, then changes the cookie. SQLite foreign keys are enabled.
 
 Public `/b/{code}` capture remains open to anyone with the code. `requests.go` redacts credential-like header names and preserves method, path suffix, raw query, other headers, raw body, content type, and receipt time. `store.go` atomically checks 500-request and 100 MB raw-body budgets before insertion. SSE publishes compact summaries after commit. A `refresh` event follows deletion or clearing. SSE is ephemeral and clients must refetch on reconnect. Slow subscribers are disconnected rather than blocking ingestion.
 
 Bin expiry remains seven days from creation. Expiry renewal, cleanup, global storage cap, backups, metrics, and Caddy policy belong to the later milestones. No Go-specific body or header policy limit is applied; the service must stay on loopback until Caddy enforces those limits.
 
-See the [HTTP API](http-api.md), [project plan](../.agents/PROJECT_PLAN.md), and [progress](../.agents/PROGRESS.md).
+See the [HTTP API](http-api.md), [frontend](frontend.md), [project plan](../.agents/PROJECT_PLAN.md), and [progress](../.agents/PROGRESS.md).
