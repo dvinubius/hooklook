@@ -39,7 +39,7 @@ const parts = computed(() =>
   align-items: center;
   gap: 4px;
   height: var(--row-height, 44px);
-  padding: 0 1px 0 14px;
+  padding: 0 0 0 12px;
 }
 .url {
   flex: 1 1 auto;

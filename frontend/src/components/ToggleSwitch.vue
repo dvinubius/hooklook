@@ -1,6 +1,6 @@
 <script setup lang="ts">
-/* An on/off switch: a square track with a square knob, the accent filling the
-   track while it is on. The label is part of the control — clicking the words
+/* An on/off switch: a square outlined track with a square knob, the outline
+   turning to the accent while it is on. The label is part of the control — clicking the words
    flips it too — and screen readers hear a switch with its state. While
    `disabled`, it shows its state but cannot be flipped. */
 const on = defineModel<boolean>({ required: true })
@@ -55,14 +55,15 @@ defineProps<{ label: string; disabled?: boolean }>()
   border: 2px solid var(--text-muted);
   background: transparent;
   cursor: pointer;
+  transition: border-color 150ms ease-in-out;
 }
-/* Off, the outline is the muted grey; on, it turns Ink around the accent
-   fill, in both themes. */
+/* Kept quiet: no fill in either state. Off, the outline is the muted grey;
+   on, it is the accent. */
 .switch.on {
-  border-color: var(--ink);
-  background: var(--accent);
+  border-color: var(--accent);
 }
-/* The knob travels with the same ease as the track's color. */
+/* Off, the knob matches the muted outline; on, it is the body text color —
+   Paper on dark, Ink on light. It travels with the same ease as the colors. */
 .knob {
   position: absolute;
   top: 3px;
@@ -74,6 +75,6 @@ defineProps<{ label: string; disabled?: boolean }>()
 }
 .switch.on .knob {
   transform: translateX(18px);
-  background: var(--surface-page);
+  background: var(--text-body);
 }
 </style>

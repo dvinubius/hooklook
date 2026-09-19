@@ -8,19 +8,17 @@
    a guest who calls these endpoints directly is refused there, not here. The
    invitation is never rendered except as the owner's own share link. */
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import AboutDialog from './AboutDialog.vue'
 import CaptureTarget from './CaptureTarget.vue'
 import ClearConfirm from './ClearConfirm.vue'
 import HelpGuide from './HelpGuide.vue'
 import IconHelp from './IconHelp.vue'
 import IconGithub from './IconGithub.vue'
 import IconSweep from './IconSweep.vue'
-import LoadingSpinner from './LoadingSpinner.vue'
 import ModalDialog from './ModalDialog.vue'
 import RequestDetailView from './RequestDetail.vue'
 import RequestList from './RequestList.vue'
+import SharePopover from './SharePopover.vue'
 import ThemeToggle from './ThemeToggle.vue'
-import ToggleSwitch from './ToggleSwitch.vue'
 import { api, ApiError } from '../api'
 import { browserFeedEnvironment, createFeed } from '../lib/feed'
 import { captureUrl, inviteUrl, pagePath, parseLocation } from '../lib/location'
@@ -122,7 +120,6 @@ type Mutation = 'sharing' | 'clear' | 'delete'
 const pending = ref(new Set<Mutation>())
 const mutationError = ref('')
 const clearOpen = ref(false)
-const aboutOpen = ref(false)
 const helpOpen = ref(false)
 
 function describeFailure(cause: unknown): string {
@@ -209,13 +206,9 @@ onBeforeUnmount(() => {
     <header class="top">
       <div class="mark"><span class="bracket">[</span> hooklook <span class="bracket">]</span></div>
       <div class="top-end">
-        <button class="about-link" type="button" aria-haspopup="dialog" @click="aboutOpen = true">
-          // About
-        </button>
         <ThemeToggle />
       </div>
     </header>
-    <AboutDialog :open="aboutOpen" @close="aboutOpen = false" />
     <hr class="rule" />
 
     <main class="body">
@@ -238,6 +231,10 @@ onBeforeUnmount(() => {
               >
                 <IconHelp class="icon" />
               </button>
+            </div>
+          </template>
+          <template v-if="access.owner" #actions>
+            <div class="heading-actions">
               <button
                 class="btn btn-outline icon-button"
                 type="button"
@@ -249,18 +246,12 @@ onBeforeUnmount(() => {
               >
                 <IconSweep class="icon" />
               </button>
-            </div>
-          </template>
-          <template v-if="access.owner" #actions>
-            <!-- The switch shows what the server holds: it flips once the
-                 change is saved, not on the click. -->
-            <div class="access-toggle">
-              <LoadingSpinner v-if="pending.has('sharing')" class="pending" label="Saving access" />
-              <ToggleSwitch
-                :model-value="access.sharingEnabled"
-                label="Guest access"
-                :disabled="pending.has('sharing')"
-                @update:model-value="setSharing"
+              <SharePopover
+                :enabled="access.sharingEnabled"
+                :saving="pending.has('sharing')"
+                :guest-link="guestLink"
+                :origin="page.origin"
+                @toggle="setSharing"
               />
             </div>
           </template>
@@ -268,11 +259,7 @@ onBeforeUnmount(() => {
       </section>
 
       <ModalDialog class="help-modal" :open="helpOpen" title="How to" @close="helpOpen = false">
-        <HelpGuide
-          :capture-url="captureUrl(access.bin.code, page.origin)"
-          :guest-link="guestLink"
-          :origin="page.origin"
-        />
+        <HelpGuide :capture-url="captureUrl(access.bin.code, page.origin)" />
       </ModalDialog>
 
       <template v-if="access.owner">
@@ -347,8 +334,8 @@ onBeforeUnmount(() => {
   max-width: 1180px;
   width: 100%;
   margin: 0 auto;
-  padding: 28px 24px 24px;
-  gap: 20px;
+  padding: 16px 24px 14px;
+  gap: 14px;
 }
 .top {
   display: flex;
@@ -370,35 +357,22 @@ onBeforeUnmount(() => {
   align-items: baseline;
   gap: 24px;
 }
-/* An aside, but set at zibs' size so the two apps' About links match. */
-.about-link {
-  background: none;
-  border: none;
-  padding: 4px 0;
-  font-family: var(--font-mono);
-  font-size: 14px;
-  color: var(--text-muted);
-  cursor: pointer;
-}
-.about-link:hover {
-  color: var(--text-body);
-}
 .body {
   display: flex;
   flex-direction: column;
-  gap: 28px;
+  gap: 14px;
   flex: 1;
   min-height: 0;
 }
 /* Sizes the capture row lays the link field and the icon buttons out with. */
 .identity {
   --lead-width: 400px;
-  --row-height: 44px;
+  --row-height: 36px;
 }
 .title {
   flex: none;
   margin: 0;
-  font-size: 26px;
+  font-size: 22px;
   font-weight: 500;
   letter-spacing: var(--track-heading);
   line-height: var(--leading-heading);
@@ -415,19 +389,6 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 8px;
 }
-/* The guest access switch, alone at the row's far right; its spinner hangs
-   16px to the left of the label, in the row's free space, so nothing moves
-   while a change is saving. */
-.access-toggle {
-  position: relative;
-  display: inline-flex;
-}
-.pending {
-  position: absolute;
-  top: 50%;
-  right: calc(100% + 16px);
-  transform: translateY(-50%);
-}
 /* Square icon buttons, as high as the link field below them. */
 .icon-button {
   flex: none;
@@ -437,8 +398,8 @@ onBeforeUnmount(() => {
   justify-content: center;
 }
 .icon {
-  width: 22px;
-  height: 22px;
+  width: 20px;
+  height: 20px;
 }
 .guest {
   margin: 0;
@@ -476,7 +437,7 @@ onBeforeUnmount(() => {
   grid-template-columns: 1fr auto 1fr;
   align-items: baseline;
   gap: 24px;
-  padding-top: 20px;
+  padding-top: 14px;
   border-top: 1px solid var(--hairline);
 }
 .wordmark {

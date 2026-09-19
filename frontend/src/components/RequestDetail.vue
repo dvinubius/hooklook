@@ -114,13 +114,12 @@ const body = computed(() =>
   align-items: baseline;
   gap: 10px;
   min-width: 0;
+  font-size: 18px;
 }
 .method {
   font-weight: 500;
-  font-size: 20px;
 }
 .target {
-  font-size: 20px;
   word-break: break-all;
 }
 .query {

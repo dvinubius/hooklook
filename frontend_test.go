@@ -137,6 +137,22 @@ func TestPageURLsWithATrailingSlashRedirectToTheCanonicalOnes(t *testing.T) {
 	}
 }
 
+// A detail URL with its request id cut off is the bin page, not a 404.
+func TestTheRequestsPathWithoutAnIdRedirectsToTheBinPage(t *testing.T) {
+	useTestStore(t)
+	for path, want := range map[string]string{
+		"/bins/keen-canyon-30/requests":            "/bins/keen-canyon-30",
+		"/bins/keen-canyon-30/requests/":           "/bins/keen-canyon-30",
+		"/bins/keen-canyon-30/requests/?invite=ab": "/bins/keen-canyon-30?invite=ab",
+	} {
+		page := get(t, path, "")
+		if page.Code != http.StatusMovedPermanently || page.Header().Get("Location") != want {
+			t.Errorf("GET %s = %d → %q, want %d → %q",
+				path, page.Code, page.Header().Get("Location"), http.StatusMovedPermanently, want)
+		}
+	}
+}
+
 var shellAssetReference = regexp.MustCompile(`(?:src|href)="(/[^"]+)"`)
 
 // The built document references its assets by absolute path, which is what lets

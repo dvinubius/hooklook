@@ -12,6 +12,7 @@ import ExampleRequest from '../components/ExampleRequest.vue'
 import HelpGuide from '../components/HelpGuide.vue'
 import InfoPopover from '../components/InfoPopover.vue'
 import ModalDialog from '../components/ModalDialog.vue'
+import SharePopover from '../components/SharePopover.vue'
 import ToggleSwitch from '../components/ToggleSwitch.vue'
 
 const origin = 'https://hooklook.test'
@@ -51,11 +52,7 @@ function textOf(html: string): string {
 }
 
 describe('HelpGuide', () => {
-  const props = {
-    captureUrl: `${origin}/b/plucky-heron-07`,
-    guestLink: `${origin}/bins/plucky-heron-07?invite=abc123`,
-    origin,
-  }
+  const props = { captureUrl: `${origin}/b/plucky-heron-07` }
 
   it('explains capturing, with the example request under it', async () => {
     const html = await render(HelpGuide, props)
@@ -72,17 +69,45 @@ describe('HelpGuide', () => {
     expect(textOf(html)).toContain('3 days of inactivity')
   })
 
-  it('offers the guest link and says it only works while guest access is on', async () => {
+  it('says credential headers are redacted before storage', async () => {
+    const html = await render(HelpGuide, props)
+    expect(html).toContain('credentials in headers')
+    expect(textOf(html)).toContain('replaced with [REDACTED] before storage')
+  })
+
+  it('explains sharing without holding the guest link itself', async () => {
     const html = await render(HelpGuide, props)
     expect(html).toContain('share the bin')
     expect(textOf(html)).toContain('only valid when you enable guest access')
+    expect(html).not.toContain('Copy guest link')
+  })
+})
+
+describe('SharePopover', () => {
+  const props = {
+    enabled: true,
+    saving: false,
+    guestLink: `${origin}/bins/plucky-heron-07?invite=abc123`,
+    origin,
+  }
+
+  it('ties its share button to a panel with the switch and the guest link', async () => {
+    const html = await render(SharePopover, props)
+    const target = /popovertarget="([^"]+)"/.exec(html)?.[1]
+    expect(target).toBeTruthy()
+    expect(html).toContain(`id="${target}"`)
+    expect(html).toContain('aria-label="Share"')
+    expect(html).toContain('Guest access')
+    expect(html).toMatch(/role="switch" aria-checked="true"/)
+    expect(html).toContain('Guest link')
     expect(html).toContain('invite=abc123')
     expect(html).toContain('aria-label="Copy guest link"')
   })
 
-  it('leaves out sharing when there is no guest link to give', async () => {
-    const html = await render(HelpGuide, { ...props, guestLink: '' })
-    expect(html).not.toContain('share the bin')
+  it('holds the switch while a change is saving', async () => {
+    const html = await render(SharePopover, { ...props, enabled: false, saving: true })
+    expect(html).toMatch(/role="switch" aria-checked="false"[^>]*disabled/)
+    expect(html).toContain('Saving access')
   })
 })
 

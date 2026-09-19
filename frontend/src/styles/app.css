@@ -16,6 +16,16 @@ button{font:inherit;color:inherit;border-radius:0;}
 [data-theme="light"]{--danger:#A03028;--danger-text-on:var(--paper);}
 [data-theme="dark"]{--danger:#E0756A;--danger-text-on:var(--ink);}
 
+/* The data colors, an extension of the brand for a data-rich app: Teal for
+   values, Violet for the names of values. Each has a light-theme and a
+   dark-theme variant, like the accent; for now they appear only as syntax
+   colors on code surfaces, which are dark in both themes, so only the
+   dark-theme variants are in use. */
+:root{
+  --teal-on-dark:#5BC8D0;
+  --violet-on-dark:#AFA3CF;
+}
+
 /* Hover feedback on buttons, links and list items eases in and out over
    150ms rather than snapping; list items opt in with --hover-transition. */
 :root{
@@ -79,8 +89,10 @@ input,select{font:inherit;border-radius:0;}
 .btn-outline:not(:disabled):hover{border-color:var(--text-body);}
 .btn-quiet{padding:6px 0;color:var(--text-muted);}
 .btn-quiet:not(:disabled):hover{color:var(--text-body);}
-.btn-danger{border-color:var(--danger);color:var(--danger);}
-.btn-danger:not(:disabled):hover{background:var(--danger);color:var(--danger-text-on);}
+/* Solid Brick; on hover it moves toward the body text color — darker on
+   light, lighter on dark. */
+.btn-danger{background:var(--danger);color:var(--danger-text-on);}
+.btn-danger:not(:disabled):hover{background:color-mix(in srgb,var(--danger) 85%,var(--text-body));}
 .btn-sm{padding:6px 10px;font-size:12px;}
 
 .field{
@@ -108,6 +120,8 @@ input,select{font:inherit;border-radius:0;}
 .tok-recede{color:var(--muted-on-dark);}
 .tok-body{color:var(--muted-strong);}
 .tok-emphasis{color:var(--paper);}
+.tok-name{color:var(--violet-on-dark);}
+.tok-value{color:var(--teal-on-dark);}
 
 /* ---- scrollbars ------------------------------------------------------- */
 

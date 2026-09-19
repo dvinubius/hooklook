@@ -5,7 +5,7 @@
  * whatever the feed currently holds — which is why these are plain functions
  * on arrays rather than another request to the server. */
 
-import type { RequestFilters, RequestSummary, SortOrder } from '../types'
+import type { RequestFilters, RequestSummary, SortOrder, TextFilter } from '../types'
 
 /** Request ids are SQLite row ids sent as strings, so they are compared as
  *  numbers: a string comparison would put 10 before 9. */
@@ -34,20 +34,32 @@ export function sortSummaries(
   return order === 'newest' ? sorted.reverse() : sorted
 }
 
-function contains(haystack: string, needle: string): boolean {
-  return haystack.toLowerCase().includes(needle.trim().toLowerCase())
+/** A path of "/" is the capture URL itself with a trailing slash, so it
+ *  counts as empty, like no path at all. */
+function blankPath(path: string): string {
+  return path === '/' ? '' : path
 }
 
-/** Method matches exactly — it is chosen from the methods actually present —
- *  while path and query are substrings, which is how a reader looks for one
- *  delivery among many. */
+function textFilterOn(filter: TextFilter): boolean {
+  return filter.operator !== 'matches' || filter.text.trim() !== ''
+}
+
+/** `matches` is a case-insensitive substring, which is how a reader looks for
+ *  one delivery among many; the other two only ask whether there is anything
+ *  there. A `matches` with no text lets everything through. */
+function passes(value: string, filter: TextFilter): boolean {
+  if (filter.operator === 'empty') return value === ''
+  if (filter.operator === 'notEmpty') return value !== ''
+  const needle = filter.text.trim().toLowerCase()
+  return needle === '' || value.toLowerCase().includes(needle)
+}
+
+/** Method matches exactly — it is chosen from the methods actually present. */
 export function matchesFilters(item: RequestSummary, filters: RequestFilters): boolean {
   if (filters.method !== '' && item.method.toUpperCase() !== filters.method.toUpperCase()) {
     return false
   }
-  if (filters.path.trim() !== '' && !contains(item.path, filters.path)) return false
-  if (filters.query.trim() !== '' && !contains(item.rawQuery, filters.query)) return false
-  return true
+  return passes(blankPath(item.path), filters.path) && passes(item.rawQuery, filters.query)
 }
 
 export function filterSummaries(
@@ -58,7 +70,7 @@ export function filterSummaries(
 }
 
 export function filtersActive(filters: RequestFilters): boolean {
-  return filters.method !== '' || filters.path.trim() !== '' || filters.query.trim() !== ''
+  return filters.method !== '' || textFilterOn(filters.path) || textFilterOn(filters.query)
 }
 
 /** The methods offered in the filter are the ones this bin has really seen. */

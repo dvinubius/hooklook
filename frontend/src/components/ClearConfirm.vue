@@ -47,10 +47,12 @@ defineEmits<{ confirm: []; cancel: [] }>()
   justify-content: flex-end;
   gap: 14px;
 }
+/* The failure is an error, so it is said in Brick. */
 .failure {
   margin: 0;
   padding: 12px 14px;
   background: var(--surface-shade);
   font-size: var(--text-small);
+  color: var(--danger);
 }
 </style>

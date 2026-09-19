@@ -33,8 +33,7 @@ const url = computed(() => captureUrl(props.code, props.origin))
 .capture {
   display: flex;
   align-items: center;
-  margin-top: 8px;
-  gap: 32px;
+  gap: 22px;
 }
 /* The link and the tools that act on the bin sit together, 8px apart. */
 .link-group {
@@ -50,5 +49,11 @@ const url = computed(() => captureUrl(props.code, props.origin))
 }
 .actions {
   margin-left: auto;
+}
+/* The copy icon matches the row's other icons, a step smaller than the
+   copy control's default. */
+.link :deep(.glyph) {
+  width: 20px;
+  height: 20px;
 }
 </style>

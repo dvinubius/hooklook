@@ -132,17 +132,27 @@ describe('highlight', () => {
     expect(highlight(xml, 'xml').map((token) => token.text).join('')).toBe(xml)
   })
 
-  it('names JSON keys and XML elements as emphasis, values as body', () => {
-    const tiers = new Map(highlight('{"a": "v"}', 'json').map((t) => [t.text, t.tier]))
-    expect(tiers.get('"a"')).toBe('emphasis')
-    expect(tiers.get('"v"')).toBe('body')
+  it('colors JSON keys as names and every JSON value as a value', () => {
+    const tiers = new Map(
+      highlight('{"a": "v", "n": 1, "b": true}', 'json').map((t) => [t.text, t.tier]),
+    )
+    expect(tiers.get('"a"')).toBe('name')
+    expect(tiers.get('"v"')).toBe('value')
+    expect(tiers.get('1')).toBe('value')
+    expect(tiers.get('true')).toBe('value')
     expect(tiers.get('{')).toBe('recede')
+  })
 
-    const xml = new Map(highlight('<item id="3">v</item>', 'xml').map((t) => [t.text, t.tier]))
-    expect(xml.get('item')).toBe('emphasis')
-    expect(xml.get(' id="3"')).toBe('body')
-    expect(xml.get('v')).toBe('body')
-    expect(xml.get('<')).toBe('recede')
+  it('colors XML element and attribute names as names, attribute values and text as values', () => {
+    const xml = highlight(`<item id="3" kind='a'>v</item>`, 'xml')
+    const tiers = new Map(xml.map((t) => [t.text, t.tier]))
+    expect(tiers.get('item')).toBe('name')
+    expect(tiers.get('id')).toBe('name')
+    expect(tiers.get('"3"')).toBe('value')
+    expect(tiers.get(`'a'`)).toBe('value')
+    expect(tiers.get('v')).toBe('value')
+    expect(tiers.get('<')).toBe('recede')
+    expect(tiers.get('=')).toBe('recede')
   })
 
   it('leaves plain text as one run', () => {

@@ -36,12 +36,28 @@ export interface RequestDetail extends RequestSummary {
 
 export type SortOrder = 'newest' | 'oldest'
 
-export interface RequestFilters {
-  method: string
-  path: string
-  query: string
+/** How a text filter tests its field: a case-insensitive substring, or only
+ *  whether the field has anything in it. `text` counts for `matches` only. */
+export type TextOperator = 'matches' | 'empty' | 'notEmpty'
+
+export interface TextFilter {
+  operator: TextOperator
+  text: string
 }
 
-export const emptyFilters: RequestFilters = { method: '', path: '', query: '' }
+export interface RequestFilters {
+  method: string
+  path: TextFilter
+  query: TextFilter
+}
+
+/** A fresh set each call: the text filters are objects the list edits in place. */
+export function emptyFilters(): RequestFilters {
+  return {
+    method: '',
+    path: { operator: 'matches', text: '' },
+    query: { operator: 'matches', text: '' },
+  }
+}
 
 export type StreamState = 'connecting' | 'live' | 'reconnecting' | 'closed'

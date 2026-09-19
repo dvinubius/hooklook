@@ -7,7 +7,7 @@ import {
   presentMethods,
   sortSummaries,
 } from '../lib/list'
-import { emptyFilters, type RequestSummary } from '../types'
+import { emptyFilters, type RequestSummary, type TextFilter } from '../types'
 
 function summary(id: string, overrides: Partial<RequestSummary> = {}): RequestSummary {
   return {
@@ -55,32 +55,55 @@ describe('sortSummaries', () => {
   })
 })
 
+function matching(text: string): TextFilter {
+  return { operator: 'matches', text }
+}
+
 describe('matchesFilters', () => {
   const item = summary('1', { method: 'POST', path: '/Orders/42', rawQuery: 'retry=1&mode=live' })
 
   it('matches the method exactly, ignoring case', () => {
-    expect(matchesFilters(item, { ...emptyFilters, method: 'post' })).toBe(true)
-    expect(matchesFilters(item, { ...emptyFilters, method: 'GET' })).toBe(false)
+    expect(matchesFilters(item, { ...emptyFilters(), method: 'post' })).toBe(true)
+    expect(matchesFilters(item, { ...emptyFilters(), method: 'GET' })).toBe(false)
   })
 
   it('matches path and query as case-insensitive substrings', () => {
-    expect(matchesFilters(item, { ...emptyFilters, path: 'orders' })).toBe(true)
-    expect(matchesFilters(item, { ...emptyFilters, path: ' /ORDERS/42 ' })).toBe(true)
-    expect(matchesFilters(item, { ...emptyFilters, path: 'invoices' })).toBe(false)
-    expect(matchesFilters(item, { ...emptyFilters, query: 'mode=live' })).toBe(true)
-    expect(matchesFilters(item, { ...emptyFilters, query: 'mode=test' })).toBe(false)
+    expect(matchesFilters(item, { ...emptyFilters(), path: matching('orders') })).toBe(true)
+    expect(matchesFilters(item, { ...emptyFilters(), path: matching(' /ORDERS/42 ') })).toBe(true)
+    expect(matchesFilters(item, { ...emptyFilters(), path: matching('invoices') })).toBe(false)
+    expect(matchesFilters(item, { ...emptyFilters(), query: matching('mode=live') })).toBe(true)
+    expect(matchesFilters(item, { ...emptyFilters(), query: matching('mode=test') })).toBe(false)
+  })
+
+  it('asks only whether path or query has anything in it', () => {
+    const bare = summary('2', { path: '', rawQuery: '' })
+    const empty = { operator: 'empty', text: 'ignored' } as const
+    const notEmpty = { operator: 'notEmpty', text: '' } as const
+    expect(matchesFilters(bare, { ...emptyFilters(), path: empty, query: empty })).toBe(true)
+    expect(matchesFilters(bare, { ...emptyFilters(), path: notEmpty })).toBe(false)
+    expect(matchesFilters(item, { ...emptyFilters(), path: empty })).toBe(false)
+    expect(matchesFilters(item, { ...emptyFilters(), path: notEmpty, query: notEmpty })).toBe(true)
+  })
+
+  it('counts a lone slash as an empty path', () => {
+    const slash = summary('3', { path: '/' })
+    expect(matchesFilters(slash, { ...emptyFilters(), path: { operator: 'empty', text: '' } })).toBe(true)
+    expect(matchesFilters(slash, { ...emptyFilters(), path: { operator: 'notEmpty', text: '' } })).toBe(false)
   })
 
   it('requires every stated filter at once', () => {
-    expect(matchesFilters(item, { method: 'POST', path: 'orders', query: 'retry' })).toBe(true)
-    expect(matchesFilters(item, { method: 'GET', path: 'orders', query: 'retry' })).toBe(false)
+    const path = matching('orders')
+    const query = matching('retry')
+    expect(matchesFilters(item, { method: 'POST', path, query })).toBe(true)
+    expect(matchesFilters(item, { method: 'GET', path, query })).toBe(false)
   })
 
-  it('treats whitespace as no filter at all', () => {
-    expect(filtersActive(emptyFilters)).toBe(false)
-    expect(filtersActive({ ...emptyFilters, path: '   ' })).toBe(false)
-    expect(filtersActive({ ...emptyFilters, path: '/x' })).toBe(true)
-    expect(matchesFilters(item, { ...emptyFilters, path: '   ' })).toBe(true)
+  it('treats whitespace as no filter at all, but an emptiness test as one', () => {
+    expect(filtersActive(emptyFilters())).toBe(false)
+    expect(filtersActive({ ...emptyFilters(), path: matching('   ') })).toBe(false)
+    expect(filtersActive({ ...emptyFilters(), path: matching('/x') })).toBe(true)
+    expect(filtersActive({ ...emptyFilters(), query: { operator: 'empty', text: '' } })).toBe(true)
+    expect(matchesFilters(item, { ...emptyFilters(), path: matching('   ') })).toBe(true)
   })
 })
 
@@ -91,7 +114,7 @@ describe('filterSummaries and presentMethods', () => {
       summary('2', { method: 'POST' }),
       summary('3', { method: 'get' }),
     ]
-    expect(filterSummaries(items, { ...emptyFilters, method: 'GET' }).map((i) => i.id)).toEqual(['1', '3'])
+    expect(filterSummaries(items, { ...emptyFilters(), method: 'GET' }).map((i) => i.id)).toEqual(['1', '3'])
     expect(presentMethods(items)).toEqual(['GET', 'POST'])
   })
 })

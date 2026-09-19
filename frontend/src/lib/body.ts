@@ -212,12 +212,15 @@ export function formatXML(text: string): string {
 }
 
 // ---- highlighting -----------------------------------------------------
-// The brand's code surfaces carry a brightness ramp, not a color palette:
-// emphasis for names, body for values, recede for punctuation. These are
-// produced as data and interpolated as text, so nothing captured is ever
-// parsed as markup by the browser.
+// Syntax takes the app's two data colors: `name` (Violet) for what names a
+// piece of data — JSON keys, XML element and attribute names — and `value`
+// (Teal) for the data itself — JSON strings, numbers and literals, XML
+// attribute values and text. Structure recedes. `emphasis` and `body` remain
+// the brightness tiers the other code surfaces use. Tokens are produced as
+// data and interpolated as text, so nothing captured is ever parsed as markup
+// by the browser.
 
-export type Tier = 'emphasis' | 'body' | 'recede'
+export type Tier = 'name' | 'value' | 'emphasis' | 'body' | 'recede'
 
 export interface Token {
   text: string
@@ -235,16 +238,39 @@ function jsonTokens(text: string): Token[] {
     if (match.index > cursor) tokens.push({ text: text.slice(cursor, match.index), tier: 'recede' })
     const [whole, key, colon, str, num, literal] = match
     if (key !== undefined) {
-      tokens.push({ text: key, tier: 'emphasis' })
+      tokens.push({ text: key, tier: 'name' })
       tokens.push({ text: colon!, tier: 'recede' })
     } else if (str !== undefined || num !== undefined || literal !== undefined) {
-      tokens.push({ text: whole, tier: 'body' })
+      tokens.push({ text: whole, tier: 'value' })
     } else {
       tokens.push({ text: whole, tier: 'recede' })
     }
     cursor = match.index + whole.length
   }
   if (cursor < text.length) tokens.push({ text: text.slice(cursor), tier: 'recede' })
+  return tokens
+}
+
+// Inside a tag, after its name: quoted runs are values, other words are
+// attribute names, and the whitespace and `=` between them recede.
+const xmlAttributeScan = /("[^"]*"|'[^']*')|([^\s="']+)/g
+
+function xmlAttributeTokens(attributes: string): Token[] {
+  const tokens: Token[] = []
+  let cursor = 0
+  xmlAttributeScan.lastIndex = 0
+  for (
+    let match = xmlAttributeScan.exec(attributes);
+    match !== null;
+    match = xmlAttributeScan.exec(attributes)
+  ) {
+    if (match.index > cursor) {
+      tokens.push({ text: attributes.slice(cursor, match.index), tier: 'recede' })
+    }
+    tokens.push({ text: match[0], tier: match[1] !== undefined ? 'value' : 'name' })
+    cursor = match.index + match[0].length
+  }
+  if (cursor < attributes.length) tokens.push({ text: attributes.slice(cursor), tier: 'recede' })
   return tokens
 }
 
@@ -255,9 +281,9 @@ function xmlTagTokens(tag: string): Token[] {
   const [, opener, name, attributes, closer] = match
   const tokens: Token[] = [
     { text: opener!, tier: 'recede' },
-    { text: name!, tier: 'emphasis' },
+    { text: name!, tier: 'name' },
   ]
-  if (attributes !== '') tokens.push({ text: attributes!, tier: 'body' })
+  tokens.push(...xmlAttributeTokens(attributes!))
   tokens.push({ text: closer!, tier: 'recede' })
   return tokens
 }
@@ -267,11 +293,11 @@ function xmlTokens(text: string): Token[] {
   let cursor = 0
   xmlTag.lastIndex = 0
   for (let match = xmlTag.exec(text); match !== null; match = xmlTag.exec(text)) {
-    if (match.index > cursor) tokens.push({ text: text.slice(cursor, match.index), tier: 'body' })
+    if (match.index > cursor) tokens.push({ text: text.slice(cursor, match.index), tier: 'value' })
     tokens.push(...xmlTagTokens(match[0]))
     cursor = match.index + match[0].length
   }
-  if (cursor < text.length) tokens.push({ text: text.slice(cursor), tier: 'body' })
+  if (cursor < text.length) tokens.push({ text: text.slice(cursor), tier: 'value' })
   return tokens
 }
 

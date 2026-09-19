@@ -38,9 +38,9 @@ detail of whichever request is selected.
   stream. Because the stream replays nothing, the list is refetched from SQLite
   after every reconnect and whenever a disconnected tab comes back to the
   foreground, so a tab that was asleep converges instead of drifting.
-- **Sort and filter are local** — newest or oldest first, and substring
-  filters on method, path and raw query. Live captures keep arriving while a
-  filter is on.
+- **Sort and filter are local** — newest or oldest first, a method filter,
+  and path and raw query filters that match a substring or test for empty or
+  not empty. Live captures keep arriving while a filter is on.
 - **The selected request is in the URL**, so back, forward and the detail link
   a capture returns (`/bins/{code}/requests/{id}`) all select the same one.
 - **Bodies are shown as the bytes they are.** JSON and XML are pretty-printed
@@ -50,12 +50,13 @@ detail of whichever request is selected.
   ever rendered as markup.
 - **Redacted headers stay redacted.** The values were replaced before storage
   and the page says so rather than implying they could be recovered.
-- **Owners get settings; guests get none.** Sharing on or off, the invitation
-  link, clearing all requests and replacing the bin sit behind the Settings
-  button; deleting one request is on the request itself. Clearing keeps the bin,
-  its capture URL and its invitation; replacing keeps none of them, and says so
-  before you confirm. Hiding the controls is presentation only — the server
-  re-checks ownership, the cookie and the request origin on every mutation.
+- **Owners get controls; guests get none.** Guest access on or off and the
+  invitation link sit under the share button; clearing all requests is the
+  sweep button; deleting one request is on the request itself. The help button
+  explains capturing, sharing and how long a bin is kept. Clearing keeps the
+  bin, its capture URL and its invitation. Hiding the controls is presentation
+  only — the server re-checks ownership, the cookie and the request origin on
+  every mutation.
 
 A shared link is read-only, and it is the invitation — not the bin code — that
 grants it. Disabling sharing stops that link working and closes any stream it

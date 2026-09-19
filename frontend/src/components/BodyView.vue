@@ -56,7 +56,7 @@ const dump = computed(() => hexDump(props.body.bytes))
       </div>
     </header>
 
-    <p v-if="body.kind === 'empty'" class="meta">// no body</p>
+    <p v-if="body.kind === 'empty'" class="code-surface meta empty">// no body</p>
 
     <template v-else-if="body.kind === 'binary'">
       <p class="note">
@@ -120,6 +120,17 @@ const dump = computed(() => hexDump(props.body.bytes))
   line-height: var(--leading-small);
   color: var(--text-muted);
   max-width: 68ch;
+}
+/* No body is still shown where a body would be: the aside, centred in an
+   empty code surface, at the surface's recede tier since the surface is
+   dark in both themes. */
+.empty {
+  margin: 0;
+  padding: 28px 16px;
+  text-align: center;
+  /* The aside's own size; `.code-surface` would otherwise set its own. */
+  font-size: var(--text-mono-meta);
+  color: var(--muted-on-dark);
 }
 pre {
   margin: 0;

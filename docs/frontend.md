@@ -84,13 +84,17 @@ itself refused needs no recheck — that request *was* the check.
   time is truncated to the second, so ties are the common case, not an edge one;
   the id keeps the order stable as live events arrive.
 - **Filters** are an exact method (chosen from the methods the bin has actually
-  seen) and case-insensitive substrings of path and raw query. Filtering is a
-  view concern only — a filtered-out row is still in the feed.
+  seen), and a text filter each for path and raw query. A text filter has an
+  operator — **matches** (a case-insensitive substring, typed in a field that
+  only this operator shows), **is empty** or **is not empty**. A path of `/`
+  counts as empty. Filtering is a view concern only — a filtered-out row is
+  still in the feed.
 
 Loading, empty, filtered-empty, reconnecting and recoverable-error are each
-distinct states named in words. The brand defines no motion, so a reconnecting
-stream says so rather than pulsing. A live stream reads "streaming" beside a
-still green dot.
+distinct states named in words. The brand defines no motion, so the stream's
+state is said rather than pulsed: "streaming" beside a still green dot while it
+is live, and "connecting…" otherwise — a first connection and a reconnection
+read the same.
 
 ## One request in full
 
@@ -129,9 +133,10 @@ something readable, in this order:
    and prints it back, and refuses input it cannot account for (an unclosed or
    mismatched element) rather than repairing it. Formatting failure keeps the
    raw view and explains itself locally. Bodies over 256 KiB skip formatting.
-5. **Highlight** into tokens carrying a brightness tier — emphasis for JSON keys
-   and XML element names, body for values and text, recede for punctuation. It
-   is a brightness ramp, not a syntax palette.
+5. **Highlight** into tokens carrying a role — `name` (Violet) for JSON keys
+   and XML element and attribute names, `value` (Teal) for JSON strings,
+   numbers and literals and XML attribute values and text, `recede` for
+   punctuation, comments and declarations.
 
 Binary bodies get a hex dump — offset, sixteen bytes, printable ASCII — capped
 at 4 KiB with the truncation stated.
@@ -155,14 +160,21 @@ says they cannot be recovered here — there is nothing that tries.
 
 Owners get sharing on/off, the invitation link, delete one request, and clear all
 requests. Capability comes from `owner` in the metadata response. The bin's top
-row carries the owner's controls at its right end: the **Guest access** switch,
-a help button and a sweep button. Deleting one request is an icon at the right
+row carries a help button beside the capture link, and a sweep button and a
+share button, in that order, at its right end. Deleting one request is an icon at the right
 end of the selected row in the list; afterwards the top row of the list, as
 sorted and filtered, is selected and focused.
 
-The help button opens a dialog with two sections: an example request against
-the capture URL, and the invitation link with a note that it only works while
-guest access is on. The sweep button opens a confirmation that names what
+The share button opens a popover under it, right edges aligned, holding the
+**Guest access** switch and the invitation link with its copy control. It is a
+native popover: it closes on Esc, on a click elsewhere, or when the window is
+resized. The switch flips once the server has saved the change, not on the
+click.
+
+The help button opens a dialog with three sections: an example request against
+the capture URL, how sharing works and that the invitation link only works
+while guest access is on, and how long a bin is kept. It does not hold the link
+itself. The sweep button opens a confirmation that names what
 clearing destroys; a failure is reported in the dialog, which stays open. Both
 are native `<dialog>`s that close on their ×, on Esc, or on a click on the
 backdrop; their contents are unmounted while closed, so a half-confirmed action
@@ -193,7 +205,7 @@ happen.
 | `lib/body.ts` | Base64 → bytes → text → formatted → tokens, plus the hex dump. Pure functions. |
 | `lib/location.ts` | Bin code, request id and invitation read from the URL; capture and invitation URLs built on the origin the browser is really on. |
 | `lib/format.ts`, `lib/clipboard.ts`, `lib/theme.ts` | Times and byte counts, a clipboard that is allowed to be unavailable, a dark-by-default theme toggle. |
-| `components/` | `BinPage` wires the feed, selection, detail and mutations; the rest render. `AboutDialog` and `ThemeToggle` mirror their zibs counterparts. |
+| `components/` | `BinPage` wires the feed, selection, detail and mutations; the rest render. `ThemeToggle` mirrors its zibs counterpart. |
 
 ## Tests
 

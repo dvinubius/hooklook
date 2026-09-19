@@ -11,6 +11,7 @@ by default.
 | `GET /bins/{code}` | Authorize owner cookie or `?invite={identifier}` while sharing is enabled, then serve the application document. Unauthorized visitors are `303`-redirected to their own bin, resolved or created, before any request data loads. |
 | `GET /bins/{code}/requests/{id}` | The detail URL a capture reports. Same authorization and same document as the bin page; the request id is resolved inside the application, so an unknown id is not a server error. A guest's `?invite=` is preserved in the URL. |
 | `GET /bins/{code}/`, `GET /bins/{code}/requests/{id}/` | `301` to the same address without the trailing slash, query string kept. Nothing is looked up; the canonical URL is authorized as usual. |
+| `GET /bins/{code}/requests`, `GET /bins/{code}/requests/` | `301` to `/bins/{code}`, query string kept. Nothing is looked up; the bin page is authorized as usual. |
 | `GET /assets/{path...}`, `GET /fonts/{path...}` | The embedded frontend build. Deliberately outside bin authorization: no captured data, identical for every visitor, and required by a page the server has already handed over. Hashed JavaScript and CSS are `immutable`; fonts get an ordinary lifetime. Unknown files: `404`. |
 | Any method `/b/{code}` or `/b/{code}/{path...}` | Capture an HTTP request and return `201` with its ID and the UI detail URL that opens it. Missing or expired bin: `404`; full bin: `507`. |
 | `GET /api/bins/{code}` | Authorized bin metadata. Owners also receive `inviteId` and sharing state. |

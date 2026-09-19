@@ -74,6 +74,17 @@ func withoutTrailingSlash(w http.ResponseWriter, req *http.Request) {
 	http.Redirect(w, req, target, http.StatusMovedPermanently)
 }
 
+// toBinPage sends `/bins/{code}/requests`, with or without a trailing slash —
+// a detail URL with its id cut off — to the bin page itself. Like
+// withoutTrailingSlash it keeps the query and looks nothing up first.
+func toBinPage(w http.ResponseWriter, req *http.Request) {
+	target := "/bins/" + url.PathEscape(req.PathValue("code"))
+	if req.URL.RawQuery != "" {
+		target += "?" + req.URL.RawQuery
+	}
+	http.Redirect(w, req, target, http.StatusMovedPermanently)
+}
+
 // inspectorPage serves the application for both `/bins/{code}` and the detail
 // URL `/bins/{code}/requests/{id}` that a capture reports. Authorization and
 // the redirect to the visitor's own bin happen here, before any document is

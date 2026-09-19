@@ -134,6 +134,12 @@ describe('HeadersView', () => {
     expect(textOf(html)).toContain('<b>hi</b>')
   })
 
+  it('keeps a long name whole in the page, however it is cut on screen', async () => {
+    const name = 'X-Very-Long-Vendor-Specific-Signature-Header'
+    const html = await render(HeadersView, { headers: { [name]: ['v'] } })
+    expect(html).toMatch(new RegExp(`<dt class="name"[^>]*>${name}</dt>`))
+  })
+
   it('says so when nothing was stored', async () => {
     const html = await render(HeadersView, { headers: {} })
     expect(html).toContain('no headers were stored')
@@ -146,7 +152,7 @@ describe('RequestList', () => {
     expect(html).toContain('POST')
     expect(html).toContain('/orders/42')
     expect(html).toContain('?retry=1')
-    expect(html).toContain('total: 1')
+    expect(html).toContain('Total requests: 1')
   })
 
   it('distinguishes nothing-yet from nothing-matching', async () => {
@@ -157,12 +163,15 @@ describe('RequestList', () => {
     expect(loading).toContain('loading captured requests')
   })
 
-  it('shows a live stream as a status dot and names every other state in words', async () => {
+  it('shows a live stream as streaming with a status dot, and anything else as connecting', async () => {
     const live = await render(RequestList, listProps)
     expect(live).toContain('class="live"')
     expect(textOf(live)).toContain('streaming')
-    const down = await render(RequestList, { ...listProps, stream: 'reconnecting' })
-    expect(down).toContain('reconnecting')
+    for (const stream of ['connecting', 'reconnecting', 'closed'] as const) {
+      const down = await render(RequestList, { ...listProps, stream })
+      expect(textOf(down)).toContain('connecting…')
+      expect(down).not.toContain('class="live"')
+    }
   })
 
   it('offers a reload when the list itself could not be read', async () => {

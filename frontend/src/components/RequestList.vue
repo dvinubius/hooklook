@@ -2,8 +2,9 @@
 /* The captured requests. The feed holds them in store order; the arrangement
    is the reader's and lives here, so a live event never reorders the list out
    from under them. Every state the list can be in is named in words — the
-   brand has no animation, so a reconnecting stream says so — except a live
-   stream, which is a still green dot.
+   brand has no animation. The stream reads "streaming" beside a still green
+   dot while it is live, and "connecting…" otherwise: a first connection and
+   a reconnection look the same to the reader.
 
    Up and down move the selection through the rows as shown. The owner's
    delete control sits on the selected row only; hiding it from a guest is
@@ -19,6 +20,7 @@ import {
   type RequestSummary,
   type SortOrder,
   type StreamState,
+  type TextOperator,
 } from '../types'
 
 const props = defineProps<{
@@ -37,13 +39,18 @@ const props = defineProps<{
 const emit = defineEmits<{ select: [id: string, replace?: boolean]; retry: []; remove: [id: string] }>()
 
 const order = ref<SortOrder>('newest')
-const filters = ref<RequestFilters>({ ...emptyFilters })
+const filters = ref<RequestFilters>(emptyFilters())
 
 const methods = computed(() => presentMethods(props.summaries))
 
 const orderOptions: { value: SortOrder; label: string }[] = [
   { value: 'newest', label: 'newest first' },
   { value: 'oldest', label: 'oldest first' },
+]
+const operatorOptions: { value: TextOperator; label: string }[] = [
+  { value: 'matches', label: 'matches' },
+  { value: 'empty', label: 'is empty' },
+  { value: 'notEmpty', label: 'is not empty' },
 ]
 const methodOptions = computed(() => [
   { value: '', label: 'any method' },
@@ -59,19 +66,11 @@ const countNote = computed(() => {
   if (narrowed.value && visible.value.length > 0) {
     return `${visible.value.length} of ${props.summaries.length} shown`
   }
-  return `total: ${props.summaries.length}`
-})
-
-// A live stream reads "streaming" beside a green dot, like a presence status;
-// every other state is named in words alone.
-const streamNote = computed(() => {
-  if (props.stream === 'connecting') return '// connecting…'
-  if (props.stream === 'reconnecting') return '// reconnecting — the list is refreshed on request'
-  return '// stream closed'
+  return `Total requests: ${props.summaries.length}`
 })
 
 function clearFilters(): void {
-  filters.value = { ...emptyFilters }
+  filters.value = emptyFilters()
 }
 
 const list = ref<HTMLUListElement | null>(null)
@@ -110,13 +109,11 @@ function step(event: KeyboardEvent): void {
 
 <template>
   <section class="list">
-    <!-- Left: the label and, past a hairline, the count. Right: the stream. -->
+    <!-- Left: the count. Right: the stream. The list names itself to a
+         screen reader only. -->
     <header class="head">
-      <h2 class="meta-caps">Requests</h2>
-      <template v-if="countNote">
-        <span class="separator" aria-hidden="true"></span>
-        <span class="micro">{{ countNote }}</span>
-      </template>
+      <h2 class="sr-only">Requests</h2>
+      <span v-if="countNote" class="micro">{{ countNote }}</span>
       <span
         v-if="stream === 'live'"
         class="micro stream"
@@ -125,7 +122,7 @@ function step(event: KeyboardEvent): void {
         streaming
         <span class="live" aria-hidden="true"></span>
       </span>
-      <span v-else class="micro stream">{{ streamNote }}</span>
+      <span v-else class="micro stream">connecting…</span>
     </header>
 
     <div class="controls">
@@ -133,9 +130,31 @@ function step(event: KeyboardEvent): void {
         <SelectMenu v-model="order" :options="orderOptions" label="Order" />
         <SelectMenu v-model="filters.method" :options="methodOptions" label="Filter by method" />
       </div>
-      <div class="control-row">
-        <input v-model="filters.path" class="field" type="search" placeholder="path contains" />
-        <input v-model="filters.query" class="field" type="search" placeholder="query contains" />
+      <!-- Each text filter: the field's name, its operator, and the text
+           beside it for "matches" only — the other two need none. -->
+      <div class="control-row text-filter">
+        <span class="filter-label" aria-hidden="true">path</span>
+        <SelectMenu v-model="filters.path.operator" :options="operatorOptions" label="Path filter" />
+        <input
+          v-if="filters.path.operator === 'matches'"
+          v-model="filters.path.text"
+          class="field"
+          type="search"
+          placeholder="text"
+          aria-label="Path text"
+        />
+      </div>
+      <div class="control-row text-filter">
+        <span class="filter-label" aria-hidden="true">query</span>
+        <SelectMenu v-model="filters.query.operator" :options="operatorOptions" label="Query filter" />
+        <input
+          v-if="filters.query.operator === 'matches'"
+          v-model="filters.query.text"
+          class="field"
+          type="search"
+          placeholder="text"
+          aria-label="Query text"
+        />
       </div>
     </div>
 
@@ -220,11 +239,8 @@ function step(event: KeyboardEvent): void {
 .head .micro {
   font-size: var(--text-mono-meta);
 }
-.head h2 {
-  margin: 0;
-  font-size: 20px;
-}
-/* Selectors above, text filters below, in two matching columns. */
+/* Order and method above, in two matching columns; then one row per text
+   filter — its name, its operator, and its text. */
 .controls {
   display: flex;
   flex-direction: column;
@@ -234,6 +250,16 @@ function step(event: KeyboardEvent): void {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 8px;
+}
+.text-filter {
+  grid-template-columns: 3.5em minmax(0, 1fr) minmax(0, 1fr);
+  align-items: center;
+}
+/* Set like the page's other control labels. */
+.filter-label {
+  font-family: var(--font-mono);
+  font-size: var(--text-mono-meta);
+  color: var(--text-muted);
 }
 .state {
   display: flex;

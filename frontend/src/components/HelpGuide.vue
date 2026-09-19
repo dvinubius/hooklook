@@ -1,12 +1,11 @@
 <script setup lang="ts">
-/* The owner's help dialog content, in three sections: sending requests to
-   the capture URL, sharing the bin through its guest link, and keeping the
-   bin. The guest link is shown whether or not guest access is on, and says
-   that it only works while it is. */
+/* The owner's help dialog content, in four sections: sending requests to
+   the capture URL, what happens to credentials in their headers, sharing the
+   bin through its guest link, and keeping the bin. Sharing is only explained here; the switch and the link themselves
+   live under the page's share button. */
 import ExampleRequest from './ExampleRequest.vue'
-import LinkField from './LinkField.vue'
 
-defineProps<{ captureUrl: string; guestLink: string; origin: string }>()
+defineProps<{ captureUrl: string }>()
 </script>
 
 <template>
@@ -24,16 +23,24 @@ defineProps<{ captureUrl: string; guestLink: string; origin: string }>()
       </p>
     </section>
 
-    <section v-if="guestLink" class="section">
+    <section class="section">
+      <h3 class="meta-caps">credentials in headers</h3>
+      <p class="note">
+        Credential headers are replaced with <strong class="key">[REDACTED]</strong> before storage.
+        The original values were never written down and cannot be recovered here.
+      </p>
+    </section>
+
+    <section class="section">
       <h3 class="meta-caps">share the bin</h3>
       <p class="note">
         You can share this bin with colleagues. As guests, they can access and inspect captured
         requests, but not to delete any.
       </p>
       <p class="note">
-        This link is only valid when you <strong class="key">enable guest access</strong>.
+        The share button holds the guest link. It is only valid when you
+        <strong class="key">enable guest access</strong> there.
       </p>
-      <LinkField :url="guestLink" :base="origin" copy-label="Copy guest link" />
     </section>
 
     <section class="section">
