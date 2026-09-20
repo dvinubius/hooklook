@@ -8,7 +8,7 @@ import { describe, expect, it } from 'vitest'
 import { createSSRApp, h, type Component } from 'vue'
 import { renderToString } from 'vue/server-renderer'
 import BodyView from '../components/BodyView.vue'
-import HeadersView from '../components/HeadersView.vue'
+import HeadersTable from '../components/HeadersTable.vue'
 import RequestDetailView from '../components/RequestDetail.vue'
 import RequestList from '../components/RequestList.vue'
 import SelectMenu from '../components/SelectMenu.vue'
@@ -119,9 +119,9 @@ describe('BodyView', () => {
   })
 })
 
-describe('HeadersView', () => {
+describe('HeadersTable', () => {
   it('shows a redacted value as stored and does not pretend to recover it', async () => {
-    const html = await render(HeadersView, {
+    const html = await render(HeadersTable, {
       headers: { Authorization: ['[REDACTED]'], 'Content-Type': ['application/json'] },
     })
     expect(html).toContain('[REDACTED]')
@@ -129,19 +129,24 @@ describe('HeadersView', () => {
   })
 
   it('escapes a header value as readily as a body', async () => {
-    const html = await render(HeadersView, { headers: { 'X-Note': ['<b>hi</b>'] } })
+    const html = await render(HeadersTable, { headers: { 'X-Note': ['<b>hi</b>'] } })
     expect(html).not.toMatch(/<b>hi<\/b>/)
     expect(textOf(html)).toContain('<b>hi</b>')
   })
 
+  it('gives each header a labelled copy control', async () => {
+    const html = await render(HeadersTable, { headers: { Accept: ['text/html', 'application/json'] } })
+    expect(html).toContain('aria-label="Copy Accept header"')
+  })
+
   it('keeps a long name whole in the page, however it is cut on screen', async () => {
     const name = 'X-Very-Long-Vendor-Specific-Signature-Header'
-    const html = await render(HeadersView, { headers: { [name]: ['v'] } })
+    const html = await render(HeadersTable, { headers: { [name]: ['v'] } })
     expect(html).toMatch(new RegExp(`<dt class="name"[^>]*>${name}</dt>`))
   })
 
   it('says so when nothing was stored', async () => {
-    const html = await render(HeadersView, { headers: {} })
+    const html = await render(HeadersTable, { headers: {} })
     expect(html).toContain('no headers were stored')
   })
 })

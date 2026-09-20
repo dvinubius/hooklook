@@ -45,7 +45,7 @@ const parts = computed(() =>
   flex: 1 1 auto;
   min-width: 0;
   margin: 0;
-  color: var(--paper);
+  color: var(--code-emphasis);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

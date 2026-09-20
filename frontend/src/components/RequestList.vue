@@ -287,7 +287,6 @@ function step(event: KeyboardEvent): void {
 .item {
   display: flex;
   align-items: stretch;
-  transition: var(--hover-transition);
   border-bottom: 1px solid var(--hairline);
   border-left: 2px solid transparent;
 }
@@ -344,8 +343,9 @@ function step(event: KeyboardEvent): void {
   flex: 1;
   min-width: 0;
 }
+/* The path in Teal, the primary data color; the raw query recedes. */
 .path {
-  color: var(--text-body);
+  color: var(--teal);
 }
 .query {
   color: var(--text-muted);

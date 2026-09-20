@@ -3,7 +3,7 @@
    summary line was fetched for this selection alone. */
 import { computed } from 'vue'
 import BodyView from './BodyView.vue'
-import HeadersView from './HeadersView.vue'
+import HeadersTable from './HeadersTable.vue'
 import InfoPopover from './InfoPopover.vue'
 import { describeBody } from '../lib/body'
 import { formatInstant } from '../lib/format'
@@ -57,7 +57,7 @@ const body = computed(() =>
         <p class="facts">
           <span>{{ formatInstant(detail.receivedAt) }}</span>
           <span class="separator" aria-hidden="true"></span>
-          <span><span class="muted">id</span> {{ detail.id }}</span>
+          <span><span class="muted">request id: </span> {{ detail.id }}</span>
         </p>
       </header>
 
@@ -69,7 +69,7 @@ const body = computed(() =>
             were never written down and cannot be recovered here.
           </InfoPopover>
         </div>
-        <HeadersView :headers="detail.headers" />
+        <HeadersTable :headers="detail.headers" />
       </section>
 
       <BodyView :body="body" />
@@ -119,7 +119,9 @@ const body = computed(() =>
 .method {
   font-weight: 500;
 }
+/* The path in Teal, as in the list; the query keeps its own muted grey. */
 .target {
+  color: var(--teal);
   word-break: break-all;
 }
 .query {

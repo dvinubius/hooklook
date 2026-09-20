@@ -9,6 +9,7 @@
    view is showing. */
 import { computed, ref, watch } from 'vue'
 import CopyButton from './CopyButton.vue'
+import InfoPopover from './InfoPopover.vue'
 import SegmentedControl from './SegmentedControl.vue'
 import { formatBytes, hexDump, highlight, type DecodedBody } from '../lib/body'
 
@@ -44,7 +45,13 @@ const dump = computed(() => hexDump(props.body.bytes))
 <template>
   <section class="body-view">
     <header class="head">
-      <h2 class="meta-caps">Body</h2>
+      <div class="title">
+        <h2 class="meta-caps">Body</h2>
+        <InfoPopover label="About request bodies">
+          Bodies are stored exactly as received, without redaction. They may contain secrets or
+          personal data; use test data and share this bin carefully.
+        </InfoPopover>
+      </div>
       <span class="separator" aria-hidden="true"></span>
       <span class="micro">
         {{ formatBytes(body.size) }}
@@ -100,6 +107,11 @@ const dump = computed(() => hexDump(props.body.bytes))
   gap: 12px;
   flex-wrap: wrap;
 }
+.title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
 /* The facts beside the label read at 12px, a step above micro. */
 .head .micro {
   font-size: var(--text-mono-meta);
@@ -122,15 +134,14 @@ const dump = computed(() => hexDump(props.body.bytes))
   max-width: 68ch;
 }
 /* No body is still shown where a body would be: the aside, centred in an
-   empty code surface, at the surface's recede tier since the surface is
-   dark in both themes. */
+   empty code surface, at the surface's recede tier. */
 .empty {
   margin: 0;
   padding: 28px 16px;
   text-align: center;
   /* The aside's own size; `.code-surface` would otherwise set its own. */
   font-size: var(--text-mono-meta);
-  color: var(--muted-on-dark);
+  color: var(--code-recede);
 }
 pre {
   margin: 0;

@@ -16,18 +16,34 @@ button{font:inherit;color:inherit;border-radius:0;}
 [data-theme="light"]{--danger:#A03028;--danger-text-on:var(--paper);}
 [data-theme="dark"]{--danger:#E0756A;--danger-text-on:var(--ink);}
 
-/* The data colors, an extension of the brand for a data-rich app: Teal for
-   values, Violet for the names of values. Each has a light-theme and a
-   dark-theme variant, like the accent; for now they appear only as syntax
-   colors on code surfaces, which are dark in both themes, so only the
-   dark-theme variants are in use. */
-:root{
-  --teal-on-dark:#5BC8D0;
-  --violet-on-dark:#AFA3CF;
+/* The data colors, an extension of the brand for a data-rich app: Teal is
+   the primary data color, Violet the secondary. Each has a light-theme and a
+   dark-theme variant, like the accent, and follows the theme. */
+[data-theme="light"]{--teal:#087581;--violet:#6B5D91;}
+[data-theme="dark"]{--teal:#5BC8D0;--violet:#AFA3CF;}
+
+/* Code surfaces follow the theme too. On dark they are Panel with a hairline
+   and the brand's dark code ramp; on light, a light grey fill with no border
+   and its mirror: Ink, a dark grey, then Stone. The body tier on light has no
+   brand grey of its own, so it is set here. Syntax takes the data colors. */
+[data-theme="light"]{
+  --code-bg:var(--shade-on-light);
+  --code-edge:transparent;
+  --code-emphasis:var(--ink);
+  --code-body:#3D3D3D;
+  --code-recede:var(--stone);
+}
+[data-theme="dark"]{
+  --code-bg:var(--panel);
+  --code-edge:var(--hairline-on-dark);
+  --code-emphasis:var(--paper);
+  --code-body:var(--muted-strong);
+  --code-recede:var(--muted-on-dark);
 }
 
 /* Hover feedback on buttons, links and list items eases in and out over
-   150ms rather than snapping; list items opt in with --hover-transition. */
+   150ms rather than snapping. List items — request rows, header rows, menu
+   options — have no transition: they change instantly. */
 :root{
   --hover-transition:color 150ms ease-in-out,background-color 150ms ease-in-out,border-color 150ms ease-in-out;
 }
@@ -106,22 +122,21 @@ input,select{font:inherit;border-radius:0;}
 :focus-visible{outline:2px solid var(--accent);outline-offset:1px;}
 
 /* ---- code surfaces ---------------------------------------------------- */
-/* Always the dark code surface, in both themes: on light pages code sits on
-   Ink with no border, on dark pages on Panel with a hairline. */
+/* Theme-aware: see the --code-* tokens above. */
 
 .code-surface{
-  background:var(--surface-code);
-  border:1px solid var(--code-border);
+  background:var(--code-bg);
+  border:1px solid var(--code-edge);
   font-family:var(--font-mono);
   font-size:var(--text-small);
   line-height:var(--leading-code);
-  color:var(--muted-strong);
+  color:var(--code-body);
 }
-.tok-recede{color:var(--muted-on-dark);}
-.tok-body{color:var(--muted-strong);}
-.tok-emphasis{color:var(--paper);}
-.tok-name{color:var(--violet-on-dark);}
-.tok-value{color:var(--teal-on-dark);}
+.tok-recede{color:var(--code-recede);}
+.tok-body{color:var(--code-body);}
+.tok-emphasis{color:var(--code-emphasis);}
+.tok-name{color:var(--violet);}
+.tok-value{color:var(--teal);}
 
 /* ---- scrollbars ------------------------------------------------------- */
 

@@ -2,7 +2,8 @@
 /* Copying is reported in words: the brand's ✓ and × are a valence pair for
    figures and marked lists, not decoration on a control. The icon variant
    sits inside a field, so it shows the copy icon until there is something to
-   say, and then says it in the icon's place. */
+   say, and then says it in the icon's place — carrying `saying` meanwhile,
+   so a parent that hides it can keep it in view. */
 import { computed, onBeforeUnmount, ref } from 'vue'
 import IconCopy from './IconCopy.vue'
 import { copyText } from '../lib/clipboard'
@@ -38,7 +39,7 @@ onBeforeUnmount(() => clearTimeout(reset))
   <button
     v-if="variant === 'icon'"
     class="copy-icon"
-    :class="{ muted }"
+    :class="{ muted, saying: status !== 'idle' }"
     type="button"
     :aria-label="label"
     :title="status === 'idle' ? label : undefined"
@@ -77,20 +78,20 @@ onBeforeUnmount(() => clearTimeout(reset))
 .copy-icon:hover {
   color: var(--accent-on-hover);
 }
-/* The icon variant always sits on a code surface, which is dark in both
-   themes, so muted takes the code ramp's greys rather than the page's. */
+/* The icon variant always sits on a code surface, so muted takes the code
+   ramp's greys rather than the page's. */
 .copy-icon.muted {
-  color: var(--muted-on-dark);
+  color: var(--code-recede);
 }
 .copy-icon.muted:hover {
-  color: var(--paper);
+  color: var(--code-emphasis);
 }
 [data-theme="dark"] .copy-icon:hover {
-  color: var(--paper);
+  color: var(--code-emphasis);
 }
 .glyph {
-  width: 22px;
-  height: 22px;
+  width: 20px;
+  height: 20px;
 }
 .said {
   font-family: var(--font-mono);

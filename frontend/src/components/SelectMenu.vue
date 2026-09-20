@@ -183,7 +183,6 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', outside, true)
   padding: 7px 9px;
   color: var(--text-muted);
   cursor: pointer;
-  transition: var(--hover-transition);
 }
 .option.chosen {
   color: var(--text-body);
