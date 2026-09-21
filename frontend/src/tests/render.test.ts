@@ -168,14 +168,15 @@ describe('RequestList', () => {
     expect(loading).toContain('loading captured requests')
   })
 
-  it('shows a live stream as streaming with a status dot, and anything else as connecting', async () => {
+  it('shows a live stream as streaming with a green dot, and anything else as connecting with a grey one', async () => {
     const live = await render(RequestList, listProps)
-    expect(live).toContain('class="live"')
+    expect(live).toContain('class="dot live"')
     expect(textOf(live)).toContain('streaming')
     for (const stream of ['connecting', 'reconnecting', 'closed'] as const) {
       const down = await render(RequestList, { ...listProps, stream })
       expect(textOf(down)).toContain('connecting…')
-      expect(down).not.toContain('class="live"')
+      expect(down).toContain('class="dot waiting"')
+      expect(down).not.toContain('class="dot live"')
     }
   })
 
@@ -235,6 +236,55 @@ describe('RequestDetail', () => {
       detail: null, selectedId: null, loading: false, error: '', missing: false,
     })
     expect(html).toContain('// Select a request')
+  })
+
+  it('leads with the client address when the capture came through the proxy', async () => {
+    const html = await render(RequestDetailView, {
+      detail: { ...detail, headers: { ...detail.headers, 'X-Forwarded-For': ['203.0.113.7'] } },
+      selectedId: '12', loading: false, error: '', missing: false,
+    })
+    expect(textOf(html)).toContain('client ip:  203.0.113.7')
+  })
+
+  it('keeps the request on screen under a veil while the next one loads', async () => {
+    const html = await render(RequestDetailView, {
+      detail, selectedId: '13', loading: true, error: '', missing: false,
+    })
+    expect(html).toContain('class="veil"')
+    expect(html).toContain('/orders/42')
+    // The veil says it in the spinner, to screen readers only — no words on
+    // the page, and nothing that replaces what is under it.
+    expect(html).not.toContain('// Loading request')
+    expect(html).toMatch(/class="sr-only"[^>]*>Loading request</)
+  })
+
+  it('veils an empty pane on the first selection, with nothing to show yet', async () => {
+    const html = await render(RequestDetailView, {
+      detail: null, selectedId: '12', loading: true, error: '', missing: false,
+    })
+    expect(html).toContain('class="veil"')
+    expect(html).toContain('role="status"')
+  })
+
+  it('reports a missing or failed request rather than veiling it', async () => {
+    const missing = await render(RequestDetailView, {
+      detail, selectedId: '12', loading: false, error: '', missing: true,
+    })
+    expect(missing).not.toContain('class="veil"')
+    expect(missing).not.toContain('/orders/42')
+
+    const failed = await render(RequestDetailView, {
+      detail, selectedId: '12', loading: false, error: 'This request could not be loaded just now.', missing: false,
+    })
+    expect(failed).not.toContain('/orders/42')
+    expect(failed).toContain('Try again')
+  })
+
+  it('says nothing about a client address when the header is absent', async () => {
+    const html = await render(RequestDetailView, {
+      detail, selectedId: '12', loading: false, error: '', missing: false,
+    })
+    expect(textOf(html)).not.toContain('client ip')
   })
 })
 

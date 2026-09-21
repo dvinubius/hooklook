@@ -81,11 +81,12 @@ func getBinRequests(w http.ResponseWriter, req *http.Request) {
 func getBinEvents(w http.ResponseWriter, req *http.Request) {
 	binCode := req.PathValue("code")
 	streamAccessMu.Lock()
-	if _, ok := authorizedAccess(w, req); !ok {
+	access, ok := authorizedAccess(w, req)
+	if !ok {
 		streamAccessMu.Unlock()
 		return
 	}
-	events, ok := eventHub.subscribe(binCode)
+	events, ok := eventHub.subscribe(binCode, access.Owner)
 	streamAccessMu.Unlock()
 	if !ok {
 		http.Error(w, "server is shutting down", http.StatusServiceUnavailable)

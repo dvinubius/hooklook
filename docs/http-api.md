@@ -20,9 +20,17 @@ by default.
 | `GET /api/bins/{code}/events` | Authorized SSE. The stream opens with a `: connected` comment. `request` events contain summaries. `refresh` events tell clients to refetch after deletion or clearing. Reconnect and refetch after a stream closes. |
 | `DELETE /api/bins/{code}/requests/{id}` | Owner only. Delete one request and reclaim its exact raw-body bytes. |
 | `DELETE /api/bins/{code}/requests` | Owner only. Clear requests while retaining the bin address and invitation. |
-| `PUT /api/bins/{code}/sharing` | Owner only. JSON body `{"enabled":true}` or `{"enabled":false}`; disabling sharing closes current SSE streams. Re-enabling uses the same invitation. |
+| `PUT /api/bins/{code}/sharing` | Owner only. JSON body `{"enabled":true}` or `{"enabled":false}`; disabling sharing closes the guests' SSE streams and leaves the owner's open. Re-enabling uses the same invitation. |
 | `GET /admin/bins` | Operator-only list. Requires `Authorization: Bearer <ADMIN_TOKEN>`. |
 | `GET /health` | Static liveness response. |
+
+There is no client-address field in any response. The UI shows a **client ip**
+on a request's detail, but it reads that out of the stored `X-Forwarded-For`
+header in this endpoint's `headers`, and it reports the *last* hop: Caddy
+appends the address it accepted the connection from, so the first hop is only
+what the caller claimed. Nothing about the address is captured or stored
+separately, and the trust rule assumes Caddy is the only public ingress — see
+[frontend](frontend.md#client-address).
 
 For authorized GET endpoints, owners use the `hooklook_owner` cookie and guests
 provide `?invite={identifier}` on **each** API and SSE request. The cookie is

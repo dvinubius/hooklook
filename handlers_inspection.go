@@ -214,8 +214,9 @@ func sharingSetting(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	if !body.Enabled {
-		eventHub.closeBin(req.PathValue("code"))
-		eventHub.openBin(req.PathValue("code"))
+		// Only the guests lose their stream. The owner asked for this from
+		// their own live page, and that page stays live.
+		eventHub.closeGuestStreams(req.PathValue("code"))
 	}
 	w.WriteHeader(http.StatusNoContent)
 }

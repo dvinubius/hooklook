@@ -3,8 +3,8 @@
    is the reader's and lives here, so a live event never reorders the list out
    from under them. Every state the list can be in is named in words — the
    brand has no animation. The stream reads "streaming" beside a still green
-   dot while it is live, and "connecting…" otherwise: a first connection and
-   a reconnection look the same to the reader.
+   dot while it is live, and "connecting…" beside a grey one otherwise: a
+   first connection and a reconnection look the same to the reader.
 
    Up and down move the selection through the rows as shown. The owner's
    delete control sits on the selected row only; hiding it from a guest is
@@ -120,9 +120,12 @@ function step(event: KeyboardEvent): void {
         title="Live: new requests appear as they arrive"
       >
         streaming
-        <span class="live" aria-hidden="true"></span>
+        <span class="dot live" aria-hidden="true"></span>
       </span>
-      <span v-else class="micro stream">connecting…</span>
+      <span v-else class="micro stream">
+        connecting…
+        <span class="dot waiting" aria-hidden="true"></span>
+      </span>
     </header>
 
     <p v-if="totalNote" class="counts">
@@ -271,13 +274,19 @@ function step(event: KeyboardEvent): void {
   gap: 12px;
   margin: 0;
 }
-/* The one hue outside the brand palette: a presence-green status dot. */
-.live {
+/* The status dot: one shape, two readings. Green is the one hue outside the
+   brand palette; grey says the same thing the word beside it does. */
+.dot {
   align-self: center;
   width: 10px;
   height: 10px;
   border-radius: 50%;
+}
+.live {
   background: #2bac76;
+}
+.waiting {
+  background: var(--text-muted);
 }
 /* The facts beside and below the label read at 12px, a step above micro,
    and one tier under the label they belong to. */

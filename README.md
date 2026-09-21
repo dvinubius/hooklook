@@ -48,6 +48,11 @@ A `curl` example to try the URL with is in the help dialog.
   Text that is not UTF-8 is decoded with a named fallback, and the encoding
   used is stated. Bytes that are not text get a hex dump. Nothing captured is
   ever rendered as markup.
+- **A capture that came through the proxy shows its client address.** When
+  the request carried an `X-Forwarded-For`, the detail reports a **client ip**
+  beside the received time. It is read off that stored header — no address is
+  captured or stored on its own — and it is the last hop, the one our own
+  ingress accepted, not the first one a caller can put there themselves.
 - **Redacted headers stay redacted.** The values were replaced before storage,
   and a note by the headers says so rather than implying they could be
   recovered. Bodies, by contrast, are stored as received, which the body's own
@@ -61,8 +66,9 @@ A `curl` example to try the URL with is in the help dialog.
   every mutation.
 
 A shared link is read-only, and it is the invitation — not the bin code — that
-grants it. Disabling sharing stops that link working and closes any stream it
-has open; enabling it again makes the same link work.
+grants it. Disabling sharing stops that link working and closes any guest stream it
+has open; the owner's own page stays live. Enabling it again makes the same
+link work.
 
 ## Project documentation
 

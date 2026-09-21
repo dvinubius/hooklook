@@ -158,8 +158,12 @@ func run(ctx context.Context, address string, logger *slog.Logger) error {
 	}
 }
 
-// createDevelopmentBin is an operator-only CLI fixture until the home page
-// creates cookie-associated bins. It does not expose another HTTP route.
+// createDevelopmentBin writes a bin straight to SQLite and returns its capture
+// URL, for work that needs one without a browser — the capture smoke test, or
+// a `curl` against a fresh bin. The home page is how bins are normally made,
+// and that one is cookie-associated; this bin has no owner cookie, so nothing
+// can inspect it through the UI. It stays a CLI subcommand deliberately: an
+// HTTP route would be an unauthenticated way to create bins.
 func createDevelopmentBin(path string) (string, error) {
 	configuredPublicBaseURL, err := publicBaseURLFromEnvironment()
 	if err != nil {

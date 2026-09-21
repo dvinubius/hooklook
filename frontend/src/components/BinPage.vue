@@ -72,13 +72,17 @@ async function loadDetail(): Promise<void> {
   detailRequest = null
   detailAttempt += 1
   const attempt = detailAttempt
-  detail.value = null
   detailError.value = ''
   detailMissing.value = false
   if (id === null) {
+    detail.value = null
     detailLoading.value = false
     return
   }
+  // The outgoing detail stays put while the next one is fetched; the pane
+  // dims it and shows a spinner. Clearing it here is what made a selection
+  // change flicker through an empty pane. An error or a missing request
+  // replaces it in the pane regardless, so neither needs it cleared.
   const request = new AbortController()
   detailRequest = request
   detailLoading.value = true

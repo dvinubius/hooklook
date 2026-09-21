@@ -12,7 +12,8 @@ A home visit creates or resolves one cookie-associated bin and redirects to
 cryptographically random ownership secret is stored only as a SHA-256 digest in
 SQLite and sent in an `HttpOnly` browser cookie. Each bin has a distinct
 reusable invitation identifier. The owner can enable guest read access;
-disabling it revokes API access and closes existing streams. Authorized page
+disabling it revokes API access and closes the guests' streams, leaving the
+owner's own stream connected. Authorized page
 requests are answered with the Vue application itself.
 
 The frontend build is embedded in the binary with `go:embed`, so the binary is

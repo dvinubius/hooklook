@@ -93,8 +93,10 @@ itself refused needs no recheck — that request *was* the check.
 Loading, empty, filtered-empty and recoverable-error are each distinct states
 named in words. The brand defines no motion, so the stream's state is said
 rather than pulsed: "streaming" beside a still green dot while it is live, and
-"connecting…" otherwise — a first connection, a reconnection and a closed
-stream read the same.
+"connecting…" beside a muted grey one otherwise — a first connection, a
+reconnection and a closed stream read the same. The dot is the same shape
+either way, so the row never changes width as the state changes; only the word
+and the colour differ, and the word is what carries the meaning.
 
 ## One request in full
 
@@ -113,6 +115,36 @@ row — and is reported as such; it never invalidates the session, because the
 list fetch and the stream are what discover revoked access. A selection the
 refreshed list no longer contains is reported the same way instead of leaving
 stale detail on screen.
+
+While a detail is in flight the pane does not empty. The request already on
+screen stays, under a veil with a spinner at its centre, until the next one
+arrives; the veil sits over the pane rather than inside the scroller, so it
+stays centred however far the reader has scrolled. A pane that emptied to a
+line of text flickered on every selection, and the words said nothing the
+spinner does not — the spinner names itself to screen readers instead. What
+the pane keeps is content, not position: a new request opens at its own top.
+A missing or failed request replaces the pane as before; only the wait is
+veiled.
+
+### Client address
+
+The facts line above the headers reports a **client ip** when the capture
+carried an `X-Forwarded-For`, read off the stored headers by `lib/headers.ts`.
+Nothing about it is stored: there is no column and no capture field for an
+address, only this reading of a header that was captured like any other.
+
+The header is looked up case-insensitively, and a repeated header and a
+comma-separated one flatten to the same list of hops, as HTTP treats them.
+The reported address is the **last** hop, not the first. Caddy appends the
+address it accepted the connection from, so a caller who sends
+`X-Forwarded-For: 1.2.3.4` arrives as `1.2.3.4, <their real address>`: the
+first hop is whatever the caller claimed and the last is the only one this
+deployment observed. Ordinary traffic has one hop and the two readings agree.
+
+This depends on Caddy being the only public ingress, with Go unreachable
+directly. **Add another proxy or a CDN and the trusted hop moves further
+left** — `clientIp` in `lib/headers.ts` is where that rule lives. A capture
+that never passed the proxy has no header and no client ip line.
 
 ### Bodies
 
@@ -191,8 +223,9 @@ does not survive closing one. **Clearing keeps the bin** — same capture URL an
 same invitation.
 
 Disabling sharing does not change the invitation link; it stops the link
-working, and closes any stream open on it. Enabling it again makes the same link
-work.
+working, and closes the streams guests hold on it. The owner's own stream is
+left connected — they asked for this from their live page, and that page does
+not have to reconnect. Enabling it again makes the same link work.
 
 **Hiding the owner controls from a guest is presentation only.** The server
 re-checks ownership, the cookie and the request `Origin` on every mutation, so a
@@ -213,6 +246,7 @@ happen.
 | `lib/list.ts` | Ordering and filtering. Pure functions. |
 | `lib/body.ts` | Base64 → bytes → text → formatted → tokens, plus the hex dump. Pure functions. |
 | `lib/location.ts` | Bin code, request id and invitation read from the URL; capture and invitation URLs built on the origin the browser is really on. |
+| `lib/headers.ts` | The client address read out of `X-Forwarded-For`, and the trust rule that picks which hop. Pure functions. |
 | `lib/format.ts`, `lib/clipboard.ts`, `lib/theme.ts` | Times and byte counts, a clipboard that is allowed to be unavailable, a dark-by-default theme toggle. |
 | `components/` | `BinPage` wires the feed, selection, detail and mutations; the rest render. `ThemeToggle` mirrors its zibs counterpart. |
 

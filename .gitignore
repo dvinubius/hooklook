@@ -1,3 +1,5 @@
+.codegraph/
+
 # Local runtime state
 *.db
 *.db-shm

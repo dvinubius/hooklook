@@ -7,14 +7,21 @@ import "sync"
 // persisted request list rather than expecting missed events to be replayed.
 type EventHub struct {
 	mu          sync.Mutex
-	subscribers map[string]map[chan SummarizedRequest]struct{}
+	subscribers map[string]map[chan SummarizedRequest]viewer
 	closedBins  map[string]struct{}
 	closed      bool
 }
 
+// viewer records the one thing a stream's fate depends on beyond its bin:
+// whose stream it is. Turning sharing off revokes the guests' reading, not
+// the owner's, so the two are told apart here rather than at publish time.
+type viewer struct {
+	owner bool
+}
+
 func newEventHub() *EventHub {
 	return &EventHub{
-		subscribers: make(map[string]map[chan SummarizedRequest]struct{}),
+		subscribers: make(map[string]map[chan SummarizedRequest]viewer),
 		closedBins:  make(map[string]struct{}),
 	}
 }
@@ -23,7 +30,7 @@ var eventHub = newEventHub()
 
 // subscribe gives each client room for exactly one event. A false result means
 // the server is shutting down or the bin was deleted before the stream opened.
-func (hub *EventHub) subscribe(binCode string) (chan SummarizedRequest, bool) {
+func (hub *EventHub) subscribe(binCode string, owner bool) (chan SummarizedRequest, bool) {
 	hub.mu.Lock()
 	defer hub.mu.Unlock()
 
@@ -36,9 +43,9 @@ func (hub *EventHub) subscribe(binCode string) (chan SummarizedRequest, bool) {
 
 	events := make(chan SummarizedRequest, 1)
 	if hub.subscribers[binCode] == nil {
-		hub.subscribers[binCode] = make(map[chan SummarizedRequest]struct{})
+		hub.subscribers[binCode] = make(map[chan SummarizedRequest]viewer)
 	}
-	hub.subscribers[binCode][events] = struct{}{}
+	hub.subscribers[binCode][events] = viewer{owner: owner}
 	return events, true
 }
 
@@ -67,6 +74,20 @@ func (hub *EventHub) publish(binCode string, summary SummarizedRequest) {
 		select {
 		case events <- summary:
 		default:
+			hub.removeSubscriber(binCode, events)
+		}
+	}
+}
+
+// closeGuestStreams ends the streams guests hold on a bin and leaves the
+// owner's alone. Turning sharing off takes the bin back from its guests; the
+// owner is still reading it, and their page should not have to reconnect.
+func (hub *EventHub) closeGuestStreams(binCode string) {
+	hub.mu.Lock()
+	defer hub.mu.Unlock()
+
+	for events, who := range hub.subscribers[binCode] {
+		if !who.owner {
 			hub.removeSubscriber(binCode, events)
 		}
 	}
