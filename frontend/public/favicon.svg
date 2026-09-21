@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+  <!-- The hooklook mark whole on an Ink tile: dark in both themes, because a
+       browser tab is not part of the page. Geometry: .agents/BRAND_MARK.md -->
+  <rect width="32" height="32" rx="7" fill="#141414"/>
+  <g transform="translate(3 3) scale(1.022) translate(-1 -0.5)">
+    <mask id="cut" maskUnits="userSpaceOnUse" x="-10" y="-10" width="50" height="50">
+      <rect x="-10" y="-10" width="50" height="50" fill="#fff"/>
+      <circle cx="18" cy="17" r="8.4" fill="#000"/>
+      <path d="M22.879 21.879L25.142 24.142" stroke="#000" stroke-width="4.4" stroke-linecap="round"/>
+    </mask>
+    <clipPath id="glass"><circle cx="18" cy="17" r="5.2"/></clipPath>
+    <g fill="none" stroke="#FAFAFA" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <g mask="url(#cut)">
+        <path d="M18 16.98h-5.99c-1.1 0-1.95.94-2.48 1.9A4 4 0 0 1 2 17c.01-.7.2-1.4.57-2"/>
+        <path d="M6 17l3.13-5.78c.53-.97.1-2.18-.5-3.1a4 4 0 1 1 6.89-4.06"/>
+        <path d="M12 6l3.13 5.73C15.66 12.7 16.9 13 18 13a4 4 0 0 1 0 8"/>
+      </g>
+      <g clip-path="url(#glass)" opacity=".6">
+        <path d="M18 16.98h-5.99c-1.1 0-1.95.94-2.48 1.9A4 4 0 0 1 2 17c.01-.7.2-1.4.57-2"/>
+        <path d="M6 17l3.13-5.78c.53-.97.1-2.18-.5-3.1a4 4 0 1 1 6.89-4.06"/>
+        <path d="M12 6l3.13 5.73C15.66 12.7 16.9 13 18 13a4 4 0 0 1 0 8"/>
+      </g>
+      <circle cx="18" cy="17" r="6.5" stroke="#DE8A42" fill="#DE8A4224"/>
+      <path d="M22.879 21.879L25.142 24.142" stroke="#DE8A42" stroke-width="2.6"/>
+    </g>
+  </g>
+</svg>

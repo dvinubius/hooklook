@@ -1,6 +1,7 @@
 <script setup lang="ts">
 /* The page before — or instead of — an authorized bin. It never shows private
    data, so it says only what the browser is doing and, when that stalled, why. */
+import BrandMark from './BrandMark.vue'
 import type { SessionState } from '../lib/session'
 
 defineProps<{ state: SessionState; message: string }>()
@@ -9,7 +10,7 @@ defineEmits<{ retry: [] }>()
 
 <template>
   <main class="notice">
-    <div class="mark"><span class="bracket">[</span> hooklook <span class="bracket">]</span></div>
+    <BrandMark class="mark" />
 
     <p v-if="state === 'loading'" class="meta">// opening bin…</p>
     <p v-else-if="state === 'leaving'" class="meta">// taking you to your own bin…</p>
@@ -36,13 +37,7 @@ defineEmits<{ retry: [] }>()
 }
 .mark {
   font-size: var(--text-title);
-  font-weight: 500;
-  letter-spacing: var(--track-wordmark);
   margin-bottom: 10px;
-}
-.bracket {
-  color: var(--accent);
-  font-weight: 700;
 }
 .reason {
   margin: 0;

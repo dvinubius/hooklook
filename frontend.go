@@ -62,6 +62,7 @@ var devShell = []byte(`<!doctype html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="referrer" content="no-referrer">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <title>hooklook</title>
 </head>
 <body>

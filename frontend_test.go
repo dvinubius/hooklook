@@ -177,10 +177,21 @@ func TestShellAssetsAreServedWithoutBinAuthorization(t *testing.T) {
 		if len(asset.Result().Cookies()) != 0 {
 			t.Errorf("%s went through bin resolution and set a cookie", path)
 		}
-		if got := asset.Header().Get("Cache-Control"); got != hashedAssetCache {
-			t.Errorf("%s cache control = %q", path, got)
+		// Only the hashed build output may be cached permanently; anything the
+		// document names by a stable path — today just the favicon — takes the
+		// ordinary lifetime, so a new one can replace it.
+		wantCache := hashedAssetCache
+		if !strings.HasPrefix(path, "/assets/") {
+			wantCache = staticFileCache
 		}
-		wantType := map[string]string{".js": "text/javascript", ".css": "text/css"}[path[strings.LastIndex(path, "."):]]
+		if got := asset.Header().Get("Cache-Control"); got != wantCache {
+			t.Errorf("%s cache control = %q, want %q", path, got, wantCache)
+		}
+		wantType := map[string]string{
+			".js":  "text/javascript",
+			".css": "text/css",
+			".svg": "image/svg+xml",
+		}[path[strings.LastIndex(path, "."):]]
 		if wantType == "" {
 			continue
 		}
@@ -206,6 +217,23 @@ func TestFontsAreServedWithTheirOwnContentType(t *testing.T) {
 	}
 	if got := font.Header().Get("Cache-Control"); got != staticFileCache {
 		t.Errorf("font cache control = %q", got)
+	}
+}
+
+// The favicon sits at the build root rather than under /assets, so it needs a
+// route of its own; a browser asks for it without ever being handed a bin.
+func TestFaviconIsServedWithoutBinAuthorization(t *testing.T) {
+	requireBuiltFrontend(t)
+
+	icon := get(t, "/favicon.svg", "")
+	if icon.Code != http.StatusOK {
+		t.Fatalf("/favicon.svg = %d", icon.Code)
+	}
+	if got := icon.Header().Get("Content-Type"); !strings.HasPrefix(got, "image/svg+xml") {
+		t.Errorf("favicon content type = %q", got)
+	}
+	if got := icon.Header().Get("Cache-Control"); got != staticFileCache {
+		t.Errorf("favicon cache control = %q", got)
 	}
 }
 

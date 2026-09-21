@@ -8,6 +8,7 @@
    a guest who calls these endpoints directly is refused there, not here. The
    invitation is never rendered except as the owner's own share link. */
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import BrandMark from './BrandMark.vue'
 import CaptureTarget from './CaptureTarget.vue'
 import ClearConfirm from './ClearConfirm.vue'
 import HelpGuide from './HelpGuide.vue'
@@ -204,7 +205,7 @@ onBeforeUnmount(() => {
 <template>
   <div class="page">
     <header class="top">
-      <div class="mark"><span class="bracket">[</span> hooklook <span class="bracket">]</span></div>
+      <BrandMark class="mark" />
       <div class="top-end">
         <ThemeToggle />
       </div>
@@ -345,8 +346,6 @@ onBeforeUnmount(() => {
 }
 .mark {
   font-size: var(--text-title);
-  font-weight: 500;
-  letter-spacing: var(--track-wordmark);
 }
 .bracket {
   color: var(--accent);
