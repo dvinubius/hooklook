@@ -398,8 +398,11 @@ onBeforeUnmount(() => {
   width: 20px;
   height: 20px;
 }
+/* Set as an aside, but it is the only thing telling a guest what they can
+   and cannot do here, so it reads a tier above one. */
 .guest {
   margin: 0;
+  color: var(--text-dim);
 }
 .failure {
   margin: 0;
@@ -407,27 +410,18 @@ onBeforeUnmount(() => {
   background: var(--surface-shade);
   font-size: var(--text-small);
 }
-/* A window too short to leave this much makes the page scroll instead. */
+/* A window too short to leave this much makes the page scroll instead. The
+   two panes are parted by the list's own fill now, not by a hairline down
+   the gutter. */
 .workspace {
-  --list-width: 360px;
+  --list-width: 400px;
   --column-gap: 32px;
-  position: relative;
   flex: 1;
   min-height: 280px;
   display: grid;
   grid-template-columns: var(--list-width) minmax(0, 1fr);
   grid-template-rows: minmax(0, 1fr);
   gap: var(--column-gap);
-}
-/* A hairline down the middle of the gap between the list and the detail. */
-.workspace::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: calc(var(--list-width) + var(--column-gap) / 2);
-  width: 1px;
-  background: var(--hairline);
 }
 .foot {
   display: grid;

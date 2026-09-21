@@ -40,9 +40,16 @@ describe('bodies as the server really sends them', () => {
     const body = describeBody(captured.xml.rawBody, captured.xml.contentType)
     expect(body.format).toBe('xml')
     expect(body.formatted).toBe('<order id="7">\n  <item>widget</item>\n</order>')
-    const tiers = new Map(highlight(body.formatted!, 'xml').map((t) => [t.text, t.tier]))
-    expect(tiers.get('order')).toBe('emphasis')
-    expect(tiers.get(' id="7"')).toBe('body')
+    const tokens = highlight(body.formatted!, 'xml')
+    expect(tokens.map((token) => token.text).join('')).toBe(body.formatted)
+    // Names of data take the name tier, the data itself the value tier.
+    const tiers = new Map(tokens.map((t) => [t.text, t.tier]))
+    expect(tiers.get('order')).toBe('name')
+    expect(tiers.get('item')).toBe('name')
+    expect(tiers.get('id')).toBe('name')
+    expect(tiers.get('"7"')).toBe('value')
+    expect(tiers.get('widget')).toBe('value')
+    expect(tiers.get('<')).toBe('recede')
   })
 
   it('reads a UTF-8 capture, brand glyphs and all', () => {

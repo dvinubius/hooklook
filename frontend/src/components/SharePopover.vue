@@ -86,8 +86,8 @@ onBeforeUnmount(() => window.removeEventListener('resize', dismiss))
   width: 20px;
   height: 20px;
 }
-/* Fixed to the viewport under the button; flat, hairline-bordered, as the
-   brand has no shadows. */
+/* Fixed to the viewport under the button; flat, as the brand has no shadows,
+   so a surface step and a Stone edge do the floating instead of one. */
 .panel {
   position: fixed;
   inset: auto;
@@ -95,9 +95,9 @@ onBeforeUnmount(() => window.removeEventListener('resize', dismiss))
   max-width: calc(100vw - 32px);
   margin: 0;
   padding: 16px;
-  border: 1px solid var(--hairline);
+  border: 1px solid var(--text-muted);
   border-radius: var(--radius-surface);
-  background: var(--surface-page);
+  background: var(--surface-float);
   color: var(--text-body);
   flex-direction: column;
   gap: 16px;
@@ -130,11 +130,11 @@ onBeforeUnmount(() => window.removeEventListener('resize', dismiss))
   width: 20px;
   height: 20px;
 }
-/* Set like the switch's own label. */
+/* Set like the switch's own label: a control label, at the reading tier. */
 .label {
   margin: 0;
   font-family: var(--font-mono);
   font-size: var(--text-mono-meta);
-  color: var(--text-muted);
+  color: var(--text-dim);
 }
 </style>

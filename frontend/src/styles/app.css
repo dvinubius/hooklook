@@ -31,24 +31,90 @@ button{font:inherit;color:inherit;border-radius:var(--radius-control);}
 [data-theme="light"]{--teal:#087581;--violet:#6B5D91;}
 [data-theme="dark"]{--teal:#5BC8D0;--violet:#AFA3CF;}
 
+/* Three text tiers, not two. The brand gives the page one muted grey and no
+   second one, which left everything that is not primary falling all the way
+   to it — running prose included, at 4.89:1 on light. The middle tier is not
+   a new value: it is the one the code ramp already carries for its body text,
+   lifted out so the page can spend it too.
+
+   body  (17.6:1) names a region or leads it: headings, section labels, the
+         request line, header names, a chosen option.
+   dim   (10.4:1 light / 9.0:1 dark) is for reading: prose, notes, facts,
+         control labels, header values.
+   muted (4.9:1 light / 6.6:1 dark) is genuinely incidental: `//` asides,
+         timestamps, query strings, placeholders, punctuation.
+
+   Emphasis inside prose is weight, never a lift to `--text-body` — the brand
+   sets emphasis in weight or accent, and a lift only reads while the text
+   around it is muted, which is what made the prose muted in the first place. */
+[data-theme="light"]{--text-dim:#3D3D3D;}
+[data-theme="dark"]{--text-dim:var(--muted-strong);}
+
 /* Code surfaces follow the theme too. On dark they are Panel with a hairline
    and the brand's dark code ramp; on light, a light grey fill with no border
-   and its mirror: Ink, a dark grey, then Stone. The body tier on light has no
-   brand grey of its own, so it is set here. Syntax takes the data colors. */
+   and its mirror: Ink, the dim tier, then Stone. Syntax takes the data
+   colors. */
 [data-theme="light"]{
   --code-bg:var(--shade-on-light);
   --code-edge:transparent;
   --code-emphasis:var(--ink);
-  --code-body:#3D3D3D;
+  --code-body:var(--text-dim);
   --code-recede:var(--stone);
 }
 [data-theme="dark"]{
   --code-bg:var(--panel);
   --code-edge:var(--hairline-on-dark);
   --code-emphasis:var(--paper);
-  --code-body:var(--muted-strong);
+  --code-body:var(--text-dim);
   --code-recede:var(--muted-on-dark);
 }
+
+/* `--surface-shade` was one rung doing every filled thing on the page: row
+   hover, selection, placeholder and error blocks, the failure banner — and on
+   light it is the same value as the code surface. One rung cannot separate a
+   region from what sits inside it, which is what kept the request list and
+   the detail on the same ground with a hairline between them.
+
+   So the ramp gets a second rung. The rule is that **a fill steps off its own
+   ground, not off the page**: a filled region takes rung 1, and a fill inside
+   that region takes rung 2. The request list is the region (see
+   `RequestList.vue`); its rows and state blocks are what sits inside it. A
+   block on the page itself — the detail's placeholders, the failure banner,
+   a header row's hover — still takes rung 1, because the page is its ground.
+
+   Rung 2 is 1.10:1 off rung 1 on dark and 1.08:1 on light: the same step rung
+   1 has off the page, so a row in a filled list feels the way a row on the
+   page does today.
+
+   `--shade-hairline` is the hairline on rung 1, for the same reason
+   `--float-hairline` exists: the page's hairline is tuned to the page, and on
+   light it falls from 1.196:1 to 1.095:1 on a shaded ground — which the
+   request list cannot afford, since hairlines are what part its rows. These
+   values restore the page relationship (1.192:1 light, 1.305:1 dark). */
+[data-theme="light"]{--shade-hairline:#DDDDDD;}
+[data-theme="dark"]{--shade-hairline:#303030;}
+:root{--surface-shade-2:color-mix(in srgb,var(--surface-shade) 96.5%,var(--text-body));}
+
+/* Floating layers — popovers, dropdown menus, the modal — were the page's
+   own colour with a hairline around them, which is the one place the brand's
+   no-shadow rule really costs something: a panel the exact colour of what it
+   covers has only that hairline to say it is in front. They get a surface
+   step instead, and `--surface-card` is already the right value for it.
+
+   Only on dark. Light has no room: Paper down to the hairline is the whole
+   range, and a float at `#EDEDED` would land *under* the `#F0F0F0` code
+   surfaces that sit inside these layers — a raised panel with its code
+   blocks floating above it — while dropping muted text to 4.36:1, below AA.
+   So on light the border carries it alone, at Stone rather than a hairline,
+   which is what `SelectMenu` already does with its dropdown.
+
+   `--float-hairline` is the hairline *inside* a float on dark: a `#2C2C2C`
+   rule on a `#262626` fill is 1.08:1 and gone, so the outline buttons in a
+   dialog would lose their edge. `#3A3A3A` against that fill is 1.33:1 — the
+   same relationship a hairline has to the page today. It is not a brand
+   value; neither is `--text-dim`, and for the same reason. */
+[data-theme="light"]{--surface-float:var(--surface-page);--float-hairline:var(--hairline);}
+[data-theme="dark"]{--surface-float:var(--surface-card);--float-hairline:#3A3A3A;}
 
 /* Hover feedback on buttons, links and list items eases in and out over
    150ms rather than snapping. List items — request rows, header rows, menu
@@ -75,7 +141,7 @@ input,select{font:inherit;border-radius:var(--radius-control);}
   font-weight:500;
   letter-spacing:0.12em;
   text-transform:uppercase;
-  color:var(--text-muted);
+  color:var(--text-body);
 }
 .micro{font-family:var(--font-mono);font-size:var(--text-mono-micro);color:var(--text-muted);}
 .heading{
@@ -84,6 +150,7 @@ input,select{font:inherit;border-radius:var(--radius-control);}
   letter-spacing:var(--track-heading);
   margin:0;
 }
+.dim{color:var(--text-dim);}
 .muted{color:var(--text-muted);}
 .truncate{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 

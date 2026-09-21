@@ -34,7 +34,7 @@ defineProps<{ label: string; disabled?: boolean }>()
 .text {
   font-family: var(--font-mono);
   font-size: var(--text-mono-meta);
-  color: var(--text-muted);
+  color: var(--text-dim);
 }
 .switch-field:not(.disabled):hover .text {
   color: var(--text-body);

@@ -153,6 +153,7 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', outside, true)
 .current {
   flex: 1;
   min-width: 0;
+  color: var(--text-dim);
 }
 .chevron {
   flex: none;
@@ -164,7 +165,9 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', outside, true)
   transform: rotate(180deg);
 }
 /* Flat, softly cornered, bordered — no shadow; it sits over the rows below
-   it, and clips its options so they keep to its corners. */
+   it, and clips its options so they keep to its corners. The Stone edge here
+   is what the other floats were given too; on dark the menu used to be
+   darker than the shaded rows it covered. */
 .menu {
   position: absolute;
   top: calc(100% - 1px);
@@ -178,20 +181,24 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', outside, true)
   list-style: none;
   border: 1px solid var(--text-muted);
   border-radius: var(--radius-surface);
-  background: var(--surface-page);
+  background: var(--surface-float);
   font-family: var(--font-mono);
   font-size: var(--text-mono-meta);
 }
 .option {
   padding: 7px 9px;
-  color: var(--text-muted);
+  color: var(--text-dim);
   cursor: pointer;
 }
 .option.chosen {
   color: var(--text-body);
 }
+/* A step off the menu's own fill, not off the page's: `--surface-shade` is
+   below the float on dark, so the highlighted option would have read as a
+   hole in the menu. Mixing from the float moves toward Paper on dark and
+   toward Ink on light — away from the surface either way. */
 .option.active {
-  background: var(--surface-shade);
+  background: color-mix(in srgb, var(--surface-float) 92%, var(--text-body));
   color: var(--text-body);
 }
 </style>

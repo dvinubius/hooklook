@@ -38,7 +38,7 @@ defineEmits<{ confirm: []; cancel: [] }>()
   margin: 0;
   font-size: var(--text-small);
   line-height: var(--leading-small);
-  color: var(--text-muted);
+  color: var(--text-dim);
 }
 /* Right-aligned, the destructive action last. */
 .actions {
@@ -47,11 +47,14 @@ defineEmits<{ confirm: []; cancel: [] }>()
   justify-content: flex-end;
   gap: 14px;
 }
-/* The failure is an error, so it is said in Brick. */
+/* The failure is an error, so it is said in Brick. It sits inside the
+   dialog, so it steps off the dialog's own fill rather than the page's,
+   the way the dropdown's active option does. */
 .failure {
   margin: 0;
   padding: 12px 14px;
-  background: var(--surface-shade);
+  background: color-mix(in srgb, var(--surface-float) 92%, var(--text-body));
+  border-radius: var(--radius-surface);
   font-size: var(--text-small);
   color: var(--danger);
 }

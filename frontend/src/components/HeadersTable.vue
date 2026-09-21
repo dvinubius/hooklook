@@ -2,7 +2,7 @@
 /* Stored headers, exactly as stored, as a table on the page itself rather
    than on a code surface, so each header is its own row between hairlines —
    the way the request list parts its rows. Names lead at full strength;
-   values recede.
+   values sit one tier under them — read, not skimmed past.
 
    Some values were replaced with [REDACTED] before they ever reached the
    database; they are shown as stored, in Violet — there is nothing here that could
@@ -118,7 +118,7 @@ onBeforeUnmount(hideName)
   display: flex;
   flex-direction: column;
   min-width: 0;
-  color: var(--text-muted);
+  color: var(--text-dim);
 }
 /* Level with the first line of the value, and laid over it rather than given
    room of its own: the value keeps the full width and reads whole until the
@@ -155,16 +155,17 @@ onBeforeUnmount(hideName)
 .value.redacted {
   color: var(--violet);
 }
-/* Fixed to the viewport under the name it shows; flat and hairline-bordered,
-   like the other popovers. Long names wrap. */
+/* Fixed to the viewport under the name it shows; a float like the other
+   popovers, so it takes their surface step and Stone edge. Long names wrap. */
 .hint {
   position: fixed;
   inset: auto;
   max-width: min(480px, calc(100vw - 32px));
   margin: 0;
   padding: 6px 10px;
-  border: 1px solid var(--hairline);
-  background: var(--surface-page);
+  border: 1px solid var(--text-muted);
+  border-radius: var(--radius-surface);
+  background: var(--surface-float);
   color: var(--text-body);
   font-family: var(--font-mono);
   font-size: var(--text-mono-meta);

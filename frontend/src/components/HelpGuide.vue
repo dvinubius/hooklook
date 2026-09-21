@@ -74,11 +74,26 @@ defineProps<{ captureUrl: string }>()
   font-size: 14px;
 }
 /* The figures and the one condition a reader must not miss stand out from
-   the muted notes by brightness, as the brand does — not by the accent,
-   which never goes on running text. */
+   the notes around them by weight, as the brand does — not by the accent,
+   which never goes on running text, and no longer by a lift out of the muted
+   grey: the notes are not muted any more, so there is nothing to lift out of.
+
+   Weight alone carries it as dark ink on a light page, where a heavier stroke
+   is plainly more ink. Light text on a dark page blooms, so the same step
+   barely tells, and dark mode adds brightness as a second channel: body text
+   against the dim tier the notes are set in, 1.96x their contrast. That is a
+   lift out of the prose colour, which the page otherwise avoids — but what
+   made it wrong before was that every note was muted, so the lift was the
+   only thing marking prose worth reading. The notes sit at the reading tier
+   now, and this is a step above it rather than a substitute for it. Light
+   needs no second channel and does not take one.
+
+   The weight is the brand's medium, the same step headings take. */
 .key {
-  color: var(--text-body);
   font-weight: 500;
+}
+[data-theme="dark"] .key {
+  color: var(--text-body);
 }
 /* Names a control by drawing it: the icon rides the line at text size. */
 .inline-icon {
@@ -91,10 +106,12 @@ defineProps<{ captureUrl: string }>()
 .key.redacted {
   color: var(--violet);
 }
+/* The guide is the app's only explanatory prose, and it is here to be read:
+   it sits at the reading tier, not the incidental one. */
 .note {
   margin: 0;
   font-size: var(--text-small);
   line-height: var(--leading-small);
-  color: var(--text-muted);
+  color: var(--text-dim);
 }
 </style>

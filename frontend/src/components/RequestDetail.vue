@@ -83,7 +83,7 @@ const body = computed(() =>
 .detail {
   display: flex;
   flex-direction: column;
-  gap: 22px;
+  gap: 32px;
   min-width: 0;
   min-height: 0;
   padding-right: 16px;
@@ -102,7 +102,7 @@ const body = computed(() =>
   font-size: var(--text-small);
 }
 .hint {
-  color: var(--text-muted);
+  color: var(--text-dim);
 }
 /* The request line, and under it its facts on one line of their own. */
 .head {
@@ -128,7 +128,8 @@ const body = computed(() =>
 .query {
   color: var(--text-muted);
 }
-/* Received time | id, all mono, parted by the shared hairline separator. */
+/* Received time | id, all mono, parted by the shared hairline separator.
+   Facts about the request, so a tier under the request line above them. */
 .facts {
   display: flex;
   align-items: center;
@@ -136,6 +137,7 @@ const body = computed(() =>
   margin: 0;
   font-family: var(--font-mono);
   font-size: var(--text-mono-meta);
+  color: var(--text-dim);
 }
 .headers-block {
   display: flex;

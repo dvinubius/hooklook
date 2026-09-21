@@ -44,8 +44,8 @@ const filters = ref<RequestFilters>(emptyFilters())
 const methods = computed(() => presentMethods(props.summaries))
 
 const orderOptions: { value: SortOrder; label: string }[] = [
-  { value: 'newest', label: 'newest first' },
-  { value: 'oldest', label: 'oldest first' },
+  { value: 'newest', label: 'new first' },
+  { value: 'oldest', label: 'old first' },
 ]
 const operatorOptions: { value: TextOperator; label: string }[] = [
   { value: 'matches', label: 'matches' },
@@ -53,7 +53,7 @@ const operatorOptions: { value: TextOperator; label: string }[] = [
   { value: 'notEmpty', label: 'is not empty' },
 ]
 const methodOptions = computed(() => [
-  { value: '', label: 'any method' },
+  { value: '', label: 'any' },
   ...methods.value.map((method) => ({ value: method, label: method })),
 ])
 const narrowed = computed(() => filtersActive(filters.value))
@@ -133,14 +133,10 @@ function step(event: KeyboardEvent): void {
       </template>
     </p>
 
+    <!-- One row per control, each named at its left: the text filters — an
+         operator, and the text a "matches" row adds — then method and sort. -->
     <div class="controls">
       <div class="control-row">
-        <SelectMenu v-model="order" :options="orderOptions" label="Order" />
-        <SelectMenu v-model="filters.method" :options="methodOptions" label="Filter by method" />
-      </div>
-      <!-- Each text filter: the field's name, its operator, and the text
-           beside it for "matches" only — the other two need none. -->
-      <div class="control-row text-filter">
         <span class="filter-label" aria-hidden="true">path</span>
         <SelectMenu v-model="filters.path.operator" :options="operatorOptions" label="Path filter" />
         <input
@@ -152,7 +148,7 @@ function step(event: KeyboardEvent): void {
           aria-label="Path text"
         />
       </div>
-      <div class="control-row text-filter">
+      <div class="control-row">
         <span class="filter-label" aria-hidden="true">query</span>
         <SelectMenu v-model="filters.query.operator" :options="operatorOptions" label="Query filter" />
         <input
@@ -163,6 +159,21 @@ function step(event: KeyboardEvent): void {
           placeholder="text"
           aria-label="Query text"
         />
+      </div>
+      <!-- The last row carries the two whole-list controls: what it keeps at
+           the left, the arrangement of what is left at the right. -->
+      <div class="control-row pair">
+        <span class="filter-label" aria-hidden="true">method</span>
+        <div class="pair-left">
+          <SelectMenu
+            v-model="filters.method"
+            class="method"
+            :options="methodOptions"
+            label="Filter by method"
+          />
+          <span class="filter-label" aria-hidden="true">sort</span>
+        </div>
+        <SelectMenu v-model="order" :options="orderOptions" label="Order" />
       </div>
     </div>
 
@@ -178,56 +189,71 @@ function step(event: KeyboardEvent): void {
       <span class="hint">Send anything to the capture URL above and it appears here without a reload.</span>
     </p>
 
-    <p v-else-if="visible.length === 0" class="state">
-      <span class="meta">// no request matches</span>
-      <button class="btn btn-outline btn-sm clear-filter-btn" type="button" @click="clearFilters">Clear filters</button>
-    </p>
+    <!-- What a filter leaves stands where the rows would, under the same
+         line — whether that is rows or nothing. -->
+    <template v-else-if="visible.length === 0">
+      <div class="divider" aria-hidden="true"></div>
+      <p class="state">
+        <span class="meta">// no request matches</span>
+        <button class="btn btn-outline btn-sm clear-filter-btn" type="button" @click="clearFilters">Clear filters</button>
+      </p>
+    </template>
 
-    <ul v-else ref="list" class="rows scroll" @keydown="step">
-      <li
-        v-for="item in visible"
-        :key="item.id"
-        class="item"
-        :class="{ selected: item.id === selectedId }"
-      >
-        <button
-          class="row"
-          type="button"
-          :data-id="item.id"
-          :aria-current="item.id === selectedId"
-          @click="emit('select', item.id)"
+    <template v-else>
+      <div class="divider" aria-hidden="true"></div>
+      <ul ref="list" class="rows scroll" @keydown="step">
+        <li
+          v-for="item in visible"
+          :key="item.id"
+          class="item"
+          :class="{ selected: item.id === selectedId }"
         >
-          <span class="method">{{ item.method }}</span>
-          <span class="target truncate">
-            <span class="path">{{ item.path || '' }}</span>
-            <span v-if="item.rawQuery" class="query">?{{ item.rawQuery }}</span>
-          </span>
-          <span class="when micro">{{ formatClock(item.receivedAt) }}</span>
-        </button>
-        <button
-          v-if="owner && item.id === selectedId"
-          class="remove"
-          type="button"
-          :aria-label="deleting ? 'Deleting request' : 'Delete request'"
-          :title="deleting ? 'Deleting…' : 'Delete request'"
-          :disabled="deleting"
-          @click="emit('remove', item.id)"
-        >
-          <IconTrash class="trash" />
-        </button>
-      </li>
-    </ul>
-
+          <button
+            class="row"
+            type="button"
+            :data-id="item.id"
+            :aria-current="item.id === selectedId"
+            @click="emit('select', item.id)"
+          >
+            <span class="method">{{ item.method }}</span>
+            <span class="target truncate">
+              <span class="path">{{ item.path || '' }}</span>
+              <span v-if="item.rawQuery" class="query">?{{ item.rawQuery }}</span>
+            </span>
+            <span class="when micro">{{ formatClock(item.receivedAt) }}</span>
+          </button>
+          <button
+            v-if="owner && item.id === selectedId"
+            class="remove"
+            type="button"
+            :aria-label="deleting ? 'Deleting request' : 'Delete request'"
+            :title="deleting ? 'Deleting…' : 'Delete request'"
+            :disabled="deleting"
+            @click="emit('remove', item.id)"
+          >
+            <IconTrash class="trash" />
+          </button>
+        </li>
+      </ul>
+    </template>
   </section>
 </template>
 
 <style scoped>
+/* The master column is a filled region, which is what parts it from the
+   detail — the workspace hairline that used to do that alone is gone. Rung 1
+   of the shade ramp; everything inside steps off this rather than off the
+   page, and the hairlines parting the rows take the value tuned to it. */
 .list {
   display: flex;
   flex-direction: column;
   gap: 12px;
   min-width: 0;
   min-height: 0;
+  padding: 12px;
+  background: var(--surface-shade);
+  border-radius: var(--radius-surface);
+  --hairline: var(--shade-hairline);
 }
 .head {
   display: flex;
@@ -253,14 +279,15 @@ function step(event: KeyboardEvent): void {
   border-radius: 50%;
   background: #2bac76;
 }
-/* The facts beside and below the label read at 12px, a step above micro. */
+/* The facts beside and below the label read at 12px, a step above micro,
+   and one tier under the label they belong to. */
 .head .micro,
 .counts .micro {
   font-size: var(--text-mono-meta);
-  color: var(--text-body);
+  color: var(--text-dim);
 }
-/* Order and method above, in two matching columns; then one row per text
-   filter — its name, its operator, and its text. */
+/* One row per text filter, on a shared grid: its name, then its operator in
+   a column of one width, then the text a "matches" row adds. */
 .controls {
   display: flex;
   flex-direction: column;
@@ -268,18 +295,33 @@ function step(event: KeyboardEvent): void {
 }
 .control-row {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-}
-.text-filter {
   grid-template-columns: 3.5em minmax(0, 1fr) minmax(0, 1fr);
   align-items: center;
+  gap: 8px;
 }
-/* Set like the page's other control labels. */
+/* Method and sort share the last row on the same three columns as the text
+   filters: the method choice and the "sort" label together in the operator
+   column, the arrangement itself in the text column — squared up with the
+   fields above it. The choice takes what the label beside it leaves. */
+/* Room alone parts what the list keeps from how it is arranged — several
+   times the 8px that binds "sort" to its own control, so each label still
+   reads with the control it names, and no line is needed to say so. */
+.pair-left {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+  min-width: 0;
+}
+.pair-left .method {
+  flex: 1;
+  min-width: 0;
+}
+/* Set like the page's other control labels, at the same tier as the value
+   it names — the section label above them outranks the whole band. */
 .filter-label {
   font-family: var(--font-mono);
   font-size: var(--text-mono-meta);
-  color: var(--text-body);
+  color: var(--text-dim);
 }
 .state {
   display: flex;
@@ -288,15 +330,21 @@ function step(event: KeyboardEvent): void {
   gap: 10px;
   margin: 0;
   padding: 14px;
-  background: var(--surface-shade);
+  background: var(--surface-shade-2);
+  border-radius: var(--radius-surface);
   font-size: var(--text-small);
 }
 .clear-filter-btn {
   margin-left: auto;
 }
 .hint {
-  color: var(--text-muted);
+  color: var(--text-dim);
   font-size: var(--text-small);
+}
+/* The line is its own element, so what it introduces starts clear of it. */
+.divider {
+  height: 1px;
+  background: var(--hairline);
 }
 .rows {
   list-style: none;
@@ -305,7 +353,6 @@ function step(event: KeyboardEvent): void {
   /* As tall as its rows, up to what the column leaves; then it scrolls. */
   flex: 0 1 auto;
   min-height: 0;
-  border-top: 1px solid var(--hairline);
 }
 .item {
   display: flex;
@@ -314,13 +361,13 @@ function step(event: KeyboardEvent): void {
   border-left: 2px solid transparent;
 }
 .item:hover {
-  background: var(--surface-shade);
+  background: var(--surface-shade-2);
 }
 /* The one accent moment in this region, and it never travels alone: the
    selected row is also the one the detail pane is showing. */
 .item.selected {
   border-left-color: var(--accent);
-  background: var(--surface-shade);
+  background: var(--surface-shade-2);
 }
 .row {
   flex: 1;

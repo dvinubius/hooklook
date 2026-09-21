@@ -71,7 +71,7 @@ const dump = computed(() => hexDump(props.body.bytes))
         the right is the printable ASCII of each row.
       </p>
       <pre class="code-surface scroll dump">{{ dump.lines.join('\n') }}</pre>
-      <p v-if="dump.truncated" class="micro">
+      <p v-if="dump.truncated" class="micro dim">
         ↳ Showing the first {{ formatBytes(dump.shown) }} of {{ formatBytes(body.size) }}.
       </p>
     </template>
@@ -112,9 +112,11 @@ const dump = computed(() => hexDump(props.body.bytes))
   align-items: center;
   gap: 8px;
 }
-/* The facts beside the label read at 12px, a step above micro. */
+/* The facts beside the label read at 12px, a step above micro, and one
+   tier under the label they belong to. */
 .head .micro {
   font-size: var(--text-mono-meta);
+  color: var(--text-dim);
 }
 .head h2 {
   margin: 0;
@@ -130,7 +132,7 @@ const dump = computed(() => hexDump(props.body.bytes))
   margin: 0;
   font-size: var(--text-small);
   line-height: var(--leading-small);
-  color: var(--text-muted);
+  color: var(--text-dim);
   max-width: 68ch;
 }
 /* No body is still shown where a body would be: the aside, centred in an

@@ -69,10 +69,10 @@ describe('HelpGuide', () => {
     expect(textOf(html)).toContain('3 days of inactivity')
   })
 
-  it('says credential headers are redacted before storage', async () => {
+  it('says credential headers are redacted and never stored', async () => {
     const html = await render(HelpGuide, props)
     expect(html).toContain('credentials in headers')
-    expect(textOf(html)).toContain('replaced with [REDACTED] before storage')
+    expect(textOf(html)).toContain('replaced with [REDACTED] and never stored')
   })
 
   it('explains sharing without holding the guest link itself', async () => {

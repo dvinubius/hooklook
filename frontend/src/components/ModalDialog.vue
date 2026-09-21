@@ -73,14 +73,23 @@ function closed(): void {
 .modal[open] {
   display: flex;
 }
+/* A float like the popovers, so it takes their surface step — but it is the
+   only one with a backdrop, and a scrim already says it is in front. So no
+   Stone edge here: a hairline is enough, and a 600px panel outlined in Stone
+   would be the loudest thing on the page.
+
+   Inside a float on dark, a hairline on the page's terms is 1.08:1 and gone,
+   which would cost the dialog's outline buttons their edge. `--hairline` is
+   redefined for everything in here, this border included. */
 .modal {
   width: min(600px, calc(100vw - 32px));
   max-width: 600px;
   max-height: calc(100vh - 32px);
   padding: 0;
+  --hairline: var(--float-hairline);
   border: 1px solid var(--hairline);
   border-radius: var(--radius-surface);
-  background: var(--surface-page);
+  background: var(--surface-float);
   color: var(--text-body);
 }
 .modal::backdrop {
