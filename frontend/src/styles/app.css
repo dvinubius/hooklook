@@ -135,9 +135,11 @@ input,select{font:inherit;border-radius:var(--radius-control);}
   color:var(--text-muted);
   letter-spacing:0.01em;
 }
+/* Treatment only — the size belongs to each use. A section label, a dialog
+   title and a help heading are all set this way and all read at different
+   sizes, so a default here would only ever be the thing being overridden. */
 .meta-caps{
   font-family:var(--font-mono);
-  font-size:var(--text-mono-micro);
   font-weight:500;
   letter-spacing:0.12em;
   text-transform:uppercase;

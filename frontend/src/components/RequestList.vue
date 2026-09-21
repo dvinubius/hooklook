@@ -265,7 +265,7 @@ function step(event: KeyboardEvent): void {
 }
 .head h2 {
   margin: 0;
-  font-size: 14px;
+  font-size: 16px;
 }
 /* The counts on their own line, parted by the shared hairline separator. */
 .counts {
@@ -290,9 +290,12 @@ function step(event: KeyboardEvent): void {
 }
 /* The facts beside and below the label read at 12px, a step above micro,
    and one tier under the label they belong to. */
-.head .micro,
-.counts .micro {
+.head .micro {
   font-size: var(--text-mono-meta);
+  color: var(--text-dim);
+}
+.counts .micro {
+  font-size: 14px;
   color: var(--text-dim);
 }
 /* One row per text filter, on a shared grid: its name, then its operator in

@@ -211,6 +211,6 @@ watch(
 }
 .headers-block h2 {
   margin: 0;
-  font-size: 14px;
+  font-size: 16px;
 }
 </style>

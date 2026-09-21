@@ -120,7 +120,7 @@ const dump = computed(() => hexDump(props.body.bytes))
 }
 .head h2 {
   margin: 0;
-  font-size: 14px;
+  font-size: 16px;
 }
 .head-actions {
   margin-left: auto;
