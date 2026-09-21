@@ -14,6 +14,7 @@ v1 simple and production-shaped, not internet-scale.
 
 ## Technical constraints
 
+- Use `codegraph` for code intelligence
 - The frontend doesn't support a screen width below 1024px.
 - Start concrete; add packages, interfaces, or dependencies only after a real
   need appears.
