@@ -158,6 +158,10 @@ describe('RequestList', () => {
     expect(html).toContain('/orders/42')
     expect(html).toContain('?retry=1')
     expect(html).toContain('Total: 1')
+    // The query hangs off the end of the path with nothing between them:
+    // the two are separate nodes, so a stray newline in the template would
+    // put a space there and read as a different address.
+    expect(textOf(html)).toContain('/orders/42?retry=1')
   })
 
   it('distinguishes nothing-yet from nothing-matching', async () => {

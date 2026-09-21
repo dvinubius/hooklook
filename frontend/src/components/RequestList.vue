@@ -219,10 +219,10 @@ function step(event: KeyboardEvent): void {
             @click="emit('select', item.id)"
           >
             <span class="method">{{ item.method }}</span>
-            <span class="target truncate">
-              <span class="path">{{ item.path || '' }}</span>
-              <span v-if="item.rawQuery" class="query">?{{ item.rawQuery }}</span>
-            </span>
+            <span class="target truncate">{{ item.path || '' }}<span
+              v-if="item.rawQuery"
+              class="query"
+            >?{{ item.rawQuery }}</span></span>
             <span class="when micro">{{ formatClock(item.receivedAt) }}</span>
           </button>
           <button
@@ -422,10 +422,7 @@ function step(event: KeyboardEvent): void {
   flex: 1;
   min-width: 0;
 }
-/* The path in Teal, the primary data color; the raw query recedes. */
-.path {
-  color: var(--teal);
-}
+/* The path reads as the row's body text; the raw query recedes behind it. */
 .query {
   color: var(--text-muted);
 }

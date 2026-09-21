@@ -174,9 +174,9 @@ watch(
 .method {
   font-weight: 500;
 }
-/* The path in Teal, as in the list; the query keeps its own muted grey. */
+/* The path reads as body text, as in the list; the query recedes behind it.
+   A long path wraps rather than pushing the line out of the pane. */
 .target {
-  color: var(--teal);
   word-break: break-all;
 }
 .query {
