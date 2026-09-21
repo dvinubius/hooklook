@@ -345,7 +345,7 @@ onBeforeUnmount(() => {
   gap: 16px;
 }
 .mark {
-  font-size: var(--text-title);
+  font-size: 24px;
 }
 .bracket {
   color: var(--accent);
@@ -371,17 +371,15 @@ onBeforeUnmount(() => {
 .title {
   flex: none;
   margin: 0;
-  font-size: 22px;
+  font-size: 20px;
   font-weight: 500;
   letter-spacing: var(--track-heading);
   line-height: var(--leading-heading);
 }
 /* The help dialog stays at most 680px tall and scrolls inside past that. */
+/* Taller than this and the guide scrolls inside its own dialog. */
 .help-modal {
   max-height: min(680px, calc(100vh - 32px));
-  overflow-y: auto;
-  scrollbar-width: thin;
-  scrollbar-color: var(--hairline) transparent;
 }
 .heading-actions {
   display: flex;

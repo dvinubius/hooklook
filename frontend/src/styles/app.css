@@ -1,14 +1,23 @@
 /* hooklook application shell.
-   Brand rules held throughout: square corners, no shadows, no gradients, flat
-   fills and 1px hairlines for separation, accent kept to the mark, one primary
-   action and the selection rule. */
+   Brand rules held throughout apart from one: corners are softened a little
+   (--radius-* below), against the brand's square ones. No shadows, no
+   gradients, flat fills and 1px hairlines for separation, accent kept to the
+   mark, one primary action and the selection rule. */
+
+/* Softened corners: controls take the smaller radius, filled or bordered
+   surfaces the larger one. Rows in a list stay square — they are parted by
+   hairlines, not boxed. */
+:root{
+  --radius-control:4px;
+  --radius-surface:6px;
+}
 
 *,*::before,*::after{box-sizing:border-box;}
 
 html,body,#app{height:100%;}
 #app{display:flex;flex-direction:column;min-height:100%;}
 
-button{font:inherit;color:inherit;border-radius:0;}
+button{font:inherit;color:inherit;border-radius:var(--radius-control);}
 
 /* Danger: Brick, the earthy red sibling of Ember that zibs uses for errors,
    paired like the accent — Brick on light, Brick Light on dark. Only for a
@@ -48,7 +57,7 @@ button{font:inherit;color:inherit;border-radius:0;}
   --hover-transition:color 150ms ease-in-out,background-color 150ms ease-in-out,border-color 150ms ease-in-out;
 }
 button,.btn,a{transition:var(--hover-transition);}
-input,select{font:inherit;border-radius:0;}
+input,select{font:inherit;border-radius:var(--radius-control);}
 ::selection{background:var(--accent-glyph);}
 
 /* ---- text roles ------------------------------------------------------- */
@@ -84,8 +93,8 @@ input,select{font:inherit;border-radius:0;}
 
 /* ---- surfaces --------------------------------------------------------- */
 
-.panel{background:var(--surface-card);}
-.shade{background:var(--surface-shade);}
+.panel{background:var(--surface-card);border-radius:var(--radius-surface);}
+.shade{background:var(--surface-shade);border-radius:var(--radius-surface);}
 .rule{border:0;border-top:1px solid var(--hairline);margin:0;}
 
 /* ---- controls --------------------------------------------------------- */
@@ -94,6 +103,7 @@ input,select{font:inherit;border-radius:0;}
   display:inline-flex;align-items:center;gap:8px;
   font-family:var(--font-sans);font-size:13px;font-weight:500;
   padding:9px 16px;border:1px solid transparent;background:transparent;
+  border-radius:var(--radius-control);
   cursor:pointer;white-space:nowrap;text-decoration:none;
 }
 .btn:disabled{opacity:0.45;cursor:not-allowed;}
@@ -114,12 +124,16 @@ input,select{font:inherit;border-radius:0;}
 .field{
   font-family:var(--font-mono);font-size:var(--text-mono-meta);
   padding:7px 9px;background:var(--surface-page);color:var(--text-body);
-  border:1px solid var(--hairline);min-width:0;
+  border:1px solid var(--hairline);border-radius:var(--radius-control);min-width:0;
 }
 .field::placeholder{color:var(--text-muted);}
 .field:focus{outline:1px solid var(--text-muted);outline-offset:-1px;border-color:var(--text-muted);}
 
-:focus-visible{outline:2px solid var(--accent);outline-offset:1px;}
+/* The brand defines no focus style. Not the accent: a focus ring is a state
+   the accent would then carry alone, on every control. Body text instead —
+   Paper on dark, Ink on light — which also gives the most contrast against
+   every surface a focused control sits on. */
+:focus-visible{outline:2px solid var(--text-body);outline-offset:1px;}
 
 /* ---- code surfaces ---------------------------------------------------- */
 /* Theme-aware: see the --code-* tokens above. */
@@ -127,6 +141,7 @@ input,select{font:inherit;border-radius:0;}
 .code-surface{
   background:var(--code-bg);
   border:1px solid var(--code-edge);
+  border-radius:var(--radius-surface);
   font-family:var(--font-mono);
   font-size:var(--text-small);
   line-height:var(--leading-code);

@@ -74,6 +74,7 @@ onBeforeUnmount(() => window.removeEventListener('scroll', dismiss, true))
   margin: 0;
   padding: 12px 14px;
   border: 1px solid var(--hairline);
+  border-radius: var(--radius-surface);
   background: var(--surface-page);
   color: var(--text-body);
   font-size: var(--text-small);

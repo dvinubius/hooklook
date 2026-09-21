@@ -61,13 +61,14 @@ const visible = computed(() =>
   sortSummaries(filterSummaries(props.summaries, filters.value), order.value),
 )
 
-const countNote = computed(() => {
-  if (!props.loaded || props.summaries.length === 0) return ''
-  if (narrowed.value && visible.value.length > 0) {
-    return `${visible.value.length} of ${props.summaries.length} shown`
-  }
-  return `Total requests: ${props.summaries.length}`
-})
+// Counted once the list has been read; while a filter is on, what it leaves
+// is counted beside the total.
+const totalNote = computed(() =>
+  props.loaded && props.summaries.length > 0 ? `Total: ${props.summaries.length}` : '',
+)
+const shownNote = computed(() =>
+  totalNote.value !== '' && narrowed.value ? `Showing: ${visible.value.length}` : '',
+)
 
 function clearFilters(): void {
   filters.value = emptyFilters()
@@ -109,11 +110,10 @@ function step(event: KeyboardEvent): void {
 
 <template>
   <section class="list">
-    <!-- Left: the count. Right: the stream. The list names itself to a
-         screen reader only. -->
+    <!-- The section label with the stream state at its right end, and the
+         counts on the line below. -->
     <header class="head">
-      <h2 class="sr-only">Requests</h2>
-      <span v-if="countNote" class="micro">{{ countNote }}</span>
+      <h2 class="meta-caps">Requests</h2>
       <span
         v-if="stream === 'live'"
         class="micro stream"
@@ -124,6 +124,14 @@ function step(event: KeyboardEvent): void {
       </span>
       <span v-else class="micro stream">connecting…</span>
     </header>
+
+    <p v-if="totalNote" class="counts">
+      <span class="micro">{{ totalNote }}</span>
+      <template v-if="shownNote">
+        <span class="separator" aria-hidden="true"></span>
+        <span class="micro">{{ shownNote }}</span>
+      </template>
+    </p>
 
     <div class="controls">
       <div class="control-row">
@@ -171,9 +179,8 @@ function step(event: KeyboardEvent): void {
     </p>
 
     <p v-else-if="visible.length === 0" class="state">
-      <span class="meta">// no request matches these filters</span>
-      <span class="hint">{{ summaries.length }} captured in total.</span>
-      <button class="btn btn-outline btn-sm" type="button" @click="clearFilters">Clear filters</button>
+      <span class="meta">// no request matches</span>
+      <button class="btn btn-outline btn-sm clear-filter-btn" type="button" @click="clearFilters">Clear filters</button>
     </p>
 
     <ul v-else ref="list" class="rows scroll" @keydown="step">
@@ -227,6 +234,17 @@ function step(event: KeyboardEvent): void {
   align-items: center;
   gap: 12px;
 }
+.head h2 {
+  margin: 0;
+  font-size: 14px;
+}
+/* The counts on their own line, parted by the shared hairline separator. */
+.counts {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0;
+}
 /* The one hue outside the brand palette: a presence-green status dot. */
 .live {
   align-self: center;
@@ -235,9 +253,11 @@ function step(event: KeyboardEvent): void {
   border-radius: 50%;
   background: #2bac76;
 }
-/* The facts beside the label read at 12px, a step above micro. */
-.head .micro {
+/* The facts beside and below the label read at 12px, a step above micro. */
+.head .micro,
+.counts .micro {
   font-size: var(--text-mono-meta);
+  color: var(--text-body);
 }
 /* Order and method above, in two matching columns; then one row per text
    filter — its name, its operator, and its text. */
@@ -259,7 +279,7 @@ function step(event: KeyboardEvent): void {
 .filter-label {
   font-family: var(--font-mono);
   font-size: var(--text-mono-meta);
-  color: var(--text-muted);
+  color: var(--text-body);
 }
 .state {
   display: flex;
@@ -270,6 +290,9 @@ function step(event: KeyboardEvent): void {
   padding: 14px;
   background: var(--surface-shade);
   font-size: var(--text-small);
+}
+.clear-filter-btn {
+  margin-left: auto;
 }
 .hint {
   color: var(--text-muted);
@@ -335,7 +358,7 @@ function step(event: KeyboardEvent): void {
   height: 16px;
 }
 .method {
-  font-weight: 500;
+  font-weight: 400;
   color: var(--text-body);
   min-width: 4.5em;
 }

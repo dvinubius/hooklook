@@ -5,7 +5,7 @@
    values recede.
 
    Some values were replaced with [REDACTED] before they ever reached the
-   database; they are shown as stored — there is nothing here that could
+   database; they are shown as stored, in Violet — there is nothing here that could
    reconstruct them, and nothing that tries. The note saying so sits by the
    section's label, in the request detail.
 
@@ -21,10 +21,15 @@ import CopyButton from './CopyButton.vue'
 
 const props = defineProps<{ headers: Record<string, string[]> }>()
 
+const redactedMarker = '[REDACTED]'
+
 const rows = computed(() =>
   Object.entries(props.headers)
     .sort(([left], [right]) => (left.toLowerCase() < right.toLowerCase() ? -1 : 1))
-    .map(([name, values]) => ({ name, values })),
+    .map(([name, values]) => ({
+      name,
+      values: values.map((value) => ({ value, redacted: value === redactedMarker })),
+    })),
 )
 
 // One popover serves every name; it is placed once, so a scroll anywhere
@@ -60,10 +65,15 @@ onBeforeUnmount(hideName)
       <div v-for="row in rows" :key="row.name" class="row">
         <dt class="name" @mouseenter="showName($event, row.name)" @mouseleave="hideName">{{ row.name }}</dt>
         <dd class="values">
-          <span v-for="(value, index) in row.values" :key="index" class="value">{{ value }}</span>
+          <span
+            v-for="(entry, index) in row.values"
+            :key="index"
+            class="value"
+            :class="{ redacted: entry.redacted }"
+          >{{ entry.value }}</span>
           <CopyButton
             class="copy"
-            :text="`${row.name}: ${row.values.join(', ')}`"
+            :text="`${row.name}: ${row.values.map((entry) => entry.value).join(', ')}`"
             :label="`Copy ${row.name} header`"
             variant="icon"
             muted
@@ -127,6 +137,7 @@ onBeforeUnmount(hideName)
   background: var(--surface-shade);
   opacity: 0;
   border: 1px solid var(--hairline);
+  border-radius: var(--radius-control);
 }
 .row:hover .values .copy,
 .values .copy:focus-visible,
@@ -139,6 +150,10 @@ onBeforeUnmount(hideName)
 }
 .value {
   word-break: break-all;
+}
+/* A value the server replaced stands out from the ones it kept. */
+.value.redacted {
+  color: var(--violet);
 }
 /* Fixed to the viewport under the name it shows; flat and hairline-bordered,
    like the other popovers. Long names wrap. */

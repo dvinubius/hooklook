@@ -138,6 +138,7 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', outside, true)
   width: 100%;
   padding: 7px 12px 7px 9px;
   border: 1px solid var(--hairline);
+  border-radius: var(--radius-control);
   background: var(--surface-page);
   color: var(--text-body);
   font-family: var(--font-mono);
@@ -162,7 +163,8 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', outside, true)
 .chevron.up {
   transform: rotate(180deg);
 }
-/* Flat, square, bordered — no shadow; it sits over the rows below it. */
+/* Flat, softly cornered, bordered — no shadow; it sits over the rows below
+   it, and clips its options so they keep to its corners. */
 .menu {
   position: absolute;
   top: calc(100% - 1px);
@@ -170,11 +172,12 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', outside, true)
   right: 0;
   z-index: 10;
   max-height: 240px;
-  overflow-y: auto;
+  overflow: hidden auto;
   margin: 0;
   padding: 0;
   list-style: none;
   border: 1px solid var(--text-muted);
+  border-radius: var(--radius-surface);
   background: var(--surface-page);
   font-family: var(--font-mono);
   font-size: var(--text-mono-meta);

@@ -90,11 +90,11 @@ itself refused needs no recheck — that request *was* the check.
   counts as empty. Filtering is a view concern only — a filtered-out row is
   still in the feed.
 
-Loading, empty, filtered-empty, reconnecting and recoverable-error are each
-distinct states named in words. The brand defines no motion, so the stream's
-state is said rather than pulsed: "streaming" beside a still green dot while it
-is live, and "connecting…" otherwise — a first connection and a reconnection
-read the same.
+Loading, empty, filtered-empty and recoverable-error are each distinct states
+named in words. The brand defines no motion, so the stream's state is said
+rather than pulsed: "streaming" beside a still green dot while it is live, and
+"connecting…" otherwise — a first connection, a reconnection and a closed
+stream read the same.
 
 ## One request in full
 
@@ -152,9 +152,18 @@ real rendered output.
 
 ### Headers
 
-Shown as stored, sorted by name. Values the server replaced with `[REDACTED]`
-before writing them down are marked, and an info note by the section's label
-says they cannot be recovered here — there is nothing that tries.
+Shown as stored, sorted by name, as a table on the page — not a code surface —
+with one header per row between hairlines. The name column is a fixed width, so
+a long name is cut with an ellipsis and shown whole in a popover while hovered;
+the whole name is in the DOM either way, so a screen reader hears it regardless.
+A hovered row is shaded and lays a copy control over the right end of its value,
+which copies the whole header as `Name: value`, several values folded with
+`", "`.
+
+Values the server replaced with `[REDACTED]` before writing them down are shown
+as stored, and an info note by the section's label says they cannot be recovered
+here — there is nothing that tries. The body's own note says the opposite about
+bodies: they are stored exactly as received.
 
 ## Owner actions, and what a guest is
 
@@ -171,10 +180,10 @@ native popover: it closes on Esc, on a click elsewhere, or when the window is
 resized. The switch flips once the server has saved the change, not on the
 click.
 
-The help button opens a dialog with three sections: an example request against
-the capture URL, how sharing works and that the invitation link only works
-while guest access is on, and how long a bin is kept. It does not hold the link
-itself. The sweep button opens a confirmation that names what
+The help button opens a dialog with four sections: an example request against
+the capture URL, what redaction does to credential headers, how sharing works
+and that the invitation link only works while guest access is on, and how long
+a bin is kept. It does not hold the link itself. The sweep button opens a confirmation that names what
 clearing destroys; a failure is reported in the dialog, which stays open. Both
 are native `<dialog>`s that close on their ×, on Esc, or on a click on the
 backdrop; their contents are unmounted while closed, so a half-confirmed action
@@ -209,7 +218,7 @@ happen.
 
 ## Tests
 
-`npm test` runs 87 tests in Node — no browser, no DOM package. Component tests
+`npm test` runs the suite in Node — no browser, no DOM package. Component tests
 render through Vue's own server renderer, which ships with Vue, and that is what
 checks captured content is escaped and that a guest is rendered no control
 they cannot use. `src/tests/captures.test.ts` decodes `rawBody` values copied

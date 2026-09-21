@@ -24,9 +24,12 @@ defineProps<{ options: { value: T; label: string }[]; label: string }>()
 </template>
 
 <style scoped>
+/* Clipped, so the active segment's fill keeps to the softened corners. */
 .segments {
   display: inline-flex;
   border: 1px solid var(--hairline);
+  border-radius: var(--radius-control);
+  overflow: hidden;
 }
 .segment {
   padding: 4px 12px;

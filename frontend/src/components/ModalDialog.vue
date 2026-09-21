@@ -60,18 +60,26 @@ function closed(): void {
           ×
         </button>
       </header>
-      <slot />
+      <div class="content scroll">
+        <slot />
+      </div>
     </div>
   </dialog>
 </template>
 
 <style scoped>
+/* Native `dialog` sets its own display; while open it lays its panel out as
+   a column so the head stays put and only the contents scroll. */
+.modal[open] {
+  display: flex;
+}
 .modal {
-  width: min(500px, calc(100vw - 32px));
-  max-width: 500px;
+  width: min(600px, calc(100vw - 32px));
+  max-width: 600px;
   max-height: calc(100vh - 32px);
   padding: 0;
   border: 1px solid var(--hairline);
+  border-radius: var(--radius-surface);
   background: var(--surface-page);
   color: var(--text-body);
 }
@@ -83,6 +91,17 @@ function closed(): void {
   flex-direction: column;
   gap: 32px;
   padding: 20px 24px 24px;
+  min-width: 0;
+  min-height: 0;
+  flex: 1;
+}
+.head {
+  flex: none;
+}
+/* Everything the dialog was given, scrolling inside what the head leaves;
+   `.scroll` carries the overflow and the thin scrollbar. */
+.content {
+  min-height: 0;
 }
 .head {
   display: flex;

@@ -96,6 +96,7 @@ onBeforeUnmount(() => window.removeEventListener('resize', dismiss))
   margin: 0;
   padding: 16px;
   border: 1px solid var(--hairline);
+  border-radius: var(--radius-surface);
   background: var(--surface-page);
   color: var(--text-body);
   flex-direction: column;

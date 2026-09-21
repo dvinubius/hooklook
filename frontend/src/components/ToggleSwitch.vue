@@ -53,6 +53,7 @@ defineProps<{ label: string; disabled?: boolean }>()
   height: 22px;
   padding: 0;
   border: 2px solid var(--text-muted);
+  border-radius: var(--radius-control);
   background: transparent;
   cursor: pointer;
   transition: border-color 150ms ease-in-out;
@@ -70,6 +71,7 @@ defineProps<{ label: string; disabled?: boolean }>()
   left: 3px;
   width: 12px;
   height: 12px;
+  border-radius: 2px;
   background: var(--text-muted);
   transition: transform 150ms ease-in-out, background-color 150ms ease-in-out;
 }

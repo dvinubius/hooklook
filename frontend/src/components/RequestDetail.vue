@@ -65,8 +65,9 @@ const body = computed(() =>
         <div class="headers-title">
           <h2 class="meta-caps">Headers</h2>
           <InfoPopover label="About redacted headers">
-            Credential headers are replaced with [REDACTED] before storage. The original values
-            were never written down and cannot be recovered here.
+            Credential headers are replaced with <strong class="redacted">[REDACTED]</strong>
+            before storage. The original values were never written down and cannot be recovered
+            here.
           </InfoPopover>
         </div>
         <HeadersTable :headers="detail.headers" />
@@ -145,6 +146,11 @@ const body = computed(() =>
   display: flex;
   align-items: center;
   gap: 8px;
+}
+/* The marker as the headers list shows it. */
+.redacted {
+  color: var(--violet);
+  font-weight: 500;
 }
 .headers-block h2 {
   margin: 0;

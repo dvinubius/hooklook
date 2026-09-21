@@ -157,7 +157,7 @@ describe('RequestList', () => {
     expect(html).toContain('POST')
     expect(html).toContain('/orders/42')
     expect(html).toContain('?retry=1')
-    expect(html).toContain('Total requests: 1')
+    expect(html).toContain('Total: 1')
   })
 
   it('distinguishes nothing-yet from nothing-matching', async () => {

@@ -4,6 +4,7 @@
    bin through its guest link, and keeping the bin. Sharing is only explained here; the switch and the link themselves
    live under the page's share button. */
 import ExampleRequest from './ExampleRequest.vue'
+import IconShare from './IconShare.vue'
 
 defineProps<{ captureUrl: string }>()
 </script>
@@ -13,7 +14,7 @@ defineProps<{ captureUrl: string }>()
     <section class="section">
       <h3 class="meta-caps">capture requests</h3>
       <p class="note">
-        Send your webhooks to the bin using its public link as a base URL. Try it out:
+        Send your webhooks to the bin using its public link as a base URL:
       </p>
       <ExampleRequest :url="captureUrl" />
       <p class="note">
@@ -26,8 +27,7 @@ defineProps<{ captureUrl: string }>()
     <section class="section">
       <h3 class="meta-caps">credentials in headers</h3>
       <p class="note">
-        Credential headers are replaced with <strong class="key">[REDACTED]</strong> before storage.
-        The original values were never written down and cannot be recovered here.
+        Credential headers are replaced with <strong class="key redacted">[REDACTED]</strong> and never stored.
       </p>
     </section>
 
@@ -38,8 +38,8 @@ defineProps<{ captureUrl: string }>()
         requests, but not to delete any.
       </p>
       <p class="note">
-        The share button holds the guest link. It is only valid when you
-        <strong class="key">enable guest access</strong> there.
+        The share button <IconShare class="inline-icon" /> holds the guest link. It is only
+        valid when you <strong class="key">enable guest access</strong> there.
       </p>
     </section>
 
@@ -62,6 +62,7 @@ defineProps<{ captureUrl: string }>()
   display: flex;
   flex-direction: column;
   gap: 32px;
+  padding-right: 2px;
 }
 .section {
   display: flex;
@@ -78,6 +79,17 @@ defineProps<{ captureUrl: string }>()
 .key {
   color: var(--text-body);
   font-weight: 500;
+}
+/* Names a control by drawing it: the icon rides the line at text size. */
+.inline-icon {
+  width: 1.15em;
+  height: 1.15em;
+  vertical-align: -0.22em;
+  color: var(--text-body);
+}
+/* The marker as the headers list shows it. */
+.key.redacted {
+  color: var(--violet);
 }
 .note {
   margin: 0;

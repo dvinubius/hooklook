@@ -32,7 +32,7 @@ defineEmits<{ confirm: []; cancel: [] }>()
 .confirm {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 32px;
 }
 .note {
   margin: 0;

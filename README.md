@@ -30,9 +30,9 @@ server shutdown also close its open event streams.
 ## Inspecting a webhook bin
 
 Open `/` and hooklook resolves or creates the bin your browser owns, then takes
-you to its page. The page shows the capture URL to send requests to, with a
-`curl` example beside it, the live list of what has arrived, and the full
-detail of whichever request is selected.
+you to its page. The page shows the capture URL to send requests to, the live
+list of what has arrived, and the full detail of whichever request is selected.
+A `curl` example to try the URL with is in the help dialog.
 
 - **The list updates itself.** Captures appear without a reload, over the SSE
   stream. Because the stream replays nothing, the list is refetched from SQLite
@@ -48,8 +48,10 @@ detail of whichever request is selected.
   Text that is not UTF-8 is decoded with a named fallback, and the encoding
   used is stated. Bytes that are not text get a hex dump. Nothing captured is
   ever rendered as markup.
-- **Redacted headers stay redacted.** The values were replaced before storage
-  and the page says so rather than implying they could be recovered.
+- **Redacted headers stay redacted.** The values were replaced before storage,
+  and a note by the headers says so rather than implying they could be
+  recovered. Bodies, by contrast, are stored as received, which the body's own
+  note states.
 - **Owners get controls; guests get none.** Guest access on or off and the
   invitation link sit under the share button; clearing all requests is the
   sweep button; deleting one request is on the request itself. The help button
