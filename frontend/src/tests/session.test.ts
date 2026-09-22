@@ -32,7 +32,12 @@ interface Harness {
 
 function harness(
   answer: (attempt: number) => Promise<BinAccess>,
-  options: { href?: string; mark?: Recovery | null; now?: number } = {},
+  options: {
+    href?: string
+    mark?: Recovery | null
+    now?: number
+    startup?: SessionEnvironment['startupState']
+  } = {},
 ): Harness {
   const navigations: string[] = []
   const marks: Array<Recovery | null> = []
@@ -43,6 +48,7 @@ function harness(
   const env: SessionEnvironment = {
     href: options.href ?? `${origin}/bins/brave-otter-19472841`,
     origin,
+    startupState: options.startup,
     now: () => options.now ?? 1_000_000,
     navigate: (to) => void navigations.push(to),
     readRecovery: () => mark,
@@ -98,7 +104,7 @@ describe('bin session', () => {
     expect(session.access.value?.owner).toBe(false)
   })
 
-  it('leaves through / when the bin is not this visitor’s to see', async () => {
+  it('shows the shared-bin dead end when the bin is not this visitor’s to see', async () => {
     const { env, navigations, marks } = harness(async () => {
       throw new ApiError(404, 'bin not found')
     })
@@ -108,11 +114,10 @@ describe('bin session', () => {
 
     await session.start()
 
-    expect(session.state.value).toBe('leaving')
+    expect(session.state.value).toBe('shared_bin_unavailable')
     expect(session.access.value).toBeNull()
-    expect(navigations).toEqual(['/'])
-    expect(marks).toEqual([{ from: 'brave-otter-19472841', at: 1_000_000 }])
-    // Everything dependent stops before the browser leaves.
+    expect(navigations).toEqual([])
+    expect(marks).toEqual([])
     expect(closed).toHaveBeenCalledOnce()
     expect(session.signal.aborted).toBe(true)
   })
@@ -124,22 +129,19 @@ describe('bin session', () => {
     const session = createSession(env)
     await session.start()
 
-    expect(navigations).toEqual(['/'])
+    expect(session.state.value).toBe('shared_bin_unavailable')
+    expect(navigations).toEqual([])
   })
 
-  it('stops rather than bouncing when the recovered page fails too', async () => {
-    const { env, navigations } = harness(
-      async () => {
-        throw new ApiError(404, 'bin not found')
-      },
-      { mark: { from: 'earlier-bin-12345678', at: 995_000 } },
-    )
+  it('shows the expired-bin dead end when the server identifies it', async () => {
+    const { env, navigations } = harness(async () => {
+      throw new ApiError(404, 'bin not found', 'bin_expired')
+    })
     const session = createSession(env)
     await session.start()
 
     expect(navigations).toEqual([])
-    expect(session.state.value).toBe('unavailable')
-    expect(session.message.value).toMatch(/did not load/)
+    expect(session.state.value).toBe('bin_expired')
   })
 
   it('keeps a transient failure recoverable instead of redirecting', async () => {
@@ -170,6 +172,22 @@ describe('bin session', () => {
     expect(session.message.value).toMatch(/could not be reached/)
     expect(navigations).toEqual([])
   })
+
+  it.each(['bin_expired', 'shared_bin_unavailable'] as const)(
+    'recognizes the marked %s page, and asks it nothing',
+    async (startup) => {
+      const { env, navigations, calls } = harness(async () => ownerAccess, {
+        href: `${origin}/bins/old-bin?invite=old-invitation`,
+        startup,
+      })
+      const session = createSession(env)
+      await session.start()
+
+      expect(session.state.value).toBe(startup)
+      expect(calls).toEqual([])
+      expect(navigations).toEqual([])
+    },
+  )
 
   it('sends a page without a bin code home', async () => {
     const { env, navigations, calls } = harness(async () => ownerAccess, {
@@ -203,7 +221,7 @@ describe('bin session', () => {
 
     session.invalidate()
 
-    expect(session.state.value).toBe('leaving')
-    expect(navigations).toEqual(['/'])
+    expect(session.state.value).toBe('shared_bin_unavailable')
+    expect(navigations).toEqual([])
   })
 })

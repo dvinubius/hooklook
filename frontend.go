@@ -106,6 +106,22 @@ out of room for new bins and its operator needs to free some.</p>
 </html>
 `)
 
+var expiredBinShell = []byte(`<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer"><title>hooklook — bin expired</title></head>
+<body><main><p>// This bin has expired or no longer exists.</p><a href="/">Create New Bin</a></main></body>
+</html>
+`)
+
+var sharedBinUnavailableShell = []byte(`<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer"><title>hooklook — shared bin unavailable</title></head>
+<body><main><p>// This shared bin no longer exists.</p><a href="/">Create New Bin</a></main></body>
+</html>
+`)
+
 // writeShell sends a full HTML document. Callers set caching and authorize the
 // visitor first; this only decides the content type.
 func writeShell(w http.ResponseWriter, html []byte) {
@@ -132,22 +148,39 @@ func writePageShell(w http.ResponseWriter) {
 // the same application bundle with a document marker so the browser can show
 // that state without an owner cookie or a bin-metadata request. The standalone
 // page remains a fallback when the production frontend was not built.
-func writeCapacityShell(w http.ResponseWriter) {
-	w.Header().Set("X-Hooklook-Error", "store_full")
+func writeStartupShell(w http.ResponseWriter, state string, status int, fallback []byte) {
+	w.Header().Set("X-Hooklook-Error", state)
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.WriteHeader(http.StatusInsufficientStorage)
+	w.WriteHeader(status)
 	shell := prodShell
 	if frontendDev() {
 		shell = devShell
 	}
 	if frontendDev() || prodShellErr == nil {
-		marked := bytes.Replace(shell, []byte("<html"), []byte(`<html data-hooklook-startup="store_full"`), 1)
+		marked := bytes.Replace(shell, []byte("<html"), []byte(`<html data-hooklook-startup="`+state+`"`), 1)
 		if !bytes.Equal(marked, shell) {
 			_, _ = w.Write(marked)
 			return
 		}
 	}
-	_, _ = w.Write(capacityShell)
+	_, _ = w.Write(fallback)
+}
+
+func writeCapacityShell(w http.ResponseWriter) {
+	writeStartupShell(w, "store_full", http.StatusInsufficientStorage, capacityShell)
+}
+
+// An unavailable regular bin URL needs an explicit dead end before the visitor
+// chooses to create a replacement. The marked application document performs
+// no private API request.
+func writeBinExpiredShell(w http.ResponseWriter) {
+	writeStartupShell(w, "bin_expired", http.StatusNotFound, expiredBinShell)
+}
+
+// An unavailable URL with a nonempty invitation gets the shared-link version
+// of the same explicit dead end, regardless of the target's database state.
+func writeSharedBinUnavailableShell(w http.ResponseWriter) {
+	writeStartupShell(w, "shared_bin_unavailable", http.StatusNotFound, sharedBinUnavailableShell)
 }
 
 // Cache lifetimes for the two kinds of built asset. Vite hashes the JavaScript

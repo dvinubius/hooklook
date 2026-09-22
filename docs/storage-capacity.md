@@ -42,8 +42,8 @@ expired bins return `404` instead. A bin initially expires three days after
 creation; owner use, authorized guest use, and accepted captures extend expiry
 by three days. An idle SSE connection does not. Cleanup runs at startup and
 once a minute, deleting expired bins and their requests and closing their SSE
-streams. An expired bin page redirects to the visitor's own bin, creating a new
-one and cookie when needed. See [bin lifecycle](bin-lifecycle.md) for the full
+streams. An expired bin page explains the expiration and waits for the visitor
+to choose **Create New Bin**. See [bin lifecycle](bin-lifecycle.md) for the full
 retention flow.
 
 Authorized `GET /api/bins/{code}` responses include current per-bin counts,

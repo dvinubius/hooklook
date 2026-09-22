@@ -8,18 +8,16 @@
    a guest who calls these endpoints directly is refused there, not here. The
    invitation is never rendered except as the owner's own share link. */
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import BrandMark from './BrandMark.vue'
 import CaptureTarget from './CaptureTarget.vue'
 import ClearConfirm from './ClearConfirm.vue'
 import HelpGuide from './HelpGuide.vue'
 import IconHelp from './IconHelp.vue'
-import IconGithub from './IconGithub.vue'
 import IconSweep from './IconSweep.vue'
 import ModalDialog from './ModalDialog.vue'
+import PageShell from './PageShell.vue'
 import RequestDetailView from './RequestDetail.vue'
 import RequestList from './RequestList.vue'
 import SharePopover from './SharePopover.vue'
-import ThemeToggle from './ThemeToggle.vue'
 import { api, ApiError } from '../api'
 import { browserFeedEnvironment, createFeed } from '../lib/feed'
 import { captureUrl, inviteUrl, pagePath, parseLocation } from '../lib/location'
@@ -207,15 +205,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="page">
-    <header class="top">
-      <BrandMark class="mark" />
-      <div class="top-end">
-        <ThemeToggle />
-      </div>
-    </header>
-    <hr class="rule" />
-
+  <PageShell>
     <main class="body">
       <section class="identity">
         <!-- A guest sees no heading; the page still names itself to a screen reader. -->
@@ -313,53 +303,12 @@ onBeforeUnmount(() => {
       </div>
     </main>
 
-    <!-- As in zibs: the personal wordmark and a quiet link home, with the
-         credit — pointing at the source — between them. -->
-    <footer class="foot">
-      <p class="wordmark">
-        <span class="bracket">[ </span>Dinu Barbu<span class="bracket"> ]</span>
-      </p>
-      <a class="credit" href="https://github.com/dvinubius/hooklook" title="hooklook on GitHub">
-        ↳ dvinubius
-        <IconGithub class="github" />
-        <span class="sr-only">— hooklook on GitHub</span>
-      </a>
-      <a class="foot-link" href="https://dinubarbu.com">→ dinubarbu.com</a>
-    </footer>
-  </div>
+  </PageShell>
 </template>
 
 <style scoped>
-/* Exactly one viewport high, so the footer is always on screen: the list and
-   the detail take what is left and scroll inside it. */
-.page {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  max-width: 1180px;
-  width: 100%;
-  margin: 0 auto;
-  padding: 16px 24px 14px;
-  gap: 14px;
-}
-.top {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 16px;
-}
-.mark {
-  font-size: 24px;
-}
-.bracket {
-  color: var(--accent);
-  font-weight: 700;
-}
-.top-end {
-  display: flex;
-  align-items: baseline;
-  gap: 24px;
-}
+/* The shell is one viewport high and the bars take their own height; this is
+   what is left, and the list and the detail scroll inside it. */
 .body {
   display: flex;
   flex-direction: column;
@@ -426,50 +375,5 @@ onBeforeUnmount(() => {
   grid-template-columns: var(--list-width) minmax(0, 1fr);
   grid-template-rows: minmax(0, 1fr);
   gap: var(--column-gap);
-}
-.foot {
-  display: grid;
-  grid-template-columns: 1fr auto 1fr;
-  align-items: baseline;
-  gap: 24px;
-  padding-top: 14px;
-  border-top: 1px solid var(--hairline);
-}
-.wordmark {
-  margin: 0;
-  font-size: 16px;
-  font-weight: 500;
-  letter-spacing: var(--track-wordmark);
-  white-space: nowrap;
-}
-/* Quiet link: body text over a 1px accent rule, with a leading arrow. */
-/* The credit sits dead centre, whatever the two ends measure. */
-.credit {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  font-family: var(--font-mono);
-  font-size: var(--text-mono-micro);
-  color: var(--text-muted);
-  text-decoration: none;
-}
-.credit:hover {
-  color: var(--text-body);
-}
-.github {
-  width: 14px;
-  height: 14px;
-}
-.foot-link {
-  justify-self: end;
-  font-family: var(--font-mono);
-  font-size: 12px;
-  color: var(--text-body);
-  text-decoration: none;
-  border-bottom: 1px solid var(--accent);
-  padding-bottom: 1px;
-}
-.foot-link:hover {
-  color: var(--accent-on-hover);
 }
 </style>

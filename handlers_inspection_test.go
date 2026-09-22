@@ -119,8 +119,9 @@ func TestGuestAccessAndOwnerMutations(t *testing.T) {
 		t.Fatalf("owner info: %d %#v %v", info.Code, access, err)
 	}
 	guestPath := "/api/bins/" + bin.Code + "/requests?invite=" + access.InviteID
-	if got := callInspector(t, "GET", guestPath, "", "").Code; got != 404 {
-		t.Errorf("disabled guest list = %d", got)
+	disabledGuest := callInspector(t, "GET", guestPath, "", "")
+	if disabledGuest.Code != 404 || disabledGuest.Header().Get("X-Hooklook-Error") != "shared_bin_unavailable" {
+		t.Errorf("disabled guest list = %d, error = %q", disabledGuest.Code, disabledGuest.Header().Get("X-Hooklook-Error"))
 	}
 	enabled := callInspector(t, "PUT", "/api/bins/"+bin.Code+"/sharing", `{"enabled":true}`, owner)
 	if enabled.Code != 204 {
@@ -155,8 +156,9 @@ func TestGuestAccessAndOwnerMutations(t *testing.T) {
 	if got := callInspector(t, "PUT", "/api/bins/"+bin.Code+"/sharing", `{"enabled":false}`, owner).Code; got != 204 {
 		t.Errorf("disable sharing = %d", got)
 	}
-	if got := callInspector(t, "GET", guestPath, "", "").Code; got != 404 {
-		t.Errorf("revoked guest list = %d", got)
+	revokedGuest := callInspector(t, "GET", guestPath, "", "")
+	if revokedGuest.Code != 404 || revokedGuest.Header().Get("X-Hooklook-Error") != "shared_bin_unavailable" {
+		t.Errorf("revoked guest list = %d, error = %q", revokedGuest.Code, revokedGuest.Header().Get("X-Hooklook-Error"))
 	}
 }
 

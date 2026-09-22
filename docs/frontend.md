@@ -26,6 +26,16 @@ home, page, API, SSE and capture routes back to Go. One origin is what makes the
 agree — while Go still authorizes every page before Vite's modules load.
 `PUBLIC_BASE_URL` must name that origin.
 
+Unavailable bin documents carry a startup marker. An unavailable regular URL
+uses `bin_expired`; an unavailable URL with a nonempty `invite` parameter uses
+`shared_bin_unavailable`. The link shape controls the message for missing,
+expired, invalid, and revoked targets alike. The session makes no metadata
+request for either marked document and renders `BinUnavailable` inside the
+shared top bar and footer. Its centred `//` aside explains the applicable
+state, with **Create New Bin** underneath linking to `/`. An API refusal
+discovered after load changes to the same empty state. The wordmark in every
+shared top bar also links to `/`.
+
 ## Authorization is never assumed
 
 Go authorized the document before the browser ran a line of this, but the page
@@ -34,20 +44,16 @@ is revoked, a restored back/forward page outlives both. So `lib/session.ts`
 calls `GET /api/bins/{code}` before anything private renders and treats that
 response as the **only** source of role and sharing state.
 
-Failures split in two, and the split is the whole point:
+Failures split in two:
 
-- **`403`/`404` — not for you.** Everything in flight stops and the browser
-  leaves through `/`, where Go resolves or creates the bin it *does* own. A
-  visitor holding a revoked or bogus invitation therefore keeps their own bin
-  instead of landing on an error.
+- **`403`/`404` — the target is unavailable.** Everything in flight stops and
+  the page shows the corresponding framed empty state. No replacement exists
+  until the visitor chooses **Create New Bin**.
 - **Network or `5xx` — not right now.** Recoverable, so the page offers a retry
   and never redirects.
 
-A recovery note in `sessionStorage` (a bin code and a timestamp, never an
-invitation) stops the `/` ↔ bin-page bounce if the recovered page also fails
-within 20 seconds; the second failure shows a dead end instead of looping. A
-metadata response that wins the race against its own cancellation is discarded
-rather than rendered.
+A metadata response that wins the race against its own cancellation is
+discarded rather than rendered.
 
 The invitation lives in this module's memory and on same-origin request URLs
 only. It is never stored, logged or handed to anything third-party, and
@@ -248,7 +254,7 @@ happen.
 | `lib/location.ts` | Bin code, request id and invitation read from the URL; capture and invitation URLs built on the origin the browser is really on. |
 | `lib/headers.ts` | The client address read out of `X-Forwarded-For`, and the trust rule that picks which hop. Pure functions. |
 | `lib/format.ts`, `lib/clipboard.ts`, `lib/theme.ts` | Times and byte counts, a clipboard that is allowed to be unavailable, a dark-by-default theme toggle. |
-| `components/` | `BinPage` wires the feed, selection, detail and mutations; the rest render. `ThemeToggle` mirrors its zibs counterpart. |
+| `components/` | `BinPage` wires the feed, selection, detail and mutations; the rest render. `PageShell` holds the shared top bar and footer, and `BinUnavailable` renders the two unavailable states. `ThemeToggle` mirrors its zibs counterpart. |
 
 ## Tests
 

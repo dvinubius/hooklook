@@ -7,6 +7,7 @@
 import { describe, expect, it } from 'vitest'
 import { createSSRApp, h, type Component } from 'vue'
 import { renderToString } from 'vue/server-renderer'
+import BinUnavailable from '../components/BinUnavailable.vue'
 import BodyView from '../components/BodyView.vue'
 import HeadersTable from '../components/HeadersTable.vue'
 import RequestDetailView from '../components/RequestDetail.vue'
@@ -306,5 +307,20 @@ describe('SelectMenu', () => {
     expect(html).toContain('aria-expanded="false"')
     expect(textOf(html)).toMatch(/^\s*oldest first/)
     expect(html).toMatch(/aria-selected="true"[^>]*>\s*oldest first/)
+  })
+})
+
+describe('BinUnavailable', () => {
+  it.each([
+    ['expired', '// This bin has expired or no longer exists.'],
+    ['shared', '// This shared bin no longer exists.'],
+  ] as const)('renders the %s explanation before the replacement action', async (kind, message) => {
+    const html = await render(BinUnavailable, { kind })
+    const text = textOf(html)
+    expect(text).toContain(message)
+    expect(text).toContain('Create New Bin')
+    expect(html).toContain('href="/"')
+    expect(html).toContain('aria-label="hooklook home"')
+    expect(text).toContain('Dinu Barbu')
   })
 })

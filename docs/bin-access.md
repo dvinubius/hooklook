@@ -9,10 +9,13 @@ stores its SHA-256 digest; the browser receives the secret in an `HttpOnly`,
 `SameSite=Lax` cookie, marked `Secure` when `PUBLIC_BASE_URL` uses HTTPS. The
 cookie's expiry is refreshed when the owner uses the bin.
 
-A visitor to another bin's page is redirected to their own bin unless they have
-a valid invitation. If their previous bin expired, the home or unauthorized
-page flow creates a new bin and cookie. A bin code alone does not grant
-inspection access.
+A visitor to another active bin needs a valid invitation. When a target is
+unavailable, the link shape determines the framed empty-state message. A URL
+with a nonempty `?invite=...` says that the shared bin no longer exists,
+whether the invitation is invalid or revoked or the bin is missing or expired.
+A regular bin URL says that the bin expired or no longer exists. Both states
+wait for the visitor to choose **Create New Bin**, which leads through `/`. A
+bin code alone does not grant inspection access.
 
 ## Guest invitations
 

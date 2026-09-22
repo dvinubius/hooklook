@@ -1,0 +1,43 @@
+<script setup lang="ts">
+/* A dead target or a shared URL whose access is invalid. The server marks the
+   document before Vue starts, so this page asks no API and does not silently
+   replace the bin. */
+import PageShell from './PageShell.vue'
+
+defineProps<{ kind: 'expired' | 'shared' }>()
+</script>
+
+<template>
+  <PageShell>
+    <main class="empty">
+      <div class="content">
+        <p v-if="kind === 'expired'" class="meta message">
+          // This bin has expired or no longer exists.
+        </p>
+        <p v-else class="meta message">// This shared bin no longer exists.</p>
+        <a class="btn btn-primary" href="/">Create New Bin</a>
+      </div>
+    </main>
+  </PageShell>
+</template>
+
+<style scoped>
+.empty {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 24px;
+}
+.content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  text-align: center;
+}
+.message {
+  margin: 0;
+}
+</style>

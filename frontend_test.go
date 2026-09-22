@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+	"time"
 )
 
 // requireBuiltFrontend skips tests that need real built assets. A fresh
@@ -94,30 +95,61 @@ func TestGuestInvitationReachesBothPageURLs(t *testing.T) {
 	}
 }
 
-func TestUnauthorizedPageVisitRedirectsToTheVisitorsOwnBin(t *testing.T) {
+func TestUnavailableBinPagesExplainBeforeCreatingAReplacement(t *testing.T) {
+	t.Setenv(frontendDevEnvironmentVariable, "1")
 	s := useTestStore(t)
-	other, _, err := s.createOwnedBin()
+	shared, sharedOwner, err := s.createOwnedBin()
 	if err != nil {
 		t.Fatal(err)
 	}
+	if err := s.setSharing(shared.Code, true); err != nil {
+		t.Fatal(err)
+	}
+	var sharedAccess BinAccess
+	if err := json.Unmarshal(get(t, "/api/bins/"+shared.Code, sharedOwner).Body.Bytes(), &sharedAccess); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.setSharing(shared.Code, false); err != nil {
+		t.Fatal(err)
+	}
 
-	// A detail URL is as private as the bin page: an outsider is sent to their
-	// own bin before any request data is loaded, and never to a foreign one.
-	page := get(t, "/bins/"+other.Code+"/requests/anything?invite=guessed", "")
-	if page.Code != http.StatusSeeOther {
-		t.Fatalf("outsider at a detail URL = %d", page.Code)
+	expired, expiredOwner, err := s.createOwnedBin()
+	if err != nil {
+		t.Fatal(err)
 	}
-	location := page.Header().Get("Location")
-	if strings.Contains(location, other.Code) || strings.Contains(location, "invite") {
-		t.Errorf("redirect leaked the foreign bin: %q", location)
+	if err := s.setSharing(expired.Code, true); err != nil {
+		t.Fatal(err)
 	}
-	cookies := page.Result().Cookies()
-	if len(cookies) != 1 {
-		t.Fatalf("redirect set %d cookies, want the visitor's own", len(cookies))
+	var expiredAccess BinAccess
+	if err := json.Unmarshal(get(t, "/api/bins/"+expired.Code, expiredOwner).Body.Bytes(), &expiredAccess); err != nil {
+		t.Fatal(err)
 	}
-	own, err := s.ownedBin(cookies[0].Value)
-	if err != nil || location != "/bins/"+own.Code {
-		t.Errorf("redirect target = %q, own bin = %v (%v)", location, own.Code, err)
+	if _, err := s.db.Exec(`UPDATE bins SET expires_at = ? WHERE code = ?`, time.Now().Add(-time.Second).Unix(), expired.Code); err != nil {
+		t.Fatal(err)
+	}
+
+	for _, test := range []struct {
+		name, path, owner, state string
+	}{
+		{name: "revoked guest", path: "/bins/" + shared.Code + "/requests/7?invite=" + sharedAccess.InviteID, state: "shared_bin_unavailable"},
+		{name: "invalid access", path: "/bins/" + shared.Code + "?invite=guessed", state: "shared_bin_unavailable"},
+		{name: "active regular target without access", path: "/bins/" + shared.Code, state: "bin_expired"},
+		{name: "missing guest target", path: "/bins/no-such-bin?invite=old-invitation", state: "shared_bin_unavailable"},
+		{name: "expired owner target", path: "/bins/" + expired.Code, owner: expiredOwner, state: "bin_expired"},
+		{name: "expired guest target", path: "/bins/" + expired.Code + "?invite=" + expiredAccess.InviteID, state: "shared_bin_unavailable"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			page := get(t, test.path, test.owner)
+			if page.Code != http.StatusNotFound || page.Header().Get("X-Hooklook-Error") != test.state {
+				t.Fatalf("status=%d error=%q", page.Code, page.Header().Get("X-Hooklook-Error"))
+			}
+			if !strings.Contains(page.Body.String(), `data-hooklook-startup="`+test.state+`"`) {
+				t.Fatalf("page document has no %q startup marker", test.state)
+			}
+			if page.Header().Get("Location") != "" || len(page.Result().Cookies()) != 0 {
+				t.Errorf("page redirected or replaced the bin: location=%q cookies=%v", page.Header().Get("Location"), page.Result().Cookies())
+			}
+		})
 	}
 }
 

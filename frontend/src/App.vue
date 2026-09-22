@@ -2,6 +2,7 @@
 /* Nothing private renders until the session has an authorized metadata
    response; every other state is a notice. */
 import { onBeforeUnmount, onMounted } from 'vue'
+import BinUnavailable from './components/BinUnavailable.vue'
 import BinPage from './components/BinPage.vue'
 import SessionNotice from './components/SessionNotice.vue'
 import { browserEnvironment, createSession } from './lib/session'
@@ -18,5 +19,7 @@ onBeforeUnmount(() => session.stop())
 
 <template>
   <BinPage v-if="state === 'ready' && access" :session="session" :access="access" />
+  <BinUnavailable v-else-if="state === 'bin_expired'" kind="expired" />
+  <BinUnavailable v-else-if="state === 'shared_bin_unavailable'" kind="shared" />
   <SessionNotice v-else :state="state" :message="message" @retry="session.retry()" />
 </template>

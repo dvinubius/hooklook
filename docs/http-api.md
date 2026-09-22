@@ -8,8 +8,8 @@ by default.
 | Method and path | Behavior |
 | --- | --- |
 | `GET /` | Resolve the browser's cookie-associated bin, creating one when needed, then `303` to `/bins/{code}`. At storage capacity, return `507` without a cookie, with `X-Hooklook-Error: store_full` and `data-hooklook-startup="store_full"` on the app document's `<html>` element. A standalone explanation is the fallback if frontend assets are absent. |
-| `GET /bins/{code}` | Authorize owner cookie or `?invite={identifier}` while sharing is enabled, then serve the application document. Unauthorized visitors are `303`-redirected to their own bin, resolved or created, before any request data loads. |
-| `GET /bins/{code}/requests/{id}` | The detail URL a capture reports. Same authorization and same document as the bin page; the request id is resolved inside the application, so an unknown id is not a server error. A guest's `?invite=` is preserved in the URL. |
+| `GET /bins/{code}` | Authorize owner cookie or `?invite={identifier}` while sharing is enabled, then serve the application document. An unavailable regular URL returns a marked `404` expiration page. An unavailable URL with a nonempty `invite` parameter returns a marked `404` shared-bin page. This follows the link shape whether the target is missing, expired, invalid, or revoked. Both pages require an explicit **Create New Bin** action before visiting `/`. |
+| `GET /bins/{code}/requests/{id}` | The detail URL a capture reports. It has the same authorization and unavailable-bin behavior as the bin page. For an authorized active bin, the request id is resolved inside the application, so an unknown request id is not a server error. A guest's `?invite=` is preserved in the URL. |
 | `GET /bins/{code}/`, `GET /bins/{code}/requests/{id}/` | `301` to the same address without the trailing slash, query string kept. Nothing is looked up; the canonical URL is authorized as usual. |
 | `GET /bins/{code}/requests`, `GET /bins/{code}/requests/` | `301` to `/bins/{code}`, query string kept. Nothing is looked up; the bin page is authorized as usual. |
 | `GET /assets/{path...}`, `GET /fonts/{path...}` | The embedded frontend build. Deliberately outside bin authorization: no captured data, identical for every visitor, and required by a page the server has already handed over. Hashed JavaScript and CSS are `immutable`; fonts get an ordinary lifetime. Unknown files: `404`. |
@@ -24,6 +24,15 @@ by default.
 | `GET /admin/bins` | Operator-only list. Requires `Authorization: Bearer <ADMIN_TOKEN>`. |
 | `GET /admin/storage` | Operator-only global SQLite capacity statistics. Requires `Authorization: Bearer <ADMIN_TOKEN>`. |
 | `GET /health` | Static liveness response. |
+
+Unavailable page documents carry their state in both `X-Hooklook-Error` and
+the `<html>` element's `data-hooklook-startup` attribute. An unavailable URL
+with a nonempty `invite` parameter uses `shared_bin_unavailable`; an unavailable
+regular URL uses `bin_expired`. This classification depends only on the link
+shape, so it also applies to missing and expired targets. Both responses are
+`404`, set no replacement cookie, and make no inspection API call. Authorized
+API requests that later lose access use the same rule and error header,
+allowing an already-open page to show the matching empty state.
 
 There is no client-address field in any response. The UI shows a **client ip**
 on a request's detail, but it reads that out of the stored `X-Forwarded-For`

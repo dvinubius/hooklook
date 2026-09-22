@@ -78,7 +78,15 @@ func TestUseRenewsOwnerGuestAndCaptureButNotRejectedAccess(t *testing.T) {
 	if got := callInspector(t, "GET", "/b/"+bin.Code, "", "").Code; got != http.StatusNotFound {
 		t.Errorf("expired HTTP capture = %d", got)
 	}
-	if got := callInspector(t, "GET", "/bins/"+bin.Code, "", owner).Code; got != http.StatusSeeOther {
+	expiredAPI := callInspector(t, "GET", "/api/bins/"+bin.Code, "", owner)
+	if expiredAPI.Code != http.StatusNotFound || expiredAPI.Header().Get("X-Hooklook-Error") != "bin_expired" {
+		t.Errorf("expired API = %d, error = %q", expiredAPI.Code, expiredAPI.Header().Get("X-Hooklook-Error"))
+	}
+	expiredGuestAPI := callInspector(t, "GET", "/api/bins/"+bin.Code+"?invite="+ownerAccess.InviteID, "", "")
+	if expiredGuestAPI.Code != http.StatusNotFound || expiredGuestAPI.Header().Get("X-Hooklook-Error") != "shared_bin_unavailable" {
+		t.Errorf("expired guest API = %d, error = %q", expiredGuestAPI.Code, expiredGuestAPI.Header().Get("X-Hooklook-Error"))
+	}
+	if got := callInspector(t, "GET", "/bins/"+bin.Code, "", owner).Code; got != http.StatusNotFound {
 		t.Errorf("expired page = %d", got)
 	}
 }

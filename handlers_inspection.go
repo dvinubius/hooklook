@@ -95,7 +95,7 @@ func toBinPage(w http.ResponseWriter, req *http.Request) {
 
 // inspectorPage serves the application for both `/bins/{code}` and the detail
 // URL `/bins/{code}/requests/{id}` that a capture reports. Authorization and
-// the redirect to the visitor's own bin happen here, before any document is
+// unavailable-target classification happens here, before any document is
 // written; the request id is resolved inside the application afterwards. A
 // guest's invitation stays in the query string and is read there too.
 func inspectorPage(w http.ResponseWriter, req *http.Request) {
@@ -107,11 +107,12 @@ func inspectorPage(w http.ResponseWriter, req *http.Request) {
 			http.Error(w, "internal server error", 500)
 			return
 		}
-		bin, ok := resolveOwnBin(w, req)
-		if !ok {
+		state := unavailableBinState(req)
+		if state == "bin_expired" {
+			writeBinExpiredShell(w)
 			return
 		}
-		http.Redirect(w, req, "/bins/"+bin.Code, http.StatusSeeOther)
+		writeSharedBinUnavailableShell(w)
 		return
 	}
 	if access.Owner {
@@ -120,10 +121,19 @@ func inspectorPage(w http.ResponseWriter, req *http.Request) {
 	writePageShell(w)
 }
 
+func unavailableBinState(req *http.Request) string {
+	if req.URL.Query().Get("invite") != "" {
+		return "shared_bin_unavailable"
+	}
+	return "bin_expired"
+}
+
 func authorizedAccess(w http.ResponseWriter, req *http.Request) (BinAccess, bool) {
 	noStore(w)
 	access, err := store.access(req.PathValue("code"), ownerSecret(req), req.URL.Query().Get("invite"))
 	if errors.Is(err, ErrBinNotFound) {
+		state := unavailableBinState(req)
+		w.Header().Set("X-Hooklook-Error", state)
 		http.Error(w, "bin not found", 404)
 		return BinAccess{}, false
 	}

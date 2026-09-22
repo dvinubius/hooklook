@@ -22,8 +22,11 @@ open SSE stream alone does not continually renew the bin.
 
 The application-owned cleanup worker runs at startup and once a minute. It
 deletes expired bins and their requests through SQLite's foreign-key cascade,
-then closes associated SSE streams. An expired page visit resolves or creates
-the visitor's own bin; an expired capture returns `404`.
+then closes associated SSE streams. A regular page URL for an expired or
+already deleted bin shows an explicit expiration page before the visitor
+chooses **Create New Bin**. A shared URL with a nonempty `invite` parameter
+instead says that the shared bin no longer exists. An expired capture returns
+`404`.
 
 See [bin access](bin-access.md) for ownership and invitations and the
 [HTTP API](http-api.md) for exact routes and responses.

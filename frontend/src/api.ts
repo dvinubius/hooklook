@@ -10,6 +10,7 @@ export class ApiError extends Error {
   constructor(
     readonly status: number,
     message: string,
+    readonly code = '',
   ) {
     super(message)
     this.name = 'ApiError'
@@ -37,7 +38,11 @@ async function failure(response: Response): Promise<ApiError> {
   } catch {
     body = ''
   }
-  return new ApiError(response.status, body || `request failed with ${response.status}`)
+  return new ApiError(
+    response.status,
+    body || `request failed with ${response.status}`,
+    response.headers.get('X-Hooklook-Error') ?? '',
+  )
 }
 
 async function getJSON<T>(path: string, signal?: AbortSignal): Promise<T> {
