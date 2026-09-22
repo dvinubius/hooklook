@@ -16,7 +16,7 @@ coverage.out
 .DS_Store
 
 
-test-bins
+local-testing/
 
 # Frontend dependencies and build output. `frontend/dist` must exist at Go
 # build time because the binary embeds it, so the directory is kept.

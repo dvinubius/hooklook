@@ -16,7 +16,7 @@ import (
 
 const (
 	storeCodeAlphabet  = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
-	defaultBinTTL      = 7 * 24 * time.Hour
+	defaultBinTTL      = 3 * 24 * time.Hour
 	maxStoredRequests  = 500
 	maxStoredBodyBytes = 100_000_000
 )
@@ -24,6 +24,7 @@ const (
 var (
 	ErrBinNotFound = errors.New("bin not found")
 	ErrBinFull     = errors.New("bin storage limit reached")
+	ErrStoreFull   = errors.New("global storage limit reached")
 )
 
 type Bin struct {
@@ -39,8 +40,10 @@ type BinSummary struct {
 }
 
 type Store struct {
-	db           *sql.DB
-	generateCode func() (string, error)
+	db            *sql.DB
+	generateCode  func() (string, error)
+	maxStorePages int64
+	pageSize      int64
 }
 
 func newBinStore(db *sql.DB) *Store {
@@ -126,6 +129,9 @@ func (s *Store) createBin() (Bin, error) {
 
 func (s *Store) createOwnedBin() (Bin, string, error) {
 	for {
+		if err := s.checkCapacity(2); err != nil {
+			return Bin{}, "", err
+		}
 		code, err := s.generateCode()
 		if err != nil {
 			return Bin{}, "", fmt.Errorf("generate bin code: %w", err)
@@ -156,7 +162,7 @@ func (s *Store) createOwnedBin() (Bin, string, error) {
 				// intentionally excluded from the minimal DB metrics.
 				continue
 			}
-			return Bin{}, "", err
+			return Bin{}, "", classifyStoreError(err)
 		}
 
 		return bin, owner, nil
@@ -170,24 +176,43 @@ func (s *Store) saveRequest(parsedReq ParsedRequest, binCode string) (string, er
 	}
 	receivedAt := parsedReq.ReceiptTime.Format(time.RFC3339Nano)
 	bodyBytes := int64(len(parsedReq.RawBody))
+	var usedBytes int64
+	var requestCount int
+	err = s.db.QueryRow(`
+		SELECT total_body_bytes,
+			(SELECT COUNT(*) FROM requests WHERE bin_code = bins.code)
+		FROM bins WHERE code = ? AND expires_at > ?
+	`, binCode, time.Now().UTC().Unix()).Scan(&usedBytes, &requestCount)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", ErrBinNotFound
+	}
+	if err != nil {
+		return "", err
+	}
+	if requestCount >= maxStoredRequests || bodyBytes > maxStoredBodyBytes-usedBytes {
+		return "", ErrBinFull
+	}
+	if err := s.checkCapacity(bodyBytes + int64(len(headersJSON)) + int64(len(parsedReq.Path)+len(parsedReq.RawQuery)) + 512); err != nil {
+		return "", err
+	}
 
 	tx, err := s.db.Begin()
 	if err != nil {
-		return "", fmt.Errorf("begin save request: %w", err)
+		return "", classifyStoreError(fmt.Errorf("begin save request: %w", err))
 	}
 	defer tx.Rollback()
 
 	result, err := tx.Exec(`
 		UPDATE bins
-		SET total_body_bytes = total_body_bytes + ?
+		SET total_body_bytes = total_body_bytes + ?, expires_at = ?
 		WHERE code = ?
 			AND expires_at > ?
 			AND total_body_bytes + ? <= ?
 			AND (SELECT COUNT(*) FROM requests WHERE bin_code = bins.code) < ?
-	`, bodyBytes, binCode, time.Now().UTC().Unix(),
+	`, bodyBytes, time.Now().UTC().Add(defaultBinTTL).Unix(), binCode, time.Now().UTC().Unix(),
 		bodyBytes, maxStoredBodyBytes, maxStoredRequests)
 	if err != nil {
-		return "", fmt.Errorf("update total body bytes: %w", err)
+		return "", classifyStoreError(fmt.Errorf("update total body bytes: %w", err))
 	}
 	updated, err := result.RowsAffected()
 	if err != nil {
@@ -214,14 +239,14 @@ func (s *Store) saveRequest(parsedReq ParsedRequest, binCode string) (string, er
 		parsedReq.Path, parsedReq.RawQuery, headersJSON, parsedReq.ContentType,
 		parsedReq.RawBody, parsedReq.BodySizeKiB)
 	if err != nil {
-		return "", fmt.Errorf("insert request: %w", err)
+		return "", classifyStoreError(fmt.Errorf("insert request: %w", err))
 	}
 	requestID, err := result.LastInsertId()
 	if err != nil {
 		return "", fmt.Errorf("read inserted request ID: %w", err)
 	}
 	if err := tx.Commit(); err != nil {
-		return "", fmt.Errorf("commit save request: %w", err)
+		return "", classifyStoreError(fmt.Errorf("commit save request: %w", err))
 	}
 
 	return strconv.FormatInt(requestID, 10), nil

@@ -23,6 +23,7 @@ const (
 	defaultReadTimeout               = 15 * time.Second
 	defaultIdleTimeout               = 60 * time.Second
 	shutdownTimeout                  = 10 * time.Second
+	databaseCheckInterval            = time.Second
 	databasePath                     = "hooklook.db"
 )
 
@@ -135,26 +136,63 @@ func run(ctx context.Context, address string, logger *slog.Logger) error {
 		return err
 	}
 
-	store = newBinStore(db)
+	store, err = configureStore(db)
+	if err != nil {
+		return fmt.Errorf("configure storage: %w", err)
+	}
+	serviceCtx, stopServices := context.WithCancel(context.Background())
+	workerDone := make(chan struct{})
+	databaseMonitorDone := make(chan struct{})
+	databaseErrors := make(chan error, 1)
+	reportDatabaseError := func(err error) {
+		select {
+		case databaseErrors <- err:
+		default:
+		}
+	}
+	go func() {
+		defer close(workerDone)
+		cleanupWorker(serviceCtx, store, eventHub, reportDatabaseError)
+	}()
+	go func() {
+		defer close(databaseMonitorDone)
+		monitorDatabase(serviceCtx, db, databaseCheckInterval, reportDatabaseError)
+	}()
+	defer func() {
+		stopServices()
+		<-workerDone
+		<-databaseMonitorDone
+	}()
 	server := newHTTPServer(address, routes())
 	serverErrors := make(chan error, 1)
 	go func() { serverErrors <- server.ListenAndServe() }()
-
-	select {
-	case err := <-serverErrors:
-		if errors.Is(err, http.ErrServerClosed) {
-			return nil
-		}
-		return err
-	case <-ctx.Done():
-		logger.Info("shutting down HTTP server")
+	shutdownServer := func() error {
+		stopServices()
 		eventHub.close()
 		shutdownContext, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
 		defer cancel()
 		if err := server.Shutdown(shutdownContext); err != nil {
+			_ = server.Close()
 			return fmt.Errorf("shut down HTTP server: %w", err)
 		}
 		return nil
+	}
+
+	select {
+	case err := <-serverErrors:
+		eventHub.close()
+		if errors.Is(err, http.ErrServerClosed) {
+			return nil
+		}
+		return err
+	case err := <-databaseErrors:
+		if shutdownErr := shutdownServer(); shutdownErr != nil {
+			return fmt.Errorf("database became unavailable (%v); %w", err, shutdownErr)
+		}
+		return fmt.Errorf("database became unavailable: %w", err)
+	case <-ctx.Done():
+		logger.Info("shutting down HTTP server")
+		return shutdownServer()
 	}
 }
 
@@ -177,7 +215,11 @@ func createDevelopmentBin(path string) (string, error) {
 	if err := migrate(db); err != nil {
 		return "", err
 	}
-	bin, err := newBinStore(db).createBin()
+	developmentStore, err := configureStore(db)
+	if err != nil {
+		return "", err
+	}
+	bin, err := developmentStore.createBin()
 	if err != nil {
 		return "", err
 	}
@@ -186,6 +228,14 @@ func createDevelopmentBin(path string) (string, error) {
 
 func main() {
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+	if len(os.Args) == 3 && os.Args[1] == "backup" {
+		if err := backupDatabase(databasePath, os.Args[2]); err != nil {
+			logger.Error("backup failed", "error", err)
+			os.Exit(1)
+		}
+		fmt.Println(os.Args[2])
+		return
+	}
 	if len(os.Args) == 2 && os.Args[1] == "dev-bin" {
 		url, err := createDevelopmentBin(databasePath)
 		if err != nil {

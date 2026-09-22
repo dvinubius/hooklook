@@ -35,7 +35,7 @@ func migrate(db *sql.DB) error {
 		);
 
 		CREATE TABLE IF NOT EXISTS requests (
-			id INTEGER PRIMARY KEY,
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
 			bin_code TEXT NOT NULL,
 			created_at TEXT NOT NULL,
 			method TEXT NOT NULL,

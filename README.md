@@ -9,9 +9,9 @@ bin pages, so one binary is the whole deployment.
 ## Intended v1 use
 
 Hooklook is designed for small-scale integration testing of systems using
-webhooks. The current limits and planned production limits differ; see the
-[current architecture](docs/architecture.md) and
-[production design notes](.agents/design-notes.md).
+webhooks. A bin lasts three days after its last use and holds up to 500 requests
+and 100 MB of request bodies. See [bin lifecycle](docs/bin-lifecycle.md) and
+[storage capacity](docs/storage-capacity.md) for the limits and retention rules.
 
 ## Live request events
 
@@ -57,6 +57,12 @@ A `curl` example to try the URL with is in the help dialog.
   and a note by the headers says so rather than implying they could be
   recovered. Bodies, by contrast, are stored as received, which the body's own
   note states.
+- **A bin says how full it is.** The capture row carries a capacity gauge with
+  a reading per limit — stored bytes and request slots — each green until 90%
+  and brick past it. When the service as a whole is out of storage, the page
+  says so in brick, and a visitor who cannot be given a bin at all gets a page
+  that apologizes instead of a broken one. See
+  [storage capacity](docs/storage-capacity.md) for the limits themselves.
 - **Owners get controls; guests get none.** Guest access on or off and the
   invitation link sit under the share button; clearing all requests is the
   sweep button; deleting one request is on the request itself. The help button
@@ -72,10 +78,15 @@ link work.
 
 ## Project documentation
 
+- [Documentation routing index](docs/README.md)
 - [Plan](.agents/PROJECT_PLAN.md)
 - [Current progress](.agents/PROGRESS.md)
 - [Completed milestones](.agents/done-milestones.md)
 - [Current architecture](docs/architecture.md)
+- [Database behavior](docs/db.md)
+- [Bin access](docs/bin-access.md)
+- [Bin lifecycle](docs/bin-lifecycle.md)
+- [Storage capacity and backups](docs/storage-capacity.md)
 - [Current HTTP API](docs/http-api.md)
 - [Frontend behavior and mechanisms](docs/frontend.md)
 - [Architecture decision records](docs/adr/)
@@ -85,8 +96,12 @@ link work.
 `PUBLIC_BASE_URL` is required to construct capture URLs. The server binds to
 `127.0.0.1:8080`. `ADMIN_TOKEN` is required to start the server and protects
 `GET /admin/bins` through a bearer token. Configuration comes from process
-environment variables; `.env` is a shell
-convenience, not an application configuration format.
+environment variables; `.env` is a shell convenience, not an application
+configuration format.
+
+`MAX_STORE` optionally changes the SQLite database limit from its 5 GB default.
+See [storage capacity](docs/storage-capacity.md) for its byte definition and
+capacity behavior.
 
 ### Working on the frontend
 
@@ -122,12 +137,6 @@ The `dev-bin` command creates a fixture directly in SQLite. Normal browser use
 starts at `/`, which creates or reuses a bin and redirects to its inspector
 page. See the [HTTP API](docs/http-api.md) for inspection and owner mutation
 routes.
-
-The backend enforces 500 requests and 100 MB (100,000,000 bytes) of raw request
-bodies in total per bin. Headers and metadata do not count. The Go-specific body
-and header policy limits have been removed. Keep this build on loopback;
-configure Caddy body, 32 KiB total-header, and rate limits before exposing it
-publicly.
 
 ## Tests
 

@@ -19,7 +19,11 @@ func newTestStore(t *testing.T) *Store {
 		t.Fatalf("migrate test database: %v", err)
 	}
 	t.Cleanup(func() { db.Close() })
-	return newBinStore(db)
+	s := newBinStore(db)
+	if err := s.configureCapacity(defaultMaxStore); err != nil {
+		t.Fatalf("configure test capacity: %v", err)
+	}
+	return s
 }
 
 func insertTestBin(t *testing.T, store *Store, code string) Bin {

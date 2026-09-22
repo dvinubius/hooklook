@@ -1,60 +1,60 @@
 # Current architecture
 
-Hooklook is one Go `net/http` service using SQLite through
-`github.com/mattn/go-sqlite3`. It validates `PUBLIC_BASE_URL` and `ADMIN_TOKEN`,
-opens `hooklook.db`, creates a fresh development schema, and listens on
-`127.0.0.1:8080`. It shuts down on SIGINT/SIGTERM, closing event streams before
-graceful HTTP shutdown. Caddy is planned but not yet configured in this
-repository.
+## Service and persistence
 
-A home visit creates or resolves one cookie-associated bin and redirects to
-`/bins/{code}`. Codes are readable adjective-noun-number addresses. A
-cryptographically random ownership secret is stored only as a SHA-256 digest in
-SQLite and sent in an `HttpOnly` browser cookie. Each bin has a distinct
-reusable invitation identifier. The owner can enable guest read access;
-disabling it revokes API access and closes the guests' streams, leaving the
-owner's own stream connected. Authorized page
-requests are answered with the Vue application itself.
+Hooklook is one Go `net/http` service backed by SQLite through
+`github.com/mattn/go-sqlite3`. SQLite is the source of truth for bins and
+captured requests; foreign keys cascade request deletion when a bin is removed.
+The service keeps one database connection, configures SQLite's maximum page
+count from `MAX_STORE`, and runs an application-owned expiration cleanup worker.
 
-The frontend build is embedded in the binary with `go:embed`, so the binary is
-the whole deployment. `frontend/dist` must therefore exist at Go build time;
-the committed placeholder keeps a fresh checkout compilable, and a binary built
-without real assets reports the missing build on its page routes rather than
-serving an empty document. Both `/bins/{code}` and the capture-reported detail
-URL `/bins/{code}/requests/{id}` serve the same document after the same
-authorization, and the application resolves the request id itself. Because the
-document references its assets by absolute path, direct navigation and reloads
-work at either depth. Asset routes skip bin authorization; page routes keep
-`Cache-Control: no-store` and `Referrer-Policy: no-referrer`. Under
-`FRONTEND_DEV` the page routes serve a shell pointing at Vite's module graph
-instead, so development keeps one browser origin without bypassing
-authorization.
+The process validates `PUBLIC_BASE_URL` and `ADMIN_TOKEN`, opens `hooklook.db`,
+initializes the development schema, and listens on `127.0.0.1:8080`. SIGINT or
+SIGTERM stops the cleanup worker, closes event streams, and gracefully shuts
+down HTTP. The process also checks SQLite once a second. If the open database
+becomes unusable, or expiration cleanup encounters a database error, the same
+graceful shutdown runs and the process exits with an error. A separate `backup`
+command uses SQLite `VACUUM INTO` to copy the database consistently while the
+service is running. See [bin lifecycle](bin-lifecycle.md)
+for retention and cleanup, and [storage capacity](storage-capacity.md) for
+limits, backup, and restore. [Database behavior](db.md) describes the schema,
+transactions, connection setup, and fatal database-failure policy.
 
-Inside that document the application treats the server as the only authority on
-access: it fetches `GET /api/bins/{code}` before anything private renders, keeps
-the request list reconciled against SQLite rather than against the stream, and
-renders captured bytes as text and never as markup. The
-[frontend](frontend.md) describes those mechanisms.
+## HTTP and frontend
 
-The list, detail, metadata, and SSE routes check owner or guest authorization.
-Destructive routes require the owner cookie and same-origin `Origin` header.
-Detail sends the stored raw body as JSON base64 so binary data remains faithful.
-Deleting requests adjusts `total_body_bytes` in the same SQLite transaction.
-There is no bin replacement endpoint. SQLite foreign keys are enabled.
+The Go service handles the public capture route, authorized inspection routes,
+operator route, and frontend assets. The frontend build is embedded with
+`go:embed`, making the binary the deployment unit. `frontend/dist` must exist
+when Go compiles; the committed placeholder permits a fresh checkout to build,
+but page routes report a missing frontend build until real assets are compiled.
 
-Public `/b/{code}` capture remains open to anyone with the code. `requests.go`
-redacts credential-like header names and preserves method, path suffix, raw
-query, other headers, raw body, content type, and receipt time. `store.go`
-atomically checks 500-request and 100 MB raw-body budgets before insertion. SSE
-publishes compact summaries after commit. A `refresh` event follows deletion or
-clearing. SSE is ephemeral and clients must refetch on reconnect. Slow
-subscribers are disconnected rather than blocking ingestion.
+Both `/bins/{code}` and `/bins/{code}/requests/{id}` serve the same Vue
+document after server authorization. The Vue application resolves the selected
+request and fetches bin data through the API. Absolute asset paths make direct
+navigation to either page route work. Asset routes are public because they
+contain no captured data. With `FRONTEND_DEV`, page routes instead serve a shell
+pointing to Vite while Go retains page authorization. See [bin access](bin-access.md)
+for ownership and sharing, [frontend](frontend.md) for the client mechanisms,
+and the [HTTP API](http-api.md) for routes and responses.
 
-Bin expiry remains seven days from creation. Expiry renewal, cleanup, global
-storage cap, backups, metrics, and Caddy policy belong to the later milestones.
-No Go-specific body or header policy limit is applied; the service must stay on
-loopback until Caddy enforces those limits.
+## Capture and live updates
 
-See the [HTTP API](http-api.md), [frontend](frontend.md),
-[project plan](../.agents/PROJECT_PLAN.md), and
-[progress](../.agents/PROGRESS.md).
+`requests.go` parses inbound captures and redacts credential-like headers
+before persistence. `store.go` writes each accepted capture and its bin counters
+in a SQLite transaction. After commit, an in-memory event hub sends a compact
+summary to subscribers of that bin. Delete and clear operations publish a
+refresh signal. SSE is ephemeral: reconnecting clients fetch the persisted list
+from SQLite, and slow subscribers are disconnected rather than delaying writes.
+The [bin lifecycle](bin-lifecycle.md) describes expiration; [storage capacity](storage-capacity.md)
+describes capture limits.
+
+## Ingress boundary
+
+The service listens on loopback. Caddy is intended to terminate TLS and apply
+public rate, request-body, and total-header limits, but that proxy configuration
+is not yet in this repository. Go currently applies no separate body or header
+policy limit. The service should remain on loopback until the Caddy limits are
+configured and verified.
+
+See the [project plan](../.agents/PROJECT_PLAN.md) and
+[progress](../.agents/PROGRESS.md) for upcoming work.

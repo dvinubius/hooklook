@@ -37,18 +37,26 @@ func resolveOwnBin(w http.ResponseWriter, req *http.Request) (Bin, bool) {
 	defer resolveMu.Unlock()
 	bin, err := store.ownedBin(ownerSecret(req))
 	if err == nil {
+		setOwnerCookie(w, ownerSecret(req), bin.ExpiresAt)
 		return bin, true
 	}
 	if !errors.Is(err, ErrBinNotFound) {
 		http.Error(w, "internal server error", 500)
 		return Bin{}, false
 	}
+	streamAccessMu.Lock()
 	bin, secret, err := store.createOwnedBin()
 	if err != nil {
-		writeCapacityShell(w)
+		streamAccessMu.Unlock()
+		if errors.Is(err, ErrStoreFull) {
+			writeCapacityShell(w)
+		} else {
+			http.Error(w, "internal server error", 500)
+		}
 		return Bin{}, false
 	}
 	eventHub.openBin(bin.Code)
+	streamAccessMu.Unlock()
 	setOwnerCookie(w, secret, bin.ExpiresAt)
 	return bin, true
 }
@@ -93,7 +101,7 @@ func toBinPage(w http.ResponseWriter, req *http.Request) {
 func inspectorPage(w http.ResponseWriter, req *http.Request) {
 	noStore(w)
 	code := req.PathValue("code")
-	_, err := store.access(code, ownerSecret(req), req.URL.Query().Get("invite"))
+	access, err := store.access(code, ownerSecret(req), req.URL.Query().Get("invite"))
 	if err != nil {
 		if !errors.Is(err, ErrBinNotFound) {
 			http.Error(w, "internal server error", 500)
@@ -105,6 +113,9 @@ func inspectorPage(w http.ResponseWriter, req *http.Request) {
 		}
 		http.Redirect(w, req, "/bins/"+bin.Code, http.StatusSeeOther)
 		return
+	}
+	if access.Owner {
+		setOwnerCookie(w, ownerSecret(req), access.Bin.ExpiresAt)
 	}
 	writePageShell(w)
 }
@@ -120,6 +131,9 @@ func authorizedAccess(w http.ResponseWriter, req *http.Request) (BinAccess, bool
 		http.Error(w, "internal server error", 500)
 		return BinAccess{}, false
 	}
+	if access.Owner {
+		setOwnerCookie(w, ownerSecret(req), access.Bin.ExpiresAt)
+	}
 	return access, true
 }
 
@@ -128,6 +142,23 @@ func binInfo(w http.ResponseWriter, req *http.Request) {
 	if !ok {
 		return
 	}
+	capacity, err := store.binCapacity(access.Bin.Code)
+	if errors.Is(err, ErrBinNotFound) {
+		http.Error(w, "bin not found", http.StatusNotFound)
+		return
+	}
+	if err != nil {
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
+	access.Capacity = capacity
+	access.Bin.TotalBodyBytes = capacity.BodyBytesUsed
+	storeCapacity, err := store.storeCapacity()
+	if err != nil {
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
+	access.StoreCapacity = storeCapacity
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(access)
 }

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"embed"
 	"io/fs"
 	"mime"
@@ -127,10 +128,26 @@ func writePageShell(w http.ResponseWriter) {
 	writeShell(w, prodShell)
 }
 
+// A full store can prevent a first-time visitor from obtaining a bin. Serve
+// the same application bundle with a document marker so the browser can show
+// that state without an owner cookie or a bin-metadata request. The standalone
+// page remains a fallback when the production frontend was not built.
 func writeCapacityShell(w http.ResponseWriter) {
+	w.Header().Set("X-Hooklook-Error", "store_full")
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusInsufficientStorage)
-	w.Write(capacityShell)
+	shell := prodShell
+	if frontendDev() {
+		shell = devShell
+	}
+	if frontendDev() || prodShellErr == nil {
+		marked := bytes.Replace(shell, []byte("<html"), []byte(`<html data-hooklook-startup="store_full"`), 1)
+		if !bytes.Equal(marked, shell) {
+			_, _ = w.Write(marked)
+			return
+		}
+	}
+	_, _ = w.Write(capacityShell)
 }
 
 // Cache lifetimes for the two kinds of built asset. Vite hashes the JavaScript

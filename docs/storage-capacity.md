@@ -1,0 +1,108 @@
+# Storage capacity and backups
+
+## What is limited
+
+A bin accepts at most 500 captured requests and 100 MB (100,000,000 bytes) of
+raw request bodies. Headers and request metadata do not count toward that
+per-bin byte budget. Deleting one request or clearing a bin reclaims its exact
+body-byte allowance; the counter changes in the same SQLite transaction as the
+deletion.
+
+`MAX_STORE` is an optional positive decimal byte count, defaulting to
+`5000000000` (5 GB). It limits the **main SQLite database file**, which stores
+both metadata and captured payloads. At startup the service reads SQLite
+`page_size` and requests `max_page_count` of `floor(MAX_STORE/page_size)`.
+An existing database larger than that limit still opens: its bins remain
+readable, cleanup and deletion can run, and new bins and captures receive
+capacity errors. SQLite cannot set `max_page_count` below the file's existing
+page count, so the application's write precheck enforces the configured limit
+in that state. Once the file is below the limit, SQLite's page cap is the final
+guard. Deletion makes pages reusable but does not necessarily shrink the file;
+an already oversized file remains full until it is compacted or the limit is
+raised.
+
+## Capacity responses
+
+Bin creation at global capacity serves the app document with `507 Insufficient
+Storage`, `X-Hooklook-Error: store_full`, and
+`data-hooklook-startup="store_full"` on `<html>`, without setting an owner
+cookie. The marker lets the frontend recognize this state before it has a bin
+code or can call the authorized metadata API. If frontend assets were not built,
+a standalone explanation is served instead. A capture rejected by either
+limit returns `507` without publishing an SSE event. Capture responses identify
+the cause in both the body and `X-Hooklook-Error` header:
+
+| Cause | Header value | Response text |
+| --- | --- | --- |
+| Per-bin request count or body-byte limit | `bin_full` | `bin storage limit reached` |
+| Global SQLite capacity | `store_full` | `global storage limit reached` |
+
+The per-bin limit is checked first when both limits are reached. Missing or
+expired bins return `404` instead. A bin initially expires three days after
+creation; owner use, authorized guest use, and accepted captures extend expiry
+by three days. An idle SSE connection does not. Cleanup runs at startup and
+once a minute, deleting expired bins and their requests and closing their SSE
+streams. An expired bin page redirects to the visitor's own bin, creating a new
+one and cookie when needed. See [bin lifecycle](bin-lifecycle.md) for the full
+retention flow.
+
+Authorized `GET /api/bins/{code}` responses include current per-bin counts,
+limits, and `requestsFull`, `bodyBytesFull`, and `full` flags in a `capacity`
+object. A sibling `storeCapacity` object reports the global SQLite page budget,
+including its `full` flag. The global flag uses the minimum two-page allowance
+needed by the write precheck; a larger capture may fail before it turns true.
+See the [HTTP API](http-api.md) for exact fields and how to refresh the state
+after an SSE event.
+
+The frontend shows all three states. A marked `507` document renders an apology
+between the page's own bars and calls no API at all. A bin's own fullness is a
+gauge on its request list, which reads 100% only when the `full` flag is set. A
+bin page whose response reports `storeCapacity.full` says so in brick at the top
+of the page, whatever room that particular bin still has. See
+[frontend](frontend.md) for the wording and the refresh behavior.
+
+## Filesystem headroom
+
+The configured `MAX_STORE` ceiling covers only the main SQLite database file.
+For production, put the database on a fixed-size persistent filesystem or
+volume with additional free space for SQLite journals, temporary files, backups,
+and maintenance. A full volume can block deletion or maintenance even when the
+database file remains below `MAX_STORE`; reserve space operationally. The exact
+volume size and reserve are decisions for the shipping milestone. Monitor both
+database page/file use against `MAX_STORE` and free volume space when the
+observability milestone is implemented.
+
+The service currently listens on loopback and should stay there until public
+Caddy limits are configured and verified. The planned ingress controls include
+a body-size limit (256 KiB is the starting policy), a 32 KiB total-header
+limit, and rate limits. They are separate from the SQLite page cap.
+
+## Online backup
+
+The `backup` command uses SQLite `VACUUM INTO` to produce a consistent backup
+while the service is running. Run it from the directory containing
+`hooklook.db`, choose a destination outside the persistent volume, and use a
+filename that does not already exist:
+
+```bash
+./webhook-inspector backup /backups/hooklook-$(date +%Y%m%d-%H%M%S).db
+```
+
+Copy the resulting file off the host. It is a standalone SQLite database with
+no separate payload directory. Protect it like the live volume: it contains
+captured payloads and owner digests. Choose a backup cadence and retention
+policy before production rollout.
+
+## Restore
+
+Periodically test a restore in a separate location. Open the restored database,
+run `PRAGMA integrity_check`, and read a representative bin and request. For a
+production restore, stop the service, retain the current database as a rollback
+copy, copy the backup to `hooklook.db` on the persistent volume, set ownership
+and permissions for the service user, then start the service. Do not replace a
+live database file because the service holds an open SQLite connection. If the
+restored file exceeds `MAX_STORE`, the service starts with creation and capture
+blocked until the file is compacted or the limit is raised.
+
+See the [HTTP API](http-api.md) for route responses and the
+[architecture](architecture.md) for the storage components.

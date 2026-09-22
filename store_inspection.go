@@ -12,10 +12,43 @@ import (
 var ErrRequestNotFound = errors.New("request not found")
 
 type BinAccess struct {
-	Bin            Bin    `json:"bin"`
-	Owner          bool   `json:"owner"`
-	SharingEnabled bool   `json:"sharingEnabled"`
-	InviteID       string `json:"inviteId,omitempty"`
+	Bin            Bin           `json:"bin"`
+	Owner          bool          `json:"owner"`
+	SharingEnabled bool          `json:"sharingEnabled"`
+	InviteID       string        `json:"inviteId,omitempty"`
+	Capacity       BinCapacity   `json:"capacity"`
+	StoreCapacity  StoreCapacity `json:"storeCapacity"`
+}
+
+// BinCapacity is the current per-bin state. A full body-byte budget still
+// permits an empty-body capture while request slots remain available.
+type BinCapacity struct {
+	RequestCount   int   `json:"requestCount"`
+	RequestLimit   int   `json:"requestLimit"`
+	BodyBytesUsed  int64 `json:"bodyBytesUsed"`
+	BodyBytesLimit int64 `json:"bodyBytesLimit"`
+	RequestsFull   bool  `json:"requestsFull"`
+	BodyBytesFull  bool  `json:"bodyBytesFull"`
+	Full           bool  `json:"full"`
+}
+
+func (s *Store) binCapacity(code string) (BinCapacity, error) {
+	capacity := BinCapacity{RequestLimit: maxStoredRequests, BodyBytesLimit: maxStoredBodyBytes}
+	err := s.db.QueryRow(`
+		SELECT total_body_bytes,
+			(SELECT COUNT(*) FROM requests WHERE bin_code = bins.code)
+		FROM bins WHERE code = ? AND expires_at > ?
+	`, code, time.Now().UTC().Unix()).Scan(&capacity.BodyBytesUsed, &capacity.RequestCount)
+	if errors.Is(err, sql.ErrNoRows) {
+		return BinCapacity{}, ErrBinNotFound
+	}
+	if err != nil {
+		return BinCapacity{}, err
+	}
+	capacity.RequestsFull = capacity.RequestCount >= capacity.RequestLimit
+	capacity.BodyBytesFull = capacity.BodyBytesUsed >= capacity.BodyBytesLimit
+	capacity.Full = capacity.RequestsFull || capacity.BodyBytesFull
+	return capacity, nil
 }
 
 func (s *Store) ownedBin(secret string) (Bin, error) {
@@ -25,7 +58,8 @@ func (s *Store) ownedBin(secret string) (Bin, error) {
 	var bin Bin
 	var created string
 	var expires int64
-	err := s.db.QueryRow(`SELECT code, created_at, expires_at, total_body_bytes FROM bins WHERE owner_digest = ? AND expires_at > ?`, digestSecret(secret), time.Now().Unix()).Scan(&bin.Code, &created, &expires, &bin.TotalBodyBytes)
+	now := time.Now().UTC()
+	err := s.db.QueryRow(`UPDATE bins SET expires_at = ? WHERE owner_digest = ? AND expires_at > ? RETURNING code, created_at, expires_at, total_body_bytes`, now.Add(defaultBinTTL).Unix(), digestSecret(secret), now.Unix()).Scan(&bin.Code, &created, &expires, &bin.TotalBodyBytes)
 	if errors.Is(err, sql.ErrNoRows) {
 		return Bin{}, ErrBinNotFound
 	}
@@ -44,7 +78,15 @@ func (s *Store) access(code, secret, invite string) (BinAccess, error) {
 	var access BinAccess
 	var created, ownerDigest, storedInvite string
 	var expires int64
-	err := s.db.QueryRow(`SELECT code, created_at, expires_at, total_body_bytes, owner_digest, invite_id, sharing_enabled FROM bins WHERE code = ? AND expires_at > ?`, code, time.Now().Unix()).Scan(&access.Bin.Code, &created, &expires, &access.Bin.TotalBodyBytes, &ownerDigest, &storedInvite, &access.SharingEnabled)
+	now := time.Now().UTC()
+	// Authorization and renewal are one conditional SQLite write. An invalid
+	// invitation never extends retention, and cleanup cannot delete the row
+	// between the authorization check and renewal.
+	owner := digestSecret(secret)
+	if secret == "" {
+		owner = ""
+	}
+	err := s.db.QueryRow(`UPDATE bins SET expires_at = ? WHERE code = ? AND expires_at > ? AND ((owner_digest != '' AND owner_digest = ?) OR (sharing_enabled = 1 AND invite_id != '' AND invite_id = ?)) RETURNING code, created_at, expires_at, total_body_bytes, owner_digest, invite_id, sharing_enabled`, now.Add(defaultBinTTL).Unix(), code, now.Unix(), owner, invite).Scan(&access.Bin.Code, &created, &expires, &access.Bin.TotalBodyBytes, &ownerDigest, &storedInvite, &access.SharingEnabled)
 	if errors.Is(err, sql.ErrNoRows) {
 		return access, ErrBinNotFound
 	}

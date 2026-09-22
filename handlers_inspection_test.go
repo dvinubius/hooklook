@@ -39,7 +39,7 @@ func TestHomeCreatesAndReusesCookieBin(t *testing.T) {
 		t.Fatalf("owner lookup: %v", err)
 	}
 	second := callInspector(t, "GET", "/", "", cookie.Value)
-	if second.Header().Get("Location") != first.Header().Get("Location") || len(second.Result().Cookies()) != 0 {
+	if second.Header().Get("Location") != first.Header().Get("Location") || len(second.Result().Cookies()) != 1 {
 		t.Errorf("repeat home: %d %s", second.Code, second.Header().Get("Location"))
 	}
 	outsider := callInspector(t, "GET", "/api/bins/"+code+"/requests", "", "")
@@ -49,6 +49,57 @@ func TestHomeCreatesAndReusesCookieBin(t *testing.T) {
 	owner := callInspector(t, "GET", "/api/bins/"+code+"/requests", "", cookie.Value)
 	if owner.Code != 200 {
 		t.Errorf("owner list status = %d", owner.Code)
+	}
+}
+
+func TestBinInfoReportsCapacityAndReopensAfterDeletion(t *testing.T) {
+	s := useTestStore(t)
+	bin, owner, err := s.createOwnedBin()
+	if err != nil {
+		t.Fatal(err)
+	}
+	read := func() BinAccess {
+		t.Helper()
+		response := callInspector(t, "GET", "/api/bins/"+bin.Code, "", owner)
+		if response.Code != http.StatusOK {
+			t.Fatalf("bin info status = %d", response.Code)
+		}
+		var access BinAccess
+		if err := json.Unmarshal(response.Body.Bytes(), &access); err != nil {
+			t.Fatal(err)
+		}
+		return access
+	}
+	initialAccess := read()
+	initial := initialAccess.Capacity
+	if initial.Full || initial.RequestCount != 0 || initial.RequestLimit != maxStoredRequests || initial.BodyBytesLimit != maxStoredBodyBytes {
+		t.Fatalf("initial capacity = %+v", initial)
+	}
+	if initialAccess.StoreCapacity.Full || initialAccess.StoreCapacity.MaxBytes == 0 || initialAccess.StoreCapacity.DatabaseBytes == 0 || initialAccess.StoreCapacity.AvailableBytes == 0 {
+		t.Fatalf("initial store capacity = %+v", initialAccess.StoreCapacity)
+	}
+	for range maxStoredRequests {
+		if _, err := s.saveRequest(ParsedRequest{RawBody: []byte("x")}, bin.Code); err != nil {
+			t.Fatal(err)
+		}
+	}
+	filled := read().Capacity
+	if !filled.Full || !filled.RequestsFull || filled.BodyBytesFull || filled.RequestCount != maxStoredRequests || filled.BodyBytesUsed != maxStoredRequests {
+		t.Errorf("filled capacity = %+v", filled)
+	}
+	if err := s.deleteRequest(bin.Code, "1"); err != nil {
+		t.Fatal(err)
+	}
+	reopened := read().Capacity
+	if reopened.Full || reopened.RequestCount != maxStoredRequests-1 || reopened.BodyBytesUsed != maxStoredRequests-1 {
+		t.Errorf("capacity after delete = %+v", reopened)
+	}
+	if _, err := s.db.Exec(`UPDATE bins SET total_body_bytes = ? WHERE code = ?`, maxStoredBodyBytes, bin.Code); err != nil {
+		t.Fatal(err)
+	}
+	bodyFilled := read().Capacity
+	if !bodyFilled.Full || bodyFilled.RequestsFull || !bodyFilled.BodyBytesFull || bodyFilled.BodyBytesUsed != maxStoredBodyBytes {
+		t.Errorf("body-byte capacity = %+v", bodyFilled)
 	}
 }
 
@@ -77,6 +128,11 @@ func TestGuestAccessAndOwnerMutations(t *testing.T) {
 	}
 	if got := callInspector(t, "GET", guestPath, "", "").Code; got != 200 {
 		t.Errorf("guest list = %d", got)
+	}
+	guestInfo := callInspector(t, "GET", "/api/bins/"+bin.Code+"?invite="+access.InviteID, "", "")
+	var guestAccess BinAccess
+	if err := json.Unmarshal(guestInfo.Body.Bytes(), &guestAccess); err != nil || guestInfo.Code != 200 || guestAccess.Owner || guestAccess.Capacity.RequestCount != 1 || guestAccess.Capacity.BodyBytesUsed != 5 || guestAccess.StoreCapacity.MaxBytes == 0 {
+		t.Errorf("guest capacity = %d %#v %v", guestInfo.Code, guestAccess.Capacity, err)
 	}
 	detail := callInspector(t, "GET", "/api/bins/"+bin.Code+"/requests/"+id+"?invite="+access.InviteID, "", "")
 	var request RequestDetail

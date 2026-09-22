@@ -28,7 +28,13 @@ func captureRequest(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	if errors.Is(err, ErrBinFull) {
+		w.Header().Set("X-Hooklook-Error", "bin_full")
 		http.Error(w, "bin storage limit reached", http.StatusInsufficientStorage)
+		return
+	}
+	if errors.Is(err, ErrStoreFull) {
+		w.Header().Set("X-Hooklook-Error", "store_full")
+		http.Error(w, "global storage limit reached", http.StatusInsufficientStorage)
 		return
 	}
 	if err != nil {
