@@ -1,8 +1,13 @@
 <script setup lang="ts">
-/* The owner's help dialog content, in four sections: sending requests to
-   the capture URL, what happens to credentials in their headers, sharing the
-   bin through its guest link, and keeping the bin. Sharing is only explained here; the switch and the link themselves
-   live under the page's share button. */
+/* The owner's help dialog content, in five sections: sending requests to the
+   capture URL, how much the bin holds, what happens to credentials in their
+   headers, sharing the bin through its guest link, and keeping the bin. A
+   guest gets no dialog: every section either tells them to do something that
+   is not theirs to do, or says what the page already shows them.
+
+   Sharing is only explained here; the switch and the link themselves live
+   under the page's share button, as the capacity gauge lives on the capture
+   row — this says what the numbers there mean. */
 import ExampleRequest from './ExampleRequest.vue'
 import IconShare from './IconShare.vue'
 
@@ -17,6 +22,10 @@ defineProps<{ captureUrl: string }>()
         Send your webhooks to the bin using its public link as a base URL:
       </p>
       <ExampleRequest :url="captureUrl" />
+    </section>
+
+    <section class="section">
+      <h3 class="meta-caps">bin capacity</h3>
       <p class="note">
         Your bin has a limited storage capacity — roughly <strong class="key">100MB</strong>, and at
         most <strong class="key">500 requests</strong>. Once it fills up you can delete individual
@@ -47,7 +56,7 @@ defineProps<{ captureUrl: string }>()
       <h3 class="meta-caps">Preserve the Bin</h3>
       <p class="note">
         Keep using your bin in order to preserve it. As long as it captures new requests or you are
-        inspecting it, the bin is persistent.
+        inspecting it, the bin stays persistent. Inspection by guests also prolongs its life.
       </p>
       <p class="note">
         It survives <strong class="key">3 days</strong> of inactivity, then it's deleted.

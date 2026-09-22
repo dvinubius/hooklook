@@ -21,6 +21,22 @@ const ownerAccess: BinAccess = {
   owner: true,
   sharingEnabled: false,
   inviteId: 'invitation-identifier',
+  capacity: {
+    requestCount: 0,
+    requestLimit: 500,
+    bodyBytesUsed: 0,
+    bodyBytesLimit: 100_000_000,
+    requestsFull: false,
+    bodyBytesFull: false,
+    full: false,
+  },
+  storeCapacity: {
+    maxBytes: 5_000_000_000,
+    databaseBytes: 32_768,
+    reusableBytes: 0,
+    availableBytes: 4_999_967_232,
+    full: false,
+  },
 }
 
 interface Harness {
@@ -170,6 +186,21 @@ describe('bin session', () => {
 
     expect(session.state.value).toBe('unavailable')
     expect(session.message.value).toMatch(/could not be reached/)
+    expect(navigations).toEqual([])
+  })
+
+  it('recognizes a store with no room for a bin, and asks it nothing', async () => {
+    const { env, navigations, calls } = harness(async () => ownerAccess, {
+      href: `${origin}/`,
+      startup: 'store_full',
+    })
+    const session = createSession(env)
+    await session.start()
+
+    // Go marked the document; there is no bin, no cookie and nothing to
+    // authorize, so the session neither calls the API nor redirects.
+    expect(session.state.value).toBe('store_full')
+    expect(calls).toEqual([])
     expect(navigations).toEqual([])
   })
 

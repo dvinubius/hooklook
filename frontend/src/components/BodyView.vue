@@ -141,16 +141,21 @@ const dump = computed(() => hexDump(props.body.bytes))
   margin: 0;
   padding: 28px 16px;
   text-align: center;
-  /* The aside's own size; `.code-surface` would otherwise set its own. */
+  /* The same size as a body that is there; `.code-surface` sets its own. */
   font-size: var(--text-mono-meta);
   color: var(--code-recede);
 }
+/* A body reads a step below the code surface's own size, whatever it is:
+   formatted JSON or XML, plain text, or a dump row of three fixed columns
+   that a narrow pane would otherwise cut the ASCII off. `.code-surface` sets
+   13px, which the capture link at the top of the page keeps. */
 pre {
   margin: 0;
   padding: 14px 16px;
   max-height: 28rem;
   white-space: pre;
   tab-size: 2;
+  font-size: var(--text-mono-meta);
 }
 .text {
   white-space: pre-wrap;

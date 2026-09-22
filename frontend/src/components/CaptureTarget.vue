@@ -44,7 +44,7 @@ const url = computed(() => captureUrl(props.code, props.origin))
 }
 .link {
   flex: 0 1 auto;
-  width: var(--lead-width, 400px);
+  width: 400px;
   min-width: 0;
 }
 .actions {

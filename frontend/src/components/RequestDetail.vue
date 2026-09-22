@@ -53,12 +53,8 @@ watch(
     <section ref="scroller" class="detail scroll">
       <p v-if="selectedId === null" class="meta prompt">// Select a request</p>
 
-      <p v-else-if="missing" class="placeholder shade">
+      <p v-else-if="missing" class="placeholder centered shade">
         <span class="meta">// request {{ selectedId }} is not in this bin</span>
-        <span class="hint">It was deleted, cleared, or the link points at another bin.</span>
-        <button class="btn btn-outline btn-sm" type="button" @click="$emit('clear')">
-          Back to the list
-        </button>
       </p>
 
       <p v-else-if="error" class="placeholder shade">
@@ -154,6 +150,13 @@ watch(
   margin: 0;
   padding: 18px;
   font-size: var(--text-small);
+}
+/* A stale link selects nothing, so the pane has nothing to sit under: the
+   note takes the middle, as the prompt does. The auto margins are also what
+   keeps the fill off the rest of the pane — a flex child with them does not
+   stretch, so the surface is as wide as the one line it has to say. */
+.placeholder.centered {
+  margin: auto;
 }
 .hint {
   color: var(--text-dim);

@@ -7,14 +7,16 @@
 import { describe, expect, it } from 'vitest'
 import { createSSRApp, h, type Component } from 'vue'
 import { renderToString } from 'vue/server-renderer'
-import BinUnavailable from '../components/BinUnavailable.vue'
 import BodyView from '../components/BodyView.vue'
+import BinUnavailable from '../components/BinUnavailable.vue'
 import HeadersTable from '../components/HeadersTable.vue'
 import RequestDetailView from '../components/RequestDetail.vue'
+import CapacityGauge from '../components/CapacityGauge.vue'
 import RequestList from '../components/RequestList.vue'
 import SelectMenu from '../components/SelectMenu.vue'
 import { describeBody } from '../lib/body'
-import type { RequestDetail, RequestSummary } from '../types'
+import ServiceFull from '../components/ServiceFull.vue'
+import type { BinCapacity, RequestDetail, RequestSummary } from '../types'
 
 function render(component: Component, props: Record<string, unknown>): Promise<string> {
   return renderToString(createSSRApp({ render: () => h(component, props) }))
@@ -43,6 +45,20 @@ const summary: RequestSummary = {
   contentType: 'application/json',
   bodySizeKiB: 1,
   headerCount: 4,
+}
+
+/** Room to spare unless a test says otherwise. */
+function capacity(fields: Partial<BinCapacity> = {}): BinCapacity {
+  return {
+    requestCount: 1,
+    requestLimit: 500,
+    bodyBytesUsed: 1_000,
+    bodyBytesLimit: 100_000_000,
+    requestsFull: false,
+    bodyBytesFull: false,
+    full: false,
+    ...fields,
+  }
 }
 
 const listProps = {
@@ -158,11 +174,16 @@ describe('RequestList', () => {
     expect(html).toContain('POST')
     expect(html).toContain('/orders/42')
     expect(html).toContain('?retry=1')
-    expect(html).toContain('Total: 1')
     // The query hangs off the end of the path with nothing between them:
     // the two are separate nodes, so a stray newline in the template would
     // put a space there and read as a different address.
     expect(textOf(html)).toContain('/orders/42?retry=1')
+  })
+
+  it('counts nothing while no filter is on', async () => {
+    // The filters are the list's own state, so a server render can only see
+    // the unfiltered case; what a filter leaves is counted in the browser.
+    expect(textOf(await render(RequestList, listProps))).not.toContain('Results:')
   })
 
   it('distinguishes nothing-yet from nothing-matching', async () => {
@@ -233,7 +254,6 @@ describe('RequestDetail', () => {
       detail: null, selectedId: '12', loading: false, error: '', missing: true,
     })
     expect(html).toContain('is not in this bin')
-    expect(html).toContain('Back to the list')
   })
 
   it('prompts when nothing is selected', async () => {
@@ -307,6 +327,55 @@ describe('SelectMenu', () => {
     expect(html).toContain('aria-expanded="false"')
     expect(textOf(html)).toMatch(/^\s*oldest first/)
     expect(html).toMatch(/aria-selected="true"[^>]*>\s*oldest first/)
+  })
+})
+
+describe('CapacityGauge', () => {
+  it('reads each limit on its own row', async () => {
+    // A tenth of the request slots, four fifths of the bytes.
+    const html = await render(CapacityGauge, {
+      capacity: capacity({ requestCount: 50, bodyBytesUsed: 80_000_000 }),
+    })
+    const text = textOf(html)
+    expect(text).toContain('storage')
+    expect(text).toContain('requests')
+    expect(text).toContain('80%')
+    expect(text).toContain('10%')
+    expect(html).toContain('aria-valuenow="80"')
+    expect(html).toContain('aria-valuenow="10"')
+    expect(html).not.toContain('alarming')
+  })
+
+  it('turns brick only on the row that is nearly out of room', async () => {
+    const html = await render(CapacityGauge, { capacity: capacity({ requestCount: 460 }) })
+    expect(textOf(html)).toContain('92%')
+    // One of the two rows is alarming; the storage row, at 0%, is not.
+    expect(html.match(/alarming/g)?.length).toBe(2)
+  })
+
+  it('reads 100% only on the limit the server says is reached', async () => {
+    const html = await render(CapacityGauge, {
+      capacity: capacity({ requestCount: 500, requestsFull: true, full: true }),
+    })
+    expect(textOf(html)).toContain('100%')
+    expect(html).toContain('500 of 500 requests')
+    expect(html).toContain('the limit is reached')
+  })
+})
+
+describe('ServiceFull', () => {
+  it('apologizes, and offers nothing the visitor cannot act on', async () => {
+    const html = await render(ServiceFull, {})
+    const text = textOf(html)
+    expect(text).toContain('The service is at capacity')
+    expect(text).toContain('try again later')
+    // The frame is still there — the wordmark above, the credits below.
+    expect(text).toContain('Dinu Barbu')
+    expect(html).toContain('dinubarbu.com')
+    // A retry would walk into the same wall. The wordmark still links home,
+    // but this state offers no replacement action.
+    expect(text).not.toContain('Try again')
+    expect(text).not.toContain('Create New Bin')
   })
 })
 

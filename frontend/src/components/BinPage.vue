@@ -8,6 +8,7 @@
    a guest who calls these endpoints directly is refused there, not here. The
    invitation is never rendered except as the owner's own share link. */
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import CapacityGauge from './CapacityGauge.vue'
 import CaptureTarget from './CaptureTarget.vue'
 import ClearConfirm from './ClearConfirm.vue'
 import HelpGuide from './HelpGuide.vue'
@@ -34,6 +35,32 @@ const code = computed(() => props.access.bin.code)
 const feed = createFeed(
   browserFeedEnvironment(page.code, page.invite, props.session.signal, () => props.session.invalidate()),
 )
+
+// ---- capacity ---------------------------------------------------------
+// Capacity rides on the metadata response, and SSE summaries do not carry it,
+// so the page re-reads metadata whenever the list changed — a capture, a
+// delete, a clear. A burst of captures is one re-read rather than one each:
+// the number is a status line, not a counter, and the server is the one
+// enforcing the limit either way.
+
+const capacityRefreshDelayMs = 500
+let capacityRefresh: ReturnType<typeof setTimeout> | null = null
+
+function refreshCapacity(): void {
+  if (capacityRefresh !== null) return
+  capacityRefresh = setTimeout(() => {
+    capacityRefresh = null
+    void props.session.refreshAccess()
+  }, capacityRefreshDelayMs)
+}
+
+function stopCapacityRefresh(): void {
+  if (capacityRefresh === null) return
+  clearTimeout(capacityRefresh)
+  capacityRefresh = null
+}
+
+watch(feed.summaries, refreshCapacity)
 
 // ---- selection, kept in the URL --------------------------------------
 // Back, forward and a capture's own detail link all select the same request,
@@ -114,8 +141,6 @@ watch([feed.summaries, feed.loaded], () => {
 
 // ---- owner mutations --------------------------------------------------
 
-const requestList = ref<InstanceType<typeof RequestList> | null>(null)
-
 // Each kind of change is pending on its own: the server takes them
 // independently, so saving access does not hold up clearing, or the reverse.
 // A second click on the same kind while it is pending is ignored.
@@ -177,11 +202,10 @@ function removeRequest(id: string): void {
   void mutate('delete', async () => {
     await api.deleteRequest(code.value, id)
     feed.forget(id)
-    // The top row of the list as shown takes over, and keeps the keyboard:
-    // the delete control that had focus went with the deleted row.
-    const next = requestList.value?.topId() ?? null
-    select(next, true)
-    if (next !== null) requestList.value?.focusRow(next)
+    // The selection is left alone: a request that is gone is reported as gone,
+    // by the same watcher that catches one cleared from another tab. Moving
+    // the reader to a request they did not ask for says less than the pane
+    // saying what happened to the one they were reading.
     await feed.refetch()
   })
 }
@@ -193,6 +217,7 @@ onMounted(() => {
   props.session.onStop(() => {
     feed.stop()
     detailRequest?.abort()
+    stopCapacityRefresh()
   })
   feed.start()
 })
@@ -201,6 +226,7 @@ onBeforeUnmount(() => {
   window.removeEventListener('popstate', readSelectionFromUrl)
   feed.stop()
   detailRequest?.abort()
+  stopCapacityRefresh()
 })
 </script>
 
@@ -228,8 +254,11 @@ onBeforeUnmount(() => {
               </button>
             </div>
           </template>
+          <!-- Everything at this end acts on the bin or reports on it, and
+               none of it is a guest's: they read the requests, nothing more. -->
           <template v-if="access.owner" #actions>
             <div class="heading-actions">
+              <CapacityGauge :capacity="access.capacity" />
               <button
                 class="btn btn-outline icon-button"
                 type="button"
@@ -253,11 +282,11 @@ onBeforeUnmount(() => {
         </CaptureTarget>
       </section>
 
-      <ModalDialog class="help-modal" :open="helpOpen" title="How to" @close="helpOpen = false">
-        <HelpGuide :capture-url="captureUrl(access.bin.code, page.origin)" />
-      </ModalDialog>
-
       <template v-if="access.owner">
+        <ModalDialog class="help-modal" :open="helpOpen" title="How to" @close="helpOpen = false">
+          <HelpGuide :capture-url="captureUrl(access.bin.code, page.origin)" />
+        </ModalDialog>
+
         <ModalDialog :open="clearOpen" title="Empty the bin" @close="clearOpen = false">
           <ClearConfirm
             :request-count="feed.summaries.value.length"
@@ -270,15 +299,18 @@ onBeforeUnmount(() => {
         <!-- Emptying the bin fails inside its dialog; everything else out here. -->
         <p v-if="mutationError && !clearOpen" class="failure">{{ mutationError }}</p>
       </template>
-      <p v-else class="meta guest">
-        // read-only: this bin is shared with you, so nothing here can be changed or deleted
+
+      <!-- Global room, not this bin's: the bin below may be nearly empty and
+           still take nothing, because every bin shares one store. -->
+      <p v-if="access.storeCapacity.full" class="meta store-note">
+        // The service is out of storage. <br/>
+        // No requests will be captured until room is freed.
       </p>
 
       <hr class="rule" />
 
       <div class="workspace">
         <RequestList
-          ref="requestList"
           :summaries="feed.summaries.value"
           :loading="feed.loading.value"
           :loaded="feed.loaded.value"
@@ -302,7 +334,6 @@ onBeforeUnmount(() => {
         />
       </div>
     </main>
-
   </PageShell>
 </template>
 
@@ -318,7 +349,6 @@ onBeforeUnmount(() => {
 }
 /* Sizes the capture row lays the link field and the icon buttons out with. */
 .identity {
-  --lead-width: 400px;
   --row-height: 36px;
 }
 .title {
@@ -351,11 +381,13 @@ onBeforeUnmount(() => {
   width: 20px;
   height: 20px;
 }
-/* Set as an aside, but it is the only thing telling a guest what they can
-   and cannot do here, so it reads a tier above one. */
-.guest {
+/* The one line on the page that is neither this visitor's doing nor fixable
+   by them, and it decides whether anything more arrives at all — so it takes
+   the brand's danger colour rather than the quiet register of the notes
+   around it. */
+.store-note {
   margin: 0;
-  color: var(--text-dim);
+  color: var(--danger);
 }
 .failure {
   margin: 0;
@@ -367,7 +399,7 @@ onBeforeUnmount(() => {
    two panes are parted by the list's own fill now, not by a hairline down
    the gutter. */
 .workspace {
-  --list-width: 400px;
+  --list-width: 440px;
   --column-gap: 32px;
   flex: 1;
   min-height: 280px;

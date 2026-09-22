@@ -313,7 +313,7 @@ export function highlight(text: string, format: BodyFormat): Token[] {
  *  way to look at bytes that are not text. */
 export function hexDump(
   bytes: Uint8Array,
-  limit = 4096,
+  limit = 2048,
 ): { lines: string[]; shown: number; truncated: boolean } {
   const shown = bytes.subarray(0, limit)
   const lines: string[] = []

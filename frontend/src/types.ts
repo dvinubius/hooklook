@@ -8,12 +8,36 @@ export interface Bin {
   totalBodyBytes: number
 }
 
+/** Per-bin room, as of the metadata response that carried it. A bin has two
+ *  limits and either one can be the binding one, so the flags say which. */
+export interface BinCapacity {
+  requestCount: number
+  requestLimit: number
+  bodyBytesUsed: number
+  bodyBytesLimit: number
+  requestsFull: boolean
+  bodyBytesFull: boolean
+  full: boolean
+}
+
+/** The global SQLite budget, shared by every bin. `full` means no new bin and
+ *  no new capture, whoever asks. */
+export interface StoreCapacity {
+  maxBytes: number
+  databaseBytes: number
+  reusableBytes: number
+  availableBytes: number
+  full: boolean
+}
+
 /** `GET /api/bins/{code}`. `inviteId` is present for owners only. */
 export interface BinAccess {
   bin: Bin
   owner: boolean
   sharingEnabled: boolean
   inviteId?: string
+  capacity: BinCapacity
+  storeCapacity: StoreCapacity
 }
 
 /** Body-free list row, and the payload of an SSE `request` event. */

@@ -4,7 +4,9 @@
    from under them. Every state the list can be in is named in words — the
    brand has no animation. The stream reads "streaming" beside a still green
    dot while it is live, and "connecting…" beside a grey one otherwise: a
-   first connection and a reconnection look the same to the reader.
+   first connection and a reconnection look the same to the reader. How full
+   the bin is is not said here at all — that is the capture row's gauge, a
+   fact about the bin rather than about this list.
 
    Up and down move the selection through the rows as shown. The owner's
    delete control sits on the selected row only; hiding it from a guest is
@@ -61,13 +63,12 @@ const visible = computed(() =>
   sortSummaries(filterSummaries(props.summaries, filters.value), order.value),
 )
 
-// Counted once the list has been read; while a filter is on, what it leaves
-// is counted beside the total.
-const totalNote = computed(() =>
-  props.loaded && props.summaries.length > 0 ? `Total: ${props.summaries.length}` : '',
-)
-const shownNote = computed(() =>
-  totalNote.value !== '' && narrowed.value ? `Showing: ${visible.value.length}` : '',
+// Only counted while a filter is on, and only once there is a list to count.
+// An unfiltered list needs no number: what is on screen is what there is.
+const showingCounts = computed(() =>
+  props.loaded && props.summaries.length > 0 && narrowed.value
+    ? { shown: visible.value.length, total: props.summaries.length }
+    : null,
 )
 
 function clearFilters(): void {
@@ -75,11 +76,6 @@ function clearFilters(): void {
 }
 
 const list = ref<HTMLUListElement | null>(null)
-
-/** The first row as the reader currently sees the list: sorted and filtered. */
-function topId(): string | null {
-  return visible.value[0]?.id ?? null
-}
 
 /** Puts focus on a row once it has rendered, so the arrow keys carry on from it. */
 function focusRow(id: string): void {
@@ -89,8 +85,6 @@ function focusRow(id: string): void {
     button?.scrollIntoView({ block: 'nearest' })
   })
 }
-
-defineExpose({ topId, focusRow })
 
 function step(event: KeyboardEvent): void {
   if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return
@@ -110,8 +104,7 @@ function step(event: KeyboardEvent): void {
 
 <template>
   <section class="list">
-    <!-- The section label with the stream state at its right end, and the
-         counts on the line below. -->
+    <!-- The section label with the stream state at its right end. -->
     <header class="head">
       <h2 class="meta-caps">Requests</h2>
       <span
@@ -127,14 +120,6 @@ function step(event: KeyboardEvent): void {
         <span class="dot waiting" aria-hidden="true"></span>
       </span>
     </header>
-
-    <p v-if="totalNote" class="counts">
-      <span class="micro">{{ totalNote }}</span>
-      <template v-if="shownNote">
-        <span class="separator" aria-hidden="true"></span>
-        <span class="micro">{{ shownNote }}</span>
-      </template>
-    </p>
 
     <!-- One row per control, each named at its left: the text filters — an
          operator, and the text a "matches" row adds — then method and sort. -->
@@ -179,6 +164,19 @@ function step(event: KeyboardEvent): void {
         <SelectMenu v-model="order" :options="orderOptions" label="Order" />
       </div>
     </div>
+
+    <!-- What the filters left, between lines of its own: it belongs to the
+         controls above it and to the rows below it equally, and stands apart
+         from both. -->
+    <template v-if="showingCounts">
+      <div class="divider" aria-hidden="true"></div>
+      <p class="showing">
+        <!-- The number that changes with the filter is the one being read;
+             the total it is out of stays a tier back. -->
+        <span class="micro">Results: <span class="shown">{{ showingCounts.shown }}</span> (Total:
+          {{ showingCounts.total }})</span>
+      </p>
+    </template>
 
     <p v-if="error" class="state">
       {{ error }}
@@ -267,13 +265,6 @@ function step(event: KeyboardEvent): void {
   margin: 0;
   font-size: 16px;
 }
-/* The counts on their own line, parted by the shared hairline separator. */
-.counts {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin: 0;
-}
 /* The status dot: one shape, two readings. Green is the one hue outside the
    brand palette; grey says the same thing the word beside it does. */
 .dot {
@@ -294,9 +285,15 @@ function step(event: KeyboardEvent): void {
   font-size: var(--text-mono-meta);
   color: var(--text-dim);
 }
-.counts .micro {
-  font-size: 14px;
+.showing {
+  margin: 0;
+}
+.showing .micro {
+  font-size: var(--text-mono-meta);
   color: var(--text-dim);
+}
+.showing .shown {
+  color: var(--text-body);
 }
 /* One row per text filter, on a shared grid: its name, then its operator in
    a column of one width, then the text a "matches" row adds. */

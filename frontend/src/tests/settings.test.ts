@@ -81,6 +81,7 @@ describe('HelpGuide', () => {
     expect(textOf(html)).toContain('only valid when you enable guest access')
     expect(html).not.toContain('Copy guest link')
   })
+
 })
 
 describe('SharePopover', () => {

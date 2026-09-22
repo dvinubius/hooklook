@@ -26,15 +26,25 @@ home, page, API, SSE and capture routes back to Go. One origin is what makes the
 agree — while Go still authorizes every page before Vite's modules load.
 `PUBLIC_BASE_URL` must name that origin.
 
-Unavailable bin documents carry a startup marker. An unavailable regular URL
-uses `bin_expired`; an unavailable URL with a nonempty `invite` parameter uses
-`shared_bin_unavailable`. The link shape controls the message for missing,
+When the store cannot create a bin for a first-time visitor, `/` responds with
+`507` and still serves the application document. The document's `<html>` has
+`data-hooklook-startup="store_full"`; the browser reads that marker before
+attempting a bin session and puts the session straight into `store_full`,
+without calling the API — there is no cookie, no code and nothing to authorize.
+That state renders `ServiceFull`: the page's own bars, and an apology centred
+between them. It offers no retry control, because a visitor cannot free the
+space and a button that reloads into the same wall reads worse than the
+sentence; a reload is still the way back in once room exists.
+
+Unavailable bin documents use parallel startup markers. An unavailable regular
+URL uses `bin_expired`; an unavailable URL with a nonempty `invite` parameter
+uses `shared_bin_unavailable`. The link shape controls the message for missing,
 expired, invalid, and revoked targets alike. The session makes no metadata
-request for either marked document and renders `BinUnavailable` inside the
-shared top bar and footer. Its centred `//` aside explains the applicable
-state, with **Create New Bin** underneath linking to `/`. An API refusal
-discovered after load changes to the same empty state. The wordmark in every
-shared top bar also links to `/`.
+request for either marked document and renders
+`BinUnavailable` inside the shared top bar and footer. Its centred `//` aside
+explains the applicable state, with **Create New Bin** underneath linking to
+`/`. An API refusal discovered after load changes to the same empty state. The
+wordmark in every shared top bar also links to `/`.
 
 ## Authorization is never assumed
 
@@ -96,6 +106,13 @@ itself refused needs no recheck — that request *was* the check.
   counts as empty. Filtering is a view concern only — a filtered-out row is
   still in the feed.
 
+While a filter is on, the list says what it left — `Results: n (Total: m)`,
+with `n` at the reading tier because it is the number that moves — between the
+controls and the rows, with a hairline above and below it. An
+unfiltered list says no number at all: what is on screen is what there is, and
+a total that only ever agrees with the rows under it is a line to read for
+nothing.
+
 Loading, empty, filtered-empty and recoverable-error are each distinct states
 named in words. The brand defines no motion, so the stream's state is said
 rather than pulsed: "streaming" beside a still green dot while it is live, and
@@ -103,6 +120,43 @@ rather than pulsed: "streaming" beside a still green dot while it is live, and
 reconnection and a closed stream read the same. The dot is the same shape
 either way, so the row never changes width as the state changes; only the word
 and the colour differ, and the word is what carries the meaning.
+
+## How full the bin is
+
+The capture row carries a **capacity gauge** at its right end, before the sweep
+button, on a code surface as high as the capture link beside it — the row is a
+set of blocks of one height, and a gauge floating on the page between two of
+them read as something the row had forgotten to frame. It sits with the
+controls that act on the bin rather than with the list,
+because it is a fact about the bin itself — the list can be filtered down to one
+row and the bin still be out of room. A guest sees none of it: the whole row end
+is the owner's, and a reader who cannot make room has no use for the number —
+see the [README](../README.md) for who a guest typically is and why their page
+is the requests and nothing else.
+
+A bin has two limits — 100 MB of raw bodies and 500 requests — and a capture is
+refused as soon as either is reached. They run down at their own rates, so the
+gauge is **two readings side by side**, `storage` then `requests`, each with its
+own bar and percentage: a bin can be out of bytes with four hundred slots to
+spare, and one number folding the two together would hide that. Each reading floors, and stops
+at 99 until the server's own flag for *that* limit is set, so "100%" is never
+shown beside a limit that still admits a capture. A bar is green up to 90% and
+brick past it, the same brick the destructive controls use, and only the row
+that is running out turns. `lib/capacity.ts` holds the arithmetic as pure
+functions; each row's title spells its limit out in full.
+
+Capacity is not in the SSE payloads — a summary says what arrived, not how much
+room is left — so `BinPage` re-reads `GET /api/bins/{code}` when the list
+changes, coalescing a burst of captures into one re-read half a second later.
+The number is a status line, not a counter, and the server is what enforces the
+limit in any case.
+
+Global capacity is a separate fact on the same response, and it is not the
+gauge's to report: that bin may be nearly empty and still take nothing, because
+every bin shares one store. A bin page whose `storeCapacity.full` is set says so
+once, at the top, in brick — the only line on the page that is neither the
+visitor's doing nor theirs to fix, and it governs whether anything arrives at
+all.
 
 ## One request in full
 
@@ -120,7 +174,9 @@ detail fetch means *this request* is not in the bin — a stale link, a deleted
 row — and is reported as such; it never invalidates the session, because the
 list fetch and the stream are what discover revoked access. A selection the
 refreshed list no longer contains is reported the same way instead of leaving
-stale detail on screen.
+stale detail on screen. That note sits in the middle of the pane rather than at
+its top, on a fill no wider than the line itself: there is no request under it
+for it to head.
 
 While a detail is in flight the pane does not empty. The request already on
 screen stays, under a veil with a spinner at its centre, until the next one
@@ -170,14 +226,22 @@ something readable, in this order:
    character. Both formatters are dependency-free; the XML one walks the text
    and prints it back, and refuses input it cannot account for (an unclosed or
    mismatched element) rather than repairing it. Formatting failure keeps the
-   raw view and explains itself locally. Bodies over 256 KiB skip formatting.
+   raw view and explains itself locally. Bodies over 256 KiB skip formatting —
+   and highlighting with it, since both walk the whole string — so they are
+   shown raw and unhighlighted rather than truncated. Nothing trims a text
+   body: only the binary dump has a cap.
 5. **Highlight** into tokens carrying a role — `name` (Violet) for JSON keys
    and XML element and attribute names, `value` (Teal) for JSON strings,
    numbers and literals and XML attribute values and text, `recede` for
    punctuation, comments and declarations.
 
 Binary bodies get a hex dump — offset, sixteen bytes, printable ASCII — capped
-at 4 KiB with the truncation stated.
+at 2 KiB with the truncation stated.
+
+Every body reads at 12px, a step below the code surface's own 13px, whichever
+form it takes: formatted, raw, or a dump row of three fixed columns that a
+narrow pane would otherwise cut. The capture link at the top of the page and
+the invitation link in the share popover keep their own sizes.
 
 ### Captured content never becomes markup
 
@@ -207,10 +271,13 @@ bodies: they are stored exactly as received.
 
 Owners get sharing on/off, the invitation link, delete one request, and clear all
 requests. Capability comes from `owner` in the metadata response. The bin's top
-row carries a help button beside the capture link, and a sweep button and a
-share button, in that order, at its right end. Deleting one request is an icon at the right
-end of the selected row in the list; afterwards the top row of the list, as
-sorted and filtered, is selected and focused.
+row carries a help button beside the capture link, and the capacity gauge, a
+sweep button and a share button, in that order, at its right end — of which a
+guest sees the gauge alone. Deleting one request is an icon at the right
+end of the selected row in the list. The selection is left where it was, so the
+detail pane reports the request as no longer in the bin — the same note a stale
+link or another tab's clear produces — rather than moving the reader to a
+request they did not ask for.
 
 The share button opens a popover under it, right edges aligned, holding the
 **Guest access** switch and the invitation link with its copy control. It is a
@@ -218,10 +285,10 @@ native popover: it closes on Esc, on a click elsewhere, or when the window is
 resized. The switch flips once the server has saved the change, not on the
 click.
 
-The help button opens a dialog with four sections: an example request against
-the capture URL, what redaction does to credential headers, how sharing works
-and that the invitation link only works while guest access is on, and how long
-a bin is kept. It does not hold the link itself. The sweep button opens a confirmation that names what
+The help button opens a dialog with five sections: an example request against
+the capture URL, what the bin holds and what to do when it is full, what
+redaction does to credential headers, how sharing works and that the invitation
+link only works while guest access is on, and how long a bin is kept. It does not hold the link itself. The sweep button opens a confirmation that names what
 clearing destroys; a failure is reported in the dialog, which stays open. Both
 are native `<dialog>`s that close on their ×, on Esc, or on a click on the
 backdrop; their contents are unmounted while closed, so a half-confirmed action
@@ -250,11 +317,12 @@ happen.
 | `lib/session.ts` | Bootstrap, role, the two failure classes, the recovery loop guard, and one `AbortController` for everything dependent. |
 | `lib/feed.ts` | Stream plus summaries, id reconciliation, refetch triggers, revocation recheck. Its browser wiring is separable from its logic. |
 | `lib/list.ts` | Ordering and filtering. Pure functions. |
+| `lib/capacity.ts` | How full a bin is as one percentage, the warning threshold, and the wording of the gauge's title. Pure functions. |
 | `lib/body.ts` | Base64 → bytes → text → formatted → tokens, plus the hex dump. Pure functions. |
 | `lib/location.ts` | Bin code, request id and invitation read from the URL; capture and invitation URLs built on the origin the browser is really on. |
 | `lib/headers.ts` | The client address read out of `X-Forwarded-For`, and the trust rule that picks which hop. Pure functions. |
 | `lib/format.ts`, `lib/clipboard.ts`, `lib/theme.ts` | Times and byte counts, a clipboard that is allowed to be unavailable, a dark-by-default theme toggle. |
-| `components/` | `BinPage` wires the feed, selection, detail and mutations; the rest render. `PageShell` holds the shared top bar and footer, and `BinUnavailable` renders the two unavailable states. `ThemeToggle` mirrors its zibs counterpart. |
+| `components/` | `BinPage` wires the feed, selection, detail and mutations; the rest render. `PageShell` is the shared top bar and footer, `ServiceFull` the out-of-room page, `BinUnavailable` the expired and inaccessible shared-bin page, and `CapacityGauge` the bin's room on the capture row. `ThemeToggle` mirrors its zibs counterpart. |
 
 ## Tests
 

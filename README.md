@@ -62,19 +62,32 @@ A `curl` example to try the URL with is in the help dialog.
   and brick past it. When the service as a whole is out of storage, the page
   says so in brick, and a visitor who cannot be given a bin at all gets a page
   that apologizes instead of a broken one. See
-  [storage capacity](docs/storage-capacity.md) for the limits themselves.
+  [storage capacity](docs/storage-capacity.md) for the limits themselves. The
+  gauge is the owner's; see below for why a guest is shown none of it.
 - **Owners get controls; guests get none.** Guest access on or off and the
   invitation link sit under the share button; clearing all requests is the
-  sweep button; deleting one request is on the request itself. The help button
-  explains capturing, sharing and how long a bin is kept. Clearing keeps the
-  bin, its capture URL and its invitation. Hiding the controls is presentation
-  only — the server re-checks ownership, the cookie and the request origin on
-  every mutation.
+  sweep button; deleting one request is on the request itself. The help button,
+  which explains capturing, sharing and how long a bin is kept, is the owner's
+  too. Clearing keeps the bin, its capture URL and its invitation. Hiding the
+  controls is presentation only — the server re-checks ownership, the cookie
+  and the request origin on every mutation.
 
 A shared link is read-only, and it is the invitation — not the bin code — that
 grants it. Disabling sharing stops that link working and closes any guest stream it
 has open; the owner's own page stays live. Enabling it again makes the same
 link work.
+
+**Guest mode is for showing someone the requests, not the plumbing.** The
+person you send a link to is usually not the developer working on the webhook
+delivery — a product owner checking that the payload carries the field they
+asked for, a partner's integrator confirming what they sent, someone in support
+attaching evidence to a ticket. They came to read one request, so their page is
+the requests and nothing else: no capacity gauge, no help dialog, no controls.
+Bin stats are housekeeping for whoever owns the bin, and how full it is has no
+bearing on what a guest came to read — the owner is the one who can act on it,
+and a number a reader cannot act on is a number in the way. What a guest needs
+from the page is on the page already: the requests, and the fact that nothing
+can be changed.
 
 ## Project documentation
 
