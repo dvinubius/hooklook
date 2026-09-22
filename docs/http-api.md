@@ -22,6 +22,7 @@ by default.
 | `DELETE /api/bins/{code}/requests` | Owner only. Clear requests while retaining the bin address and invitation. |
 | `PUT /api/bins/{code}/sharing` | Owner only. JSON body `{"enabled":true}` or `{"enabled":false}`; disabling sharing closes the guests' SSE streams and leaves the owner's open. Re-enabling uses the same invitation. |
 | `GET /admin/bins` | Operator-only list. Requires `Authorization: Bearer <ADMIN_TOKEN>`. |
+| `GET /admin/storage` | Operator-only global SQLite capacity statistics. Requires `Authorization: Bearer <ADMIN_TOKEN>`. |
 | `GET /health` | Static liveness response. |
 
 There is no client-address field in any response. The UI shows a **client ip**
@@ -50,6 +51,15 @@ pages are available, the same minimum used by the write precheck for a new bin
 or a small capture. Larger captures can still return `store_full` while this
 flag is false. Filesystem free space is not included. Refetch bin metadata
 after SSE events to update either capacity object.
+
+`GET /admin/storage` returns the same `maxBytes`, `databaseBytes`,
+`reusableBytes`, `availableBytes`, and `full` fields as `storeCapacity`. It also
+returns `usedBytes`, calculated as `databaseBytes - reusableBytes`, and
+`usedPercent`, calculated against `maxBytes`. `databaseBytes` is the physical
+main-file allocation; `usedBytes` is the portion occupied by live SQLite pages.
+The percentage can exceed 100 when an existing database is larger than the
+configured limit. Filesystem free space and journal or temporary files are not
+included.
 
 For authorized GET endpoints, owners use the `hooklook_owner` cookie and guests
 provide `?invite={identifier}` on **each** API and SSE request. The cookie is

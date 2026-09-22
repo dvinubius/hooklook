@@ -5,6 +5,12 @@ import (
 	"net/http"
 )
 
+type GlobalStorageStats struct {
+	StoreCapacity
+	UsedBytes   int64   `json:"usedBytes"`
+	UsedPercent float64 `json:"usedPercent"`
+}
+
 func getAllBins(w http.ResponseWriter, req *http.Request) {
 	bins, err := store.getAllBins()
 	if err != nil {
@@ -13,4 +19,20 @@ func getAllBins(w http.ResponseWriter, req *http.Request) {
 	}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(bins)
+}
+
+func getStorageStats(w http.ResponseWriter, req *http.Request) {
+	capacity, err := store.storeCapacity()
+	if err != nil {
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
+	usedBytes := max(int64(0), capacity.DatabaseBytes-capacity.ReusableBytes)
+	stats := GlobalStorageStats{
+		StoreCapacity: capacity,
+		UsedBytes:     usedBytes,
+		UsedPercent:   float64(usedBytes) / float64(capacity.MaxBytes) * 100,
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(stats)
 }

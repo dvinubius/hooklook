@@ -54,6 +54,11 @@ needed by the write precheck; a larger capture may fail before it turns true.
 See the [HTTP API](http-api.md) for exact fields and how to refresh the state
 after an SSE event.
 
+Operators can read the global totals without access to a bin through
+bearer-protected `GET /admin/storage`. In addition to the capacity fields above,
+it reports live-page `usedBytes` and `usedPercent` of `maxBytes`. See the
+[HTTP API](http-api.md) for the exact response semantics.
+
 The frontend shows all three states. A marked `507` document renders an apology
 between the page's own bars and calls no API at all. A bin's own fullness is a
 gauge on its request list, which reads 100% only when the `full` flag is set. A

@@ -95,9 +95,9 @@ link work.
 
 `PUBLIC_BASE_URL` is required to construct capture URLs. The server binds to
 `127.0.0.1:8080`. `ADMIN_TOKEN` is required to start the server and protects
-`GET /admin/bins` through a bearer token. Configuration comes from process
-environment variables; `.env` is a shell convenience, not an application
-configuration format.
+the `GET /admin/bins` and `GET /admin/storage` operator routes through a bearer
+token. Configuration comes from process environment variables; `.env` is a
+shell convenience, not an application configuration format.
 
 `MAX_STORE` optionally changes the SQLite database limit from its 5 GB default.
 See [storage capacity](docs/storage-capacity.md) for its byte definition and

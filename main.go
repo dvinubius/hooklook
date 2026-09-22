@@ -93,6 +93,7 @@ func routes() http.Handler {
 	mux.HandleFunc("GET /api/bins/{code}/requests", getBinRequests)
 	mux.HandleFunc("GET /api/bins/{code}/events", getBinEvents)
 	mux.Handle("GET /admin/bins", requireAdminToken(http.HandlerFunc(getAllBins)))
+	mux.Handle("GET /admin/storage", requireAdminToken(http.HandlerFunc(getStorageStats)))
 
 	mux.HandleFunc("/b/{code}", captureRequest)
 	mux.HandleFunc("/b/{code}/{path...}", captureRequest)
