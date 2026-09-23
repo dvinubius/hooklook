@@ -67,8 +67,7 @@ const dump = computed(() => hexDump(props.body.bytes))
 
     <template v-else-if="body.kind === 'binary'">
       <p class="note">
-        These bytes are not text, so they are shown as bytes. Offsets are hexadecimal; the column on
-        the right is the printable ASCII of each row.
+        Shown as bytes and printable ASCII per-row. Offsets are hexadecimal.
       </p>
       <pre class="code-surface scroll dump">{{ dump.lines.join('\n') }}</pre>
       <p v-if="dump.truncated" class="micro dim">

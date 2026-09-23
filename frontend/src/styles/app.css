@@ -4,12 +4,12 @@
    gradients, flat fills and 1px hairlines for separation, accent kept to the
    mark, one primary action and the selection rule. */
 
-/* Softened corners: controls take the smaller radius, filled or bordered
-   surfaces the larger one. Rows in a list stay square — they are parted by
-   hairlines, not boxed. */
+/* Softened corners: controls and filled or bordered
+   surfaces take the same radius. Rows in a list stay 
+   square — they are parted by hairlines, not boxed. */
 :root{
-  --radius-control:4px;
-  --radius-surface:6px;
+  --radius-control:2px;
+  --radius-surface:2px;
 }
 
 *,*::before,*::after{box-sizing:border-box;}
