@@ -30,13 +30,13 @@ client-IP address as the key.
 
 ## Caddy request-header limit
 
-The Go server's 32 KiB header limit is sufficient for v1's expected use and
-protects the application before it captures or persists a request. Matching
-Caddy enforcement is deferred because the Caddy instance is shared with other
-applications and its server-level setting may affect them.
+This historical proposal is superseded in production: Caddy now enforces a
+configured 32 KiB listener setting. Go's HTTP/1.1 parser adds a 4 KiB buffer
+allowance, so the observed rejection boundary is approximately 36 KiB. The
+setting remains shared because the Caddy instance serves other applications.
 
-If v2 operation warrants it, first verify the limit is safe for all sites on
-the affected Caddy HTTP server. For a dedicated hooklook Caddy server, use:
+If a future dedicated Hooklook Caddy server is introduced, first verify the
+limit is safe for its traffic. It would use:
 
 ```caddyfile
 {

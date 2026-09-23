@@ -30,6 +30,7 @@ already shipped behavior matters.
 | Expiry renewal, cleanup, or deletion | [Bin lifecycle](bin-lifecycle.md) |
 | Per-bin limits, `MAX_STORE`, `507` responses, backup, or restore | [Storage capacity and backups](storage-capacity.md) |
 | VPS prerequisites, deployment, health checks, diagnostics, or code rollback | [Deployment runbook](deployment-runbook.md) |
+| Public ingress verification, rate limits, shutdown, or exposure checks | [Production verification runbook](production-verification-runbook.md) |
 | Backup creation, off-host transfer, retention, or isolated restore drill | [Database backup runbook](database-backup-runbook.md) |
 | Routes, JSON fields, status codes, or SSE wire behavior | [HTTP API](http-api.md) |
 | Vue behavior, session loading, request rendering, or capacity UI | [Frontend behavior](frontend.md) |

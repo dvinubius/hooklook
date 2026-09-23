@@ -100,6 +100,7 @@ can be changed.
 - [Bin access](docs/bin-access.md)
 - [Bin lifecycle](docs/bin-lifecycle.md)
 - [Storage capacity and backups](docs/storage-capacity.md)
+- [Production verification runbook](docs/production-verification-runbook.md)
 - [Database backup runbook](docs/database-backup-runbook.md)
 - [Current HTTP API](docs/http-api.md)
 - [Frontend behavior and mechanisms](docs/frontend.md)
@@ -181,6 +182,7 @@ make test        # frontend (vitest) and Go tests
 make test-race   # Go race detector
 make test-deploy # deployment safety-gate behavior
 make test-backup # backup-wrapper safety behavior
+make test-verify-public # public-verifier input-safety behavior
 make vet
 ```
 

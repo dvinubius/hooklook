@@ -27,10 +27,11 @@ therefore product requirements for predictable operation on a small VPS.
 | Captured requests per bin | 500 | More than enough for an integration test while keeping the bin inspectable. |
 | Captured body bytes per bin | 10 MiB | Allows forty maximum-size captures or many ordinary webhook events without giving one bin unbounded disk use. |
 | Bin ingestion lifetime | 3 days | Generous for integration testing while preventing forgotten public endpoints from accepting traffic indefinitely. |
-| Go request-header limit | 32 KiB | Far above ordinary webhook headers, while bounding header parsing and persistence exposure. |
+| Production Caddy request-header setting | 32 KiB configured; ~36 KiB effective for HTTP/1.1 | Go adds a 4 KiB parser-buffer allowance, while still bounding header parsing and persistence exposure. |
 
-Bodies over 256 KiB receive `413 Payload Too Large`; headers over 32 KiB
-receive `431 Request Header Fields Too Large`. Both are rejected before
+Bodies over 256 KiB receive `413 Payload Too Large`; HTTP/1.1 headers above
+the approximately 36 KiB effective Caddy boundary receive `431 Request Header
+Fields Too Large`. Both are rejected before
 persistence. Once SQLite is introduced, request-count and body-byte checks are
 performed in the same transaction as the request insert. A bin at either budget
 receives `507 Insufficient Storage` with a clear explanation and no partial
