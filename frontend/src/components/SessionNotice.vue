@@ -12,12 +12,12 @@ defineEmits<{ retry: [] }>()
   <main class="notice">
     <BrandMark class="mark" />
 
-    <p v-if="state === 'loading'" class="meta">// opening bin…</p>
-    <p v-else-if="state === 'leaving'" class="meta">// taking you to your own bin…</p>
+    <p v-if="state === 'loading'" class="comment">// opening bin…</p>
+    <p v-else-if="state === 'leaving'" class="comment">// taking you to your own bin…</p>
 
     <template v-else>
       <h1 class="heading">Bin unavailable</h1>
-      <p class="reason">{{ message }}</p>
+      <p class="note">{{ message }}</p>
       <div class="actions">
         <button class="btn btn-outline" type="button" @click="$emit('retry')">Try again</button>
         <a class="btn btn-quiet" href="/">Go to your own bin →</a>
@@ -38,12 +38,6 @@ defineEmits<{ retry: [] }>()
 .mark {
   font-size: var(--text-title);
   margin-bottom: 10px;
-}
-.reason {
-  margin: 0;
-  color: var(--text-dim);
-  font-size: var(--text-small);
-  line-height: var(--leading-small);
 }
 .actions {
   display: flex;

@@ -55,7 +55,7 @@ function closed(): void {
   >
     <div v-if="open" class="panel-body">
       <header class="head">
-        <h2 :id="titleId" class="meta-caps">{{ title }}</h2>
+        <h2 :id="titleId" class="caps">{{ title }}</h2>
         <button class="btn btn-quiet close" type="button" aria-label="Close" @click="emit('close')">
           ×
         </button>

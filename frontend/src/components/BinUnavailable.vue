@@ -9,12 +9,12 @@ defineProps<{ kind: 'expired' | 'shared' }>()
 
 <template>
   <PageShell>
-    <main class="empty">
+    <main class="page-state">
       <div class="content">
-        <p v-if="kind === 'expired'" class="meta message">
+        <p v-if="kind === 'expired'" class="comment message">
           // This bin has expired or no longer exists.
         </p>
-        <p v-else class="meta message">// This shared bin no longer exists.</p>
+        <p v-else class="comment message">// This shared bin no longer exists.</p>
         <a class="btn btn-primary" href="/">Create New Bin</a>
       </div>
     </main>
@@ -22,14 +22,6 @@ defineProps<{ kind: 'expired' | 'shared' }>()
 </template>
 
 <style scoped>
-.empty {
-  flex: 1;
-  min-height: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0 24px;
-}
 .content {
   display: flex;
   flex-direction: column;

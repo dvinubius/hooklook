@@ -40,7 +40,7 @@ onBeforeUnmount(() => window.removeEventListener('scroll', dismiss, true))
 
 <template>
   <button ref="trigger" class="info" type="button" :aria-label="label" :popovertarget="id">i</button>
-  <div :id="id" ref="note" class="note" popover @beforetoggle="place">
+  <div :id="id" ref="note" class="popover-note" popover @beforetoggle="place">
     <slot />
   </div>
 </template>
@@ -66,7 +66,7 @@ onBeforeUnmount(() => window.removeEventListener('scroll', dismiss, true))
   border-color: var(--text-body);
   color: var(--text-body);
 }
-.note {
+.popover-note {
   position: absolute;
   inset: auto;
   width: 280px; /* = width in the script */

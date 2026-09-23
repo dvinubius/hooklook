@@ -51,10 +51,10 @@ watch(
 <template>
   <div class="pane">
     <section ref="scroller" class="detail scroll">
-      <p v-if="selectedId === null" class="meta prompt">// Select a request</p>
+      <p v-if="selectedId === null" class="comment prompt">// Select a request</p>
 
       <p v-else-if="missing" class="placeholder centered shade">
-        <span class="meta">// request {{ selectedId }} is not in this bin</span>
+        <span class="comment">// request {{ selectedId }} is not in this bin</span>
       </p>
 
       <p v-else-if="error" class="placeholder shade">
@@ -84,7 +84,7 @@ watch(
 
         <section class="headers-block">
           <div class="headers-title">
-            <h2 class="meta-caps">Headers</h2>
+            <h2 class="caps">Headers</h2>
             <InfoPopover label="About redacted headers">
               Credential headers are replaced with <strong class="redacted">[REDACTED]</strong>
               before storage. The original values were never written down and cannot be recovered

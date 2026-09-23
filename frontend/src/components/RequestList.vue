@@ -106,16 +106,16 @@ function step(event: KeyboardEvent): void {
   <section class="list">
     <!-- The section label with the stream state at its right end. -->
     <header class="head">
-      <h2 class="meta-caps">Requests</h2>
+      <h2 class="caps">Requests</h2>
       <span
         v-if="stream === 'live'"
-        class="micro stream"
+        class="fact stream"
         title="Live: new requests appear as they arrive"
       >
         streaming
         <span class="dot live" aria-hidden="true"></span>
       </span>
-      <span v-else class="micro stream">
+      <span v-else class="fact stream">
         connecting…
         <span class="dot waiting" aria-hidden="true"></span>
       </span>
@@ -125,7 +125,7 @@ function step(event: KeyboardEvent): void {
          operator, and the text a "matches" row adds — then method and sort. -->
     <div class="controls">
       <div class="control-row">
-        <span class="filter-label" aria-hidden="true">path</span>
+        <span class="fact" aria-hidden="true">path</span>
         <SelectMenu v-model="filters.path.operator" :options="operatorOptions" label="Path filter" />
         <input
           v-if="filters.path.operator === 'matches'"
@@ -137,7 +137,7 @@ function step(event: KeyboardEvent): void {
         />
       </div>
       <div class="control-row">
-        <span class="filter-label" aria-hidden="true">query</span>
+        <span class="fact" aria-hidden="true">query</span>
         <SelectMenu v-model="filters.query.operator" :options="operatorOptions" label="Query filter" />
         <input
           v-if="filters.query.operator === 'matches'"
@@ -151,7 +151,7 @@ function step(event: KeyboardEvent): void {
       <!-- The last row carries the two whole-list controls: what it keeps at
            the left, the arrangement of what is left at the right. -->
       <div class="control-row pair">
-        <span class="filter-label" aria-hidden="true">method</span>
+        <span class="fact" aria-hidden="true">method</span>
         <div class="pair-left">
           <SelectMenu
             v-model="filters.method"
@@ -159,7 +159,7 @@ function step(event: KeyboardEvent): void {
             :options="methodOptions"
             label="Filter by method"
           />
-          <span class="filter-label" aria-hidden="true">sort</span>
+          <span class="fact" aria-hidden="true">sort</span>
         </div>
         <SelectMenu v-model="order" :options="orderOptions" label="Order" />
       </div>
@@ -173,7 +173,7 @@ function step(event: KeyboardEvent): void {
       <p class="showing">
         <!-- The number that changes with the filter is the one being read;
              the total it is out of stays a tier back. -->
-        <span class="micro">Results: <span class="shown">{{ showingCounts.shown }}</span> (Total:
+        <span class="fact">Results: <span class="shown">{{ showingCounts.shown }}</span> (Total:
           {{ showingCounts.total }})</span>
       </p>
     </template>
@@ -183,10 +183,10 @@ function step(event: KeyboardEvent): void {
       <button class="btn btn-outline btn-sm" type="button" @click="$emit('retry')">Reload list</button>
     </p>
 
-    <p v-if="loading && !loaded" class="meta state">// loading captured requests…</p>
+    <p v-if="loading && !loaded" class="comment state">// loading captured requests…</p>
 
     <p v-else-if="summaries.length === 0" class="state">
-      <span class="meta">// nothing captured yet</span>
+      <span class="comment">// nothing captured yet</span>
       <span class="hint">Send anything to the capture URL above and it appears here without a reload.</span>
     </p>
 
@@ -195,7 +195,7 @@ function step(event: KeyboardEvent): void {
     <template v-else-if="visible.length === 0">
       <div class="divider" aria-hidden="true"></div>
       <p class="state">
-        <span class="meta">// no request matches</span>
+        <span class="comment">// no request matches</span>
         <button class="btn btn-outline btn-sm clear-filter-btn" type="button" @click="clearFilters">Clear filters</button>
       </p>
     </template>
@@ -221,7 +221,7 @@ function step(event: KeyboardEvent): void {
               v-if="item.rawQuery"
               class="query"
             >?{{ item.rawQuery }}</span></span>
-            <span class="when micro">{{ formatClock(item.receivedAt) }}</span>
+            <span class="when micro muted">{{ formatClock(item.receivedAt) }}</span>
           </button>
           <button
             v-if="owner && item.id === selectedId"
@@ -279,18 +279,8 @@ function step(event: KeyboardEvent): void {
 .waiting {
   background: var(--text-muted);
 }
-/* The facts beside and below the label read at 12px, a step above micro,
-   and one tier under the label they belong to. */
-.head .micro {
-  font-size: var(--text-mono-meta);
-  color: var(--text-dim);
-}
 .showing {
   margin: 0;
-}
-.showing .micro {
-  font-size: var(--text-mono-meta);
-  color: var(--text-dim);
 }
 .showing .shown {
   color: var(--text-body);
@@ -324,13 +314,6 @@ function step(event: KeyboardEvent): void {
 .pair-left .method {
   flex: 1;
   min-width: 0;
-}
-/* Set like the page's other control labels, at the same tier as the value
-   it names — the section label above them outranks the whole band. */
-.filter-label {
-  font-family: var(--font-mono);
-  font-size: var(--text-mono-meta);
-  color: var(--text-dim);
 }
 .state {
   display: flex;
@@ -406,7 +389,7 @@ function step(event: KeyboardEvent): void {
   color: var(--text-body);
 }
 .remove:disabled {
-  opacity: 0.45;
+  opacity: var(--disabled-opacity);
   cursor: not-allowed;
 }
 .trash {

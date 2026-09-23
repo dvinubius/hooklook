@@ -302,7 +302,7 @@ onBeforeUnmount(() => {
 
       <!-- Global room, not this bin's: the bin below may be nearly empty and
            still take nothing, because every bin shares one store. -->
-      <p v-if="access.storeCapacity.full" class="meta store-note">
+      <p v-if="access.storeCapacity.full" class="comment store-note">
         // The service is out of storage. <br/>
         // No requests will be captured until room is freed.
       </p>

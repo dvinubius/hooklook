@@ -46,14 +46,14 @@ const dump = computed(() => hexDump(props.body.bytes))
   <section class="body-view">
     <header class="head">
       <div class="title">
-        <h2 class="meta-caps">Body</h2>
+        <h2 class="caps">Body</h2>
         <InfoPopover label="About request bodies">
           Bodies are stored exactly as received, without redaction. They may contain secrets or
           personal data; use test data and share this bin carefully.
         </InfoPopover>
       </div>
       <span class="separator" aria-hidden="true"></span>
-      <span class="micro">
+      <span class="fact">
         {{ formatBytes(body.size) }}
         <template v-if="body.kind === 'text'">· {{ body.format }} · {{ body.encoding }}</template>
         <template v-else-if="body.kind === 'binary'">· binary</template>
@@ -63,7 +63,7 @@ const dump = computed(() => hexDump(props.body.bytes))
       </div>
     </header>
 
-    <p v-if="body.kind === 'empty'" class="code-surface meta empty">// no body</p>
+    <p v-if="body.kind === 'empty'" class="code-surface comment empty">// no body</p>
 
     <template v-else-if="body.kind === 'binary'">
       <p class="note">
@@ -112,12 +112,6 @@ const dump = computed(() => hexDump(props.body.bytes))
   align-items: center;
   gap: 8px;
 }
-/* The facts beside the label read at 12px, a step above micro, and one
-   tier under the label they belong to. */
-.head .micro {
-  font-size: var(--text-mono-meta);
-  color: var(--text-dim);
-}
 .head h2 {
   margin: 0;
   font-size: 16px;
@@ -128,11 +122,8 @@ const dump = computed(() => hexDump(props.body.bytes))
   align-items: center;
   gap: 16px;
 }
+/* The shared note role, held to a comfortable measure here. */
 .note {
-  margin: 0;
-  font-size: var(--text-small);
-  line-height: var(--leading-small);
-  color: var(--text-dim);
   max-width: 68ch;
 }
 /* No body is still shown where a body would be: the aside, centred in an

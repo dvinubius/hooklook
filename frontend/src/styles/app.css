@@ -129,7 +129,10 @@ input,select{font:inherit;border-radius:var(--radius-control);}
 /* ---- text roles ------------------------------------------------------- */
 
 .mono{font-family:var(--font-mono);}
-.meta{
+/* The machine's own voice: every line set this way is one of the `//` asides
+   the app answers with — nothing captured yet, no body, bin expired. It is
+   incidental by definition, so the tier is part of the role. */
+.comment{
   font-family:var(--font-mono);
   font-size:var(--text-mono-meta);
   color:var(--text-muted);
@@ -138,14 +141,23 @@ input,select{font:inherit;border-radius:var(--radius-control);}
 /* Treatment only — the size belongs to each use. A section label, a dialog
    title and a help heading are all set this way and all read at different
    sizes, so a default here would only ever be the thing being overridden. */
-.meta-caps{
+.caps{
   font-family:var(--font-mono);
   font-weight:500;
   letter-spacing:0.12em;
   text-transform:uppercase;
   color:var(--text-body);
 }
-.micro{font-family:var(--font-mono);font-size:var(--text-mono-micro);color:var(--text-muted);}
+/* `.fact` is mono at meta size for something meant to be read rather than
+   skimmed — a count, a figure, a control label — beside the label it belongs
+   to, so the reading tier is part of the role. `.micro` is the one that
+   carries size alone: its callers differ in tier, so each says which. */
+.fact{font-family:var(--font-mono);font-size:var(--text-mono-meta);color:var(--text-dim);}
+.micro{font-family:var(--font-mono);font-size:var(--text-mono-micro);}
+/* Running prose at the reading tier — dialog notes, the help guide, a page
+   explaining itself. It is here to be read, so it takes the dim tier rather
+   than the incidental one, and the small size with its own leading. */
+.note{margin:0;font-size:var(--text-small);line-height:var(--leading-small);color:var(--text-dim);}
 .heading{
   font-size:var(--text-title);
   font-weight:500;
@@ -165,6 +177,9 @@ input,select{font:inherit;border-radius:var(--radius-control);}
 .panel{background:var(--surface-card);border-radius:var(--radius-surface);}
 .shade{background:var(--surface-shade);border-radius:var(--radius-surface);}
 .rule{border:0;border-top:1px solid var(--hairline);margin:0;}
+/* A whole-page state — an expired bin, the service at capacity — centred in
+   the room the shell's bars leave. */
+.page-state{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;padding:0 24px;}
 
 /* ---- controls --------------------------------------------------------- */
 
@@ -175,7 +190,9 @@ input,select{font:inherit;border-radius:var(--radius-control);}
   border-radius:var(--radius-control);
   cursor:pointer;white-space:nowrap;text-decoration:none;
 }
-.btn:disabled{opacity:0.45;cursor:not-allowed;}
+/* One disabled treatment, wherever a control can be disabled. */
+:root{--disabled-opacity:0.45;}
+.btn:disabled{opacity:var(--disabled-opacity);cursor:not-allowed;}
 .btn-primary{background:var(--accent);color:var(--ink);}
 [data-theme="light"] .btn-primary{color:var(--paper);}
 .btn-primary:not(:disabled):hover{background:var(--accent-on-hover);}

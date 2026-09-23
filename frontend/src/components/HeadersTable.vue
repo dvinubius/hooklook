@@ -59,7 +59,7 @@ onBeforeUnmount(hideName)
 
 <template>
   <div class="headers">
-    <p v-if="rows.length === 0" class="meta">// no headers were stored</p>
+    <p v-if="rows.length === 0" class="comment">// no headers were stored</p>
 
     <dl v-else class="table">
       <div v-for="row in rows" :key="row.name" class="row">

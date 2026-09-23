@@ -17,7 +17,7 @@ defineProps<{ captureUrl: string }>()
 <template>
   <div class="guide">
     <section class="section">
-      <h3 class="meta-caps">capture requests</h3>
+      <h3 class="caps">capture requests</h3>
       <p class="note">
         Send your webhooks to the bin using its public link as a base URL:
       </p>
@@ -25,7 +25,7 @@ defineProps<{ captureUrl: string }>()
     </section>
 
     <section class="section">
-      <h3 class="meta-caps">bin capacity</h3>
+      <h3 class="caps">bin capacity</h3>
       <p class="note">
         Your bin has a limited storage capacity — roughly <strong class="key">100MB</strong>, and at
         most <strong class="key">500 requests</strong>. Once it fills up you can delete individual
@@ -34,14 +34,14 @@ defineProps<{ captureUrl: string }>()
     </section>
 
     <section class="section">
-      <h3 class="meta-caps">credentials in headers</h3>
+      <h3 class="caps">credentials in headers</h3>
       <p class="note">
         Credential headers are replaced with <strong class="key redacted">[REDACTED]</strong> and never stored.
       </p>
     </section>
 
     <section class="section">
-      <h3 class="meta-caps">share the bin</h3>
+      <h3 class="caps">share the bin</h3>
       <p class="note">
         You can share this bin with colleagues. As guests, they can access and inspect captured
         requests, but not to delete any.
@@ -53,7 +53,7 @@ defineProps<{ captureUrl: string }>()
     </section>
 
     <section class="section">
-      <h3 class="meta-caps">Preserve the Bin</h3>
+      <h3 class="caps">Preserve the Bin</h3>
       <p class="note">
         Keep using your bin in order to preserve it. As long as it captures new requests or you are
         inspecting it, the bin stays persistent. Inspection by guests also prolongs its life.
@@ -114,13 +114,5 @@ defineProps<{ captureUrl: string }>()
 /* The marker as the headers list shows it. */
 .key.redacted {
   color: var(--violet);
-}
-/* The guide is the app's only explanatory prose, and it is here to be read:
-   it sits at the reading tier, not the incidental one. */
-.note {
-  margin: 0;
-  font-size: var(--text-small);
-  line-height: var(--leading-small);
-  color: var(--text-dim);
 }
 </style>

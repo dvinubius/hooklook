@@ -9,7 +9,7 @@ defineProps<{ label: string; disabled?: boolean }>()
 
 <template>
   <label class="switch-field" :class="{ disabled }">
-    <span class="text">{{ label }}</span>
+    <span class="text fact">{{ label }}</span>
     <button
       class="switch"
       :class="{ on }"
@@ -31,11 +31,6 @@ defineProps<{ label: string; disabled?: boolean }>()
   gap: 16px;
   cursor: pointer;
 }
-.text {
-  font-family: var(--font-mono);
-  font-size: var(--text-mono-meta);
-  color: var(--text-dim);
-}
 .switch-field:not(.disabled):hover .text {
   color: var(--text-body);
 }
@@ -43,7 +38,7 @@ defineProps<{ label: string; disabled?: boolean }>()
   cursor: not-allowed;
 }
 .switch:disabled {
-  opacity: 0.45;
+  opacity: var(--disabled-opacity);
   cursor: not-allowed;
 }
 .switch {

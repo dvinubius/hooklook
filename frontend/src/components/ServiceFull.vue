@@ -12,10 +12,10 @@ import PageShell from './PageShell.vue'
 
 <template>
   <PageShell>
-    <main class="empty">
+    <main class="page-state">
       <div class="words">
         <h1 class="heading">The service is at capacity</h1>
-        <p class="line">
+        <p class="note">
           hooklook has run out of room, so it cannot open a bin for you right now.
           Sorry about that — please try again later.
         </p>
@@ -25,15 +25,6 @@ import PageShell from './PageShell.vue'
 </template>
 
 <style scoped>
-/* Takes the height the bars leave and centres one block of text in it. */
-.empty {
-  flex: 1;
-  min-height: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0 24px;
-}
 .words {
   max-width: 34rem;
   text-align: center;
@@ -43,11 +34,5 @@ import PageShell from './PageShell.vue'
 }
 .words .heading {
   line-height: var(--leading-heading);
-}
-.line {
-  margin: 0;
-  color: var(--text-dim);
-  font-size: var(--text-small);
-  line-height: var(--leading-small);
 }
 </style>

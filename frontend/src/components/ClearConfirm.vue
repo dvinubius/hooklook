@@ -34,12 +34,6 @@ defineEmits<{ confirm: []; cancel: [] }>()
   flex-direction: column;
   gap: 32px;
 }
-.note {
-  margin: 0;
-  font-size: var(--text-small);
-  line-height: var(--leading-small);
-  color: var(--text-dim);
-}
 /* Right-aligned, the destructive action last. */
 .actions {
   display: flex;
