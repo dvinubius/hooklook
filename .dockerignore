@@ -1,0 +1,18 @@
+# The Dockerfile needs only Go sources/module checksums and frontend source.
+# Keep the build context allowlisted so local files cannot reach the builder
+# accidentally as the repository grows.
+**
+
+!Dockerfile
+!.dockerignore
+!go.mod
+!go.sum
+!*.go
+!frontend/
+!frontend/**
+
+# The Go build never compiles tests, and the Node stage installs and builds
+# these directories itself.
+*_test.go
+frontend/node_modules/
+frontend/dist/

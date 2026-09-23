@@ -1,0 +1,37 @@
+services:
+  hooklook:
+    image: hooklook:latest
+    build:
+      context: .
+    environment:
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:?Set PUBLIC_BASE_URL in the deployment environment.}
+      ADMIN_TOKEN: ${ADMIN_TOKEN:?Set ADMIN_TOKEN in the deployment environment.}
+      MAX_STORE: ${MAX_STORE:-5000000000}
+      # Container loopback would exclude Caddy on the private ingress network.
+      LISTEN_ADDRESS: 0.0.0.0:8080
+    ports:
+      - "127.0.0.1:8081:8080"
+    expose:
+      - "8080"
+    volumes:
+      - hooklook-data:/data
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=64m
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    restart: unless-stopped
+    networks:
+      - hooklook-edge
+    # Port 9092 is reserved for a future private metrics listener. Do not add
+    # it here until milestone 4 implements the listener and its private network.
+
+volumes:
+  hooklook-data:
+
+networks:
+  # Caddy's Compose project creates and owns this shared ingress network.
+  hooklook-edge:
+    external: true

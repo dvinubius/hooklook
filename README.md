@@ -153,6 +153,20 @@ starts at `/`, which creates or reuses a bin and redirects to its inspector
 page. See the [HTTP API](docs/http-api.md) for inspection and owner mutation
 routes.
 
+### Container package
+
+`Dockerfile` builds the Vue application before compiling the CGO SQLite binary,
+then runs the resulting binary as the fixed non-root `hooklook` user. The
+`compose.yaml` service keeps its root filesystem read-only, gives it a bounded
+`/tmp` tmpfs, and persists `/data` in the `hooklook-data` named volume.
+
+Compose requires `PUBLIC_BASE_URL` and `ADMIN_TOKEN`, uses the 5 GB default for
+`MAX_STORE`, and sets `LISTEN_ADDRESS=0.0.0.0:8080` only inside the container.
+It publishes the application solely as `127.0.0.1:8081` and joins the
+Caddy-owned external `hooklook-edge` network. The deployment script and
+operator runbook will be added in later shipping steps; do not create or manage
+that shared network from this project.
+
 ## Tests
 
 ```bash
