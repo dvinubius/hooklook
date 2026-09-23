@@ -85,37 +85,32 @@ copy, and 2 GB for images, journals, and ordinary deployment work. With the
 default `MAX_STORE`, that is 12 GB. The later deployment script calls this same
 check before `docker compose up`.
 
-The service currently listens on loopback and should stay there until public
-Caddy limits are configured and verified. The planned ingress controls include
-a body-size limit (256 KiB is the starting policy), a 32 KiB total-header
-limit, and rate limits. They are separate from the SQLite page cap.
+The application is published only on VM loopback; public traffic reaches it
+through the separately managed Caddy ingress. Its body-size, header-size, and
+rate limits are separate from the SQLite page cap.
 
 ## Online backup
 
 The `backup` command uses SQLite `VACUUM INTO` to produce a consistent backup
-while the service is running. Run it from the directory containing
-`hooklook.db`, choose a destination outside the persistent volume, and use a
-filename that does not already exist:
-
-```bash
-./webhook-inspector backup /backups/hooklook-$(date +%Y%m%d-%H%M%S).db
-```
-
-Copy the resulting file off the host. It is a standalone SQLite database with
-no separate payload directory. Protect it like the live volume: it contains
-captured payloads and owner digests. Choose a backup cadence and retention
-policy before production rollout.
+while the service is running. Use the deployment wrapper, which selects a
+timestamped destination outside the persistent volume, creates a checksum, and
+protects both files with mode `0600`. The backup is a standalone SQLite
+database with no separate payload directory; protect it like the live volume.
+See the [database backup runbook](database-backup-runbook.md) for transfer,
+storage, verification, and restore-drill guidance.
 
 ## Restore
 
-Periodically test a restore in a separate location. Open the restored database,
-run `PRAGMA integrity_check`, and read a representative bin and request. For a
-production restore, stop the service, retain the current database as a rollback
-copy, copy the backup to `hooklook.db` on the persistent volume, set ownership
-and permissions for the service user, then start the service. Do not replace a
-live database file because the service holds an open SQLite connection. If the
-restored file exceeds `MAX_STORE`, the service starts with creation and capture
-blocked until the file is compacted or the limit is raised.
+Periodically test a restore in a separate location. The runbook uses the
+application's `integrity-check` command, an alternate loopback port, and
+representative authorized reads without touching Caddy or production data. For
+a production restore, stop the service, retain the current database as a
+rollback copy, copy the backup to `hooklook.db` on the persistent volume, set
+ownership and permissions for the service user, then start the service. Do not
+replace a live database file because the service holds an open SQLite
+connection. If the restored file exceeds `MAX_STORE`, the service starts with
+creation and capture blocked until the file is compacted or the limit is
+raised.
 
 See the [HTTP API](http-api.md) for route responses and the
 [architecture](architecture.md) for the storage components.

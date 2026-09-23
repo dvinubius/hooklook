@@ -10,7 +10,7 @@ GO_ADDR      ?= 127.0.0.1:8080
 DEV_ORIGIN   ?= http://localhost:5173
 ADMIN_TOKEN  ?= local-operator-secret
 
-.PHONY: dev-go dev-web build build-web test test-race vet clean-web
+.PHONY: dev-go dev-web build build-web test test-race test-deploy test-backup vet clean-web
 
 ## Go server for development, serving the Vite-backed page shell.
 dev-go:
@@ -38,6 +38,12 @@ test:
 
 test-race:
 	go test -race ./...
+
+test-deploy:
+	./scripts/deploy_test.sh
+
+test-backup:
+	./scripts/backup_test.sh
 
 vet:
 	go vet ./...

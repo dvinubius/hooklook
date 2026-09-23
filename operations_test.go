@@ -407,3 +407,19 @@ func TestOnlineBackupRestoresRequest(t *testing.T) {
 		t.Errorf("restored body = %q, %v", body, err)
 	}
 }
+
+func TestIntegrityCheckAcceptsOnlineBackup(t *testing.T) {
+	s := newTestStore(t)
+	dir := t.TempDir()
+	backup := filepath.Join(dir, "backup.db")
+	var source string
+	if err := s.db.QueryRow(`PRAGMA database_list`).Scan(new(int), new(string), &source); err != nil {
+		t.Fatal(err)
+	}
+	if err := backupDatabase(source, backup); err != nil {
+		t.Fatal(err)
+	}
+	if err := integrityCheck(backup); err != nil {
+		t.Fatalf("integrity check of online backup: %v", err)
+	}
+}

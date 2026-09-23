@@ -32,3 +32,29 @@ func backupDatabase(source, destination string) error {
 	}
 	return nil
 }
+
+// integrityCheck verifies every result row because SQLite can return more than
+// one diagnostic for a damaged database.
+func integrityCheck(path string) error {
+	db, err := openDB(path)
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+
+	rows, err := db.Query(`PRAGMA integrity_check`)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var result string
+		if err := rows.Scan(&result); err != nil {
+			return err
+		}
+		if result != "ok" {
+			return fmt.Errorf("database integrity check: %s", result)
+		}
+	}
+	return rows.Err()
+}

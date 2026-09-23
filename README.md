@@ -100,6 +100,7 @@ can be changed.
 - [Bin access](docs/bin-access.md)
 - [Bin lifecycle](docs/bin-lifecycle.md)
 - [Storage capacity and backups](docs/storage-capacity.md)
+- [Database backup runbook](docs/database-backup-runbook.md)
 - [Current HTTP API](docs/http-api.md)
 - [Frontend behavior and mechanisms](docs/frontend.md)
 - [Architecture decision records](docs/adr/)
@@ -163,15 +164,23 @@ then runs the resulting binary as the fixed non-root `hooklook` user. The
 Compose requires `PUBLIC_BASE_URL` and `ADMIN_TOKEN`, uses the 5 GB default for
 `MAX_STORE`, and sets `LISTEN_ADDRESS=0.0.0.0:8080` only inside the container.
 It publishes the application solely as `127.0.0.1:8081` and joins the
-Caddy-owned external `hooklook-edge` network. The deployment script and
-operator runbook will be added in later shipping steps; do not create or manage
-that shared network from this project.
+Caddy-owned external `hooklook-edge` network. Do not create or manage that
+shared network from this project.
+
+### Deploying to the VPS
+
+Deploy a prepared VPS with [`scripts/deploy.sh`](scripts/deploy.sh). It tests
+locally before contacting the host and deploys only the Hooklook service. See
+the [deployment runbook](docs/deployment-runbook.md) for prerequisites,
+configuration, rollout, verification, diagnostics, and rollback.
 
 ## Tests
 
 ```bash
 make test        # frontend (vitest) and Go tests
 make test-race   # Go race detector
+make test-deploy # deployment safety-gate behavior
+make test-backup # backup-wrapper safety behavior
 make vet
 ```
 

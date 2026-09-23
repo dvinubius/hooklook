@@ -259,6 +259,14 @@ func main() {
 		fmt.Println(os.Args[2])
 		return
 	}
+	if len(os.Args) == 3 && os.Args[1] == "integrity-check" {
+		if err := integrityCheck(os.Args[2]); err != nil {
+			logger.Error("integrity check failed", "error", err)
+			os.Exit(1)
+		}
+		fmt.Println("ok")
+		return
+	}
 	if len(os.Args) == 2 && os.Args[1] == "dev-bin" {
 		url, err := createDevelopmentBin(databasePath)
 		if err != nil {
