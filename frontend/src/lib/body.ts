@@ -98,7 +98,7 @@ function sniffFormat(contentType: string, text: string): BodyFormat {
 
 /** Above this, the body is shown raw. Formatting and highlighting both walk
  *  the whole string, and a reader is not reading a megabyte by eye anyway. */
-export const formatLimitBytes = 256 * 1024
+const formatLimitBytes = 256 * 1024
 
 export function describeBody(rawBody: string | null | undefined, contentType: string): DecodedBody {
   const bytes = decodeBase64(rawBody)
@@ -132,7 +132,7 @@ export function describeBody(rawBody: string | null | undefined, contentType: st
   }
 }
 
-export function formatJSON(text: string): string {
+function formatJSON(text: string): string {
   return JSON.stringify(JSON.parse(text), null, 2)
 }
 

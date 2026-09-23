@@ -26,7 +26,7 @@ export type StartupState = 'store_full' | 'bin_expired' | 'shared_bin_unavailabl
 export type SessionState = 'loading' | 'ready' | 'unavailable' | 'leaving' | StartupState
 
 /** Whether a failure means "not for you" rather than "not right now". */
-export function invalidates(cause: unknown): boolean {
+function invalidates(cause: unknown): boolean {
   return cause instanceof ApiError && cause.unauthorized
 }
 

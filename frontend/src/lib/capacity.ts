@@ -12,7 +12,7 @@
 import type { BinCapacity } from '../types'
 
 /** Above this a reading is a warning rather than room. */
-export const capacityWarningPercent = 90
+const capacityWarningPercent = 90
 
 /** 0–100, whole percent. 100 only when the server says the limit is reached. */
 function usagePercent(used: number, limit: number, reached: boolean): number {
