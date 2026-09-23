@@ -106,8 +106,10 @@ can be changed.
 
 ## Local development
 
-`PUBLIC_BASE_URL` is required to construct capture URLs. The server binds to
-`127.0.0.1:8080`. `ADMIN_TOKEN` is required to start the server and protects
+`PUBLIC_BASE_URL` is required to construct capture URLs. `LISTEN_ADDRESS`
+defaults to `127.0.0.1:8080` for local development; set it to an explicit
+host-and-port address when a deployment needs another listener. `ADMIN_TOKEN`
+is required to start the server and protects
 the `GET /admin/bins` and `GET /admin/storage` operator routes through a bearer
 token. Configuration comes from process environment variables; `.env` is a
 shell convenience, not an application configuration format.

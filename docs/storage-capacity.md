@@ -69,13 +69,13 @@ of the page, whatever room that particular bin still has. See
 ## Filesystem headroom
 
 The configured `MAX_STORE` ceiling covers only the main SQLite database file.
-For production, put the database on a fixed-size persistent filesystem or
-volume with additional free space for SQLite journals, temporary files, backups,
-and maintenance. A full volume can block deletion or maintenance even when the
-database file remains below `MAX_STORE`; reserve space operationally. The exact
-volume size and reserve are decisions for the shipping milestone. Monitor both
-database page/file use against `MAX_STORE` and free volume space when the
-observability milestone is implemented.
+For production, the database directory is stored in the persistent
+`hooklook-data` Docker named volume mounted at `/data`. SQLite journals,
+temporary files, backup staging, container images, and the other services on
+the VM can consume space outside the database page cap. Monitor both database
+page/file use against `MAX_STORE` and free space on the host filesystem when
+the observability milestone is implemented. Backups must be written outside
+the live data volume and copied off the host.
 
 The service currently listens on loopback and should stay there until public
 Caddy limits are configured and verified. The planned ingress controls include

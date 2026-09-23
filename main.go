@@ -7,10 +7,12 @@ import (
 	"fmt"
 	"log"
 	"log/slog"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
 	"os/signal"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -18,7 +20,9 @@ import (
 
 const (
 	adminTokenEnvironmentVariable    = "ADMIN_TOKEN"
+	listenAddressEnvironmentVariable = "LISTEN_ADDRESS"
 	publicBaseURLEnvironmentVariable = "PUBLIC_BASE_URL"
+	defaultListenAddress             = "127.0.0.1:8080"
 	defaultReadHeaderTimeout         = 5 * time.Second
 	defaultReadTimeout               = 15 * time.Second
 	defaultIdleTimeout               = 60 * time.Second
@@ -55,6 +59,24 @@ func adminTokenFromEnvironment() (string, error) {
 		return "", fmt.Errorf("%s is required", adminTokenEnvironmentVariable)
 	}
 	return token, nil
+}
+
+func listenAddressFromEnvironment() (string, error) {
+	address := os.Getenv(listenAddressEnvironmentVariable)
+	if address == "" {
+		return defaultListenAddress, nil
+	}
+
+	host, port, err := net.SplitHostPort(address)
+	if err != nil || host == "" {
+		return "", fmt.Errorf("%s must be a host and port", listenAddressEnvironmentVariable)
+	}
+	parsedPort, err := strconv.ParseUint(port, 10, 16)
+	if err != nil || parsedPort == 0 {
+		return "", fmt.Errorf("%s must have a port between 1 and 65535", listenAddressEnvironmentVariable)
+	}
+
+	return address, nil
 }
 
 func requireAdminToken(next http.Handler) http.Handler {
@@ -249,7 +271,12 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	if err := run(ctx, "127.0.0.1:8080", logger); err != nil {
+	address, err := listenAddressFromEnvironment()
+	if err != nil {
+		logger.Error("read listen address", "error", err)
+		os.Exit(1)
+	}
+	if err := run(ctx, address, logger); err != nil {
 		logger.Error("server stopped with error", "error", err)
 		os.Exit(1)
 	}

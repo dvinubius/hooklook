@@ -55,6 +55,47 @@ func TestAdminTokenFromEnvironment(t *testing.T) {
 	}
 }
 
+func TestListenAddressFromEnvironmentDefaultsToLoopback(t *testing.T) {
+	t.Setenv(listenAddressEnvironmentVariable, "")
+
+	got, err := listenAddressFromEnvironment()
+	if err != nil {
+		t.Fatalf("read listen address: %v", err)
+	}
+	if got != defaultListenAddress {
+		t.Errorf("listen address = %q, want %q", got, defaultListenAddress)
+	}
+}
+
+func TestListenAddressFromEnvironmentAcceptsDockerAddress(t *testing.T) {
+	t.Setenv(listenAddressEnvironmentVariable, "0.0.0.0:8080")
+
+	got, err := listenAddressFromEnvironment()
+	if err != nil {
+		t.Fatalf("read listen address: %v", err)
+	}
+	if got != "0.0.0.0:8080" {
+		t.Errorf("listen address = %q, want Docker address", got)
+	}
+}
+
+func TestListenAddressFromEnvironmentRejectsInvalidValue(t *testing.T) {
+	for _, address := range []string{
+		":8080",
+		"127.0.0.1",
+		"127.0.0.1:not-a-port",
+		"127.0.0.1:0",
+		"127.0.0.1:65536",
+	} {
+		t.Run(address, func(t *testing.T) {
+			t.Setenv(listenAddressEnvironmentVariable, address)
+			if _, err := listenAddressFromEnvironment(); err == nil {
+				t.Fatal("invalid listen address accepted")
+			}
+		})
+	}
+}
+
 func TestCreateDevelopmentBin(t *testing.T) {
 	t.Setenv(publicBaseURLEnvironmentVariable, "http://localhost:8080")
 	path := t.TempDir() + "/hooklook.db"

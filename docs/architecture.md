@@ -1,60 +1,99 @@
 # Current architecture
 
-## Service and persistence
+This document describes Hooklook's components, their boundaries, and the flow
+of a captured request. It intentionally does not repeat SQLite configuration,
+schema, or failure handling; [database behavior](db.md) is the source for
+those details.
 
-Hooklook is one Go `net/http` service backed by SQLite through
-`github.com/mattn/go-sqlite3`. SQLite is the source of truth for bins and
-captured requests; foreign keys cascade request deletion when a bin is removed.
-The service keeps one database connection, configures SQLite's maximum page
-count from `MAX_STORE`, and runs an application-owned expiration cleanup worker.
+## System shape
 
-The process validates `PUBLIC_BASE_URL` and `ADMIN_TOKEN`, opens `hooklook.db`,
-initializes the development schema, and listens on `127.0.0.1:8080`. SIGINT or
-SIGTERM stops the cleanup worker, closes event streams, and gracefully shuts
-down HTTP. The process also checks SQLite once a second. If the open database
-becomes unusable, or expiration cleanup encounters a database error, the same
-graceful shutdown runs and the process exits with an error. A separate `backup`
-command uses SQLite `VACUUM INTO` to copy the database consistently while the
-service is running. See [bin lifecycle](bin-lifecycle.md)
-for retention and cleanup, and [storage capacity](storage-capacity.md) for
-limits, backup, and restore. [Database behavior](db.md) describes the schema,
-transactions, connection setup, and fatal database-failure policy.
+Hooklook is one Go `net/http` service. It serves the browser UI and HTTP API,
+accepts public webhook captures, and streams persisted changes to authorized
+inspectors through Server-Sent Events (SSE). There are no accounts, separate
+application services, queues, caches, or distributed storage in v1.
 
-## HTTP and frontend
+SQLite is the only durable state. It contains bins, captured requests, access
+state, expiry state, and capacity counters. The SSE hub is deliberately
+ephemeral: a reconnecting browser reads the persisted request list again rather
+than relying on events it missed.
 
-The Go service handles the public capture route, authorized inspection routes,
-operator route, and frontend assets. The frontend build is embedded with
-`go:embed`, making the binary the deployment unit. `frontend/dist` must exist
-when Go compiles; the committed placeholder permits a fresh checkout to build,
-but page routes report a missing frontend build until real assets are compiled.
+```mermaid
+flowchart LR
+    sender[Webhook sender] -->|"capture /b/{code}"| edge[Caddy<br/>production ingress]
+    browser[Owner or guest browser] -->|pages, API, SSE| edge
+    operator[Operator] -->|admin API| edge
 
-Both `/bins/{code}` and `/bins/{code}/requests/{id}` serve the same Vue
-document after server authorization. The Vue application resolves the selected
-request and fetches bin data through the API. Absolute asset paths make direct
-navigation to either page route work. Asset routes are public because they
-contain no captured data. With `FRONTEND_DEV`, page routes instead serve a shell
-pointing to Vite while Go retains page authorization. See [bin access](bin-access.md)
-for ownership and sharing, [frontend](frontend.md) for the client mechanisms,
-and the [HTTP API](http-api.md) for routes and responses.
+    subgraph app[Hooklook Go service]
+        http[HTTP handlers and API]
+        ui[Embedded Vue frontend]
+        hub[In-memory SSE hub]
+        http --> ui
+        http --> hub
+    end
+
+    edge --> http
+    http <--> db[(SQLite)]
+    hub -->|live summaries| browser
+```
+
+The frontend build is embedded with `go:embed`, so the compiled binary is the
+application unit. Page authorization happens in Go before the Vue application
+loads. The browser then uses the same origin for its API and SSE requests.
 
 ## Capture and live updates
 
-`requests.go` parses inbound captures and redacts credential-like headers
-before persistence. `store.go` writes each accepted capture and its bin counters
-in a SQLite transaction. After commit, an in-memory event hub sends a compact
-summary to subscribers of that bin. Delete and clear operations publish a
-refresh signal. SSE is ephemeral: reconnecting clients fetch the persisted list
-from SQLite, and slow subscribers are disconnected rather than delaying writes.
-The [bin lifecycle](bin-lifecycle.md) describes expiration; [storage capacity](storage-capacity.md)
-describes capture limits.
+Capture handling makes persistence the boundary between a successful capture
+and a live notification. The service redacts credential-like headers before it
+writes the capture. It publishes a request summary only after SQLite commits,
+so an SSE event never refers to data a reconnecting browser cannot retrieve.
 
-## Ingress boundary
+```mermaid
+sequenceDiagram
+    participant S as Webhook sender
+    participant H as Hooklook handler
+    participant D as SQLite
+    participant E as SSE hub
+    participant B as Authorized browser
 
-The service listens on loopback. Caddy is intended to terminate TLS and apply
-public rate, request-body, and total-header limits, but that proxy configuration
-is not yet in this repository. Go currently applies no separate body or header
-policy limit. The service should remain on loopback until the Caddy limits are
-configured and verified.
+    S->>H: capture request
+    H->>D: store redacted capture and counters
+    D-->>H: committed
+    H->>E: publish request summary
+    E-->>B: SSE request event
+    H-->>S: 201 and detail URL
+    Note over B,D: After reconnecting, the browser rebuilds from SQLite.
+```
 
-See the [project plan](../.agents/PROJECT_PLAN.md) and
-[progress](../.agents/PROGRESS.md) for upcoming work.
+Delete and clear actions likewise commit their change before publishing a
+refresh event. Slow SSE subscribers are disconnected rather than allowed to
+delay request handling. The [HTTP API](http-api.md) specifies the wire
+contract, while [frontend behavior](frontend.md) describes browser-side
+reconnection and rendering.
+
+## Deployment and ingress boundary
+
+Local development defaults `LISTEN_ADDRESS` to `127.0.0.1:8080`. The intended
+Docker deployment supplies `LISTEN_ADDRESS=0.0.0.0:8080` so Caddy can reach the
+application through a private Docker network; loopback-only host publication
+and Docker network membership prevent direct public access to the application
+container.
+
+In the intended deployment, Caddy is the public TLS and ingress-policy
+boundary. It owns rate limits and total request-body and header limits before
+traffic reaches Hooklook. The Go service owns application authorization,
+capture consistency, retention, and capacity decisions. See the
+[shipping plan](../.agents/SHIP_PLAN.md) for the in-progress deployment
+implementation.
+
+## Where to find detail
+
+- [Database behavior](db.md): SQLite setup, schema, transactions, and database
+  failure handling.
+- [Bin access](bin-access.md): ownership cookies, invitations, and mutation
+  authorization.
+- [Bin lifecycle](bin-lifecycle.md): renewal, cleanup, and expiry.
+- [Storage capacity and backups](storage-capacity.md): limits, `507` behavior,
+  backup, and restore.
+- [HTTP API](http-api.md): routes, response formats, and SSE protocol.
+- [Frontend behavior](frontend.md): browser-side session, reconnection, and
+  rendering behavior.

@@ -24,7 +24,7 @@ already shipped behavior matters.
 
 | Task or question | Read |
 | --- | --- |
-| Service boundaries, components, startup, shutdown, or ingress | [Current architecture](architecture.md) |
+| Service boundaries, components, data flow, or ingress | [Current architecture](architecture.md) |
 | SQLite schema, IDs, transactions, connection setup, or database failure | [Database behavior](db.md) |
 | Owner cookies, invitations, guest access, or mutation authorization | [Bin access](bin-access.md) |
 | Expiry renewal, cleanup, or deletion | [Bin lifecycle](bin-lifecycle.md) |
