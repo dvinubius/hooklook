@@ -77,6 +77,14 @@ page/file use against `MAX_STORE` and free space on the host filesystem when
 the observability milestone is implemented. Backups must be written outside
 the live data volume and copied off the host.
 
+Before starting or recreating the production service, run
+`scripts/check-storage-headroom.sh`. It checks the filesystem that contains
+Docker's data root and requires at least `2 × MAX_STORE + 2,000,000,000` bytes
+free: one full configured database-growth allowance, one SQLite backup staging
+copy, and 2 GB for images, journals, and ordinary deployment work. With the
+default `MAX_STORE`, that is 12 GB. The later deployment script calls this same
+check before `docker compose up`.
+
 The service currently listens on loopback and should stay there until public
 Caddy limits are configured and verified. The planned ingress controls include
 a body-size limit (256 KiB is the starting policy), a 32 KiB total-header
