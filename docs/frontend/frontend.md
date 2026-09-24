@@ -229,8 +229,9 @@ something readable, in this order:
    raw view and explains itself locally. Bodies over 256 KiB skip formatting —
    and highlighting with it, since both walk the whole string — so they are
    shown raw and unhighlighted rather than truncated. This is a display
-   threshold, separate from Caddy's capture-body limit. Nothing trims a text
-   body: only the binary dump has a cap.
+   threshold, separate from Caddy's 10 MB (10,000,000-byte) capture-body limit.
+   The request detail formats exact body sizes in decimal KB and MB. Nothing
+   trims a text body: only the binary dump has a cap.
 5. **Highlight** into tokens carrying a role — `name` (Violet) for JSON keys
    and XML element and attribute names, `value` (Teal) for JSON strings,
    numbers and literals and XML attribute values and text, `recede` for
@@ -287,7 +288,8 @@ resized. The switch flips once the server has saved the change, not on the
 click.
 
 The help button opens a dialog with five sections: an example request against
-the capture URL, what the bin holds and what to do when it is full, what
+the capture URL, the bin's 100 MB aggregate and 500-request limits, the 10 MB
+per-request body cap, what to do when the bin is full, what
 redaction does to credential headers, how sharing works and that the invitation
 link only works while guest access is on, and how long a bin is kept. It does not hold the link itself. The sweep button opens a confirmation that names what
 clearing destroys; a failure is reported in the dialog, which stays open. Both

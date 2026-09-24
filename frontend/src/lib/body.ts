@@ -328,10 +328,10 @@ export function hexDump(
   return { lines, shown: shown.length, truncated: bytes.length > shown.length }
 }
 
-/** Byte counts in the units the reader reads them in. The list's rounded
- *  `bodySizeKiB` is the server's; this is exact. */
+/** Format an exact body byte count in decimal units. The list's `bodySizeKiB`
+ *  is a separate, rounded summary field from the server. */
 export function formatBytes(size: number): string {
-  if (size < 1024) return `${size} ${size === 1 ? 'byte' : 'bytes'}`
-  if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KiB`
-  return `${(size / (1024 * 1024)).toFixed(1)} MiB`
+  if (size < 1000) return `${size} ${size === 1 ? 'byte' : 'bytes'}`
+  if (size < 1000000) return `${(size / 1000).toFixed(1)} KB`
+  return `${(size / 1000000).toFixed(1)} MB`
 }

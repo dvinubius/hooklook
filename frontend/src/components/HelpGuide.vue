@@ -27,8 +27,9 @@ defineProps<{ captureUrl: string }>()
     <section class="section">
       <h3 class="caps">bin capacity</h3>
       <p class="note">
-        Your bin has a limited storage capacity — roughly <strong class="key">100MB</strong>, and at
-        most <strong class="key">500 requests</strong>. Once it fills up you can delete individual
+        Your bin holds up to <strong class="key">100 MB</strong> of request bodies and
+        <strong class="key">500 requests</strong>. Each incoming request body can be up to
+        <strong class="key">10 MB</strong>. Once the bin fills up, you can delete individual
         requests or clear the entire bin.
       </p>
     </section>

@@ -10,7 +10,8 @@ bin pages, so one binary is the whole deployment.
 
 Hooklook is designed for small-scale integration testing of systems using
 webhooks. A bin lasts three days after its last use and holds up to 500 requests
-and 100 MB of request bodies. See [bin lifecycle](docs/bin-lifecycle.md) and
+and 100 MB of request bodies. Production capture requests can carry up to
+10 MB of body data each. See [bin lifecycle](docs/bin-lifecycle.md) and
 [storage capacity](docs/storage-capacity.md) for the limits and retention rules.
 
 ## Live request events
