@@ -1,0 +1,10 @@
+apiVersion: 1
+providers:
+  - name: Hooklook
+    orgId: 1
+    folder: Hooklook
+    type: file
+    disableDeletion: true
+    editable: false
+    options:
+      path: /etc/grafana/dashboards

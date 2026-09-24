@@ -20,8 +20,8 @@ func openDB(path string) (*sql.DB, error) {
 	return db, nil
 }
 
-// This development schema starts with a new database. Existing database files
-// are not upgraded; no production data has been created yet.
+// Schema creation is idempotent. The request index is also added to existing
+// databases so aggregate observability queries stay bounded.
 func migrate(db *sql.DB) error {
 	_, err := db.Exec(`
 		CREATE TABLE IF NOT EXISTS bins (
@@ -47,6 +47,7 @@ func migrate(db *sql.DB) error {
 			body_size_kib INTEGER NOT NULL,
 			FOREIGN KEY(bin_code) REFERENCES bins(code) ON DELETE CASCADE
 		);
+        CREATE INDEX IF NOT EXISTS requests_bin_code_idx ON requests(bin_code);
 	`)
 	if err != nil {
 		return fmt.Errorf("create tables: %w", err)

@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"net/http"
+	"time"
 )
 
 type GlobalStorageStats struct {
@@ -12,7 +13,12 @@ type GlobalStorageStats struct {
 }
 
 func getAllBins(w http.ResponseWriter, req *http.Request) {
+	started := time.Now()
 	bins, err := store.getAllBins()
+	observeDBOperation("admin_list", started, err)
+	if err == nil {
+		telemetry.operations.WithLabelValues("admin_list").Inc()
+	}
 	if err != nil {
 		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return

@@ -4,11 +4,17 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/json"
+	"errors"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
 )
+
+type failingBody struct{}
+
+func (failingBody) Read([]byte) (int, error) { return 0, errors.New("body interrupted") }
 
 func useTestStore(t *testing.T) *Store {
 	t.Helper()
@@ -58,6 +64,22 @@ func TestCaptureRequest(t *testing.T) {
 	requests, err := store.getBinRequests("test-bin")
 	if err != nil || len(requests) != 1 || requests[0].Method != "REPORT" || requests[0].Path != "/github/events" || requests[0].ReceivedAt.Before(start.Truncate(time.Second)) || requests[0].ReceivedAt.After(end) {
 		t.Errorf("stored requests = %#v, error = %v", requests, err)
+	}
+}
+
+func TestCaptureReadFailureIsNotServerError(t *testing.T) {
+	store := useTestStore(t)
+	insertTestBin(t, store, "test-bin")
+	req := httptest.NewRequest(http.MethodPost, "/b/test-bin", nil)
+	req.Body = io.NopCloser(failingBody{})
+	rec := httptest.NewRecorder()
+	routes().ServeHTTP(rec, req)
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("body read failure status = %d, want 400", rec.Code)
+	}
+	requests, err := store.getBinRequests("test-bin")
+	if err != nil || len(requests) != 0 {
+		t.Errorf("interrupted capture persisted: requests = %#v, err = %v", requests, err)
 	}
 }
 

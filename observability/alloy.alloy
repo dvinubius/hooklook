@@ -1,0 +1,49 @@
+discovery.docker "hooklook" {
+  host = "unix:///var/run/docker.sock"
+  filter {
+    name = "label"
+    values = ["com.docker.compose.project=hooklook"]
+  }
+  filter {
+    name = "label"
+    values = ["com.docker.compose.service=hooklook"]
+  }
+}
+
+discovery.relabel "hooklook" {
+  targets = discovery.docker.hooklook.targets
+  rule {
+    target_label = "service"
+    replacement = "hooklook"
+  }
+}
+
+loki.source.docker "hooklook" {
+  host = "unix:///var/run/docker.sock"
+  targets = discovery.relabel.hooklook.output
+  forward_to = [loki.process.safe.receiver]
+}
+
+loki.process "safe" {
+  stage.json {
+    expressions = {
+      level = "level",
+      route = "route",
+      status = "status",
+      error_class = "error_class",
+    }
+  }
+  stage.labels {
+    values = {
+      level = "level",
+      route = "route",
+    }
+  }
+  forward_to = [loki.write.hooklook.receiver]
+}
+
+loki.write "hooklook" {
+  endpoint {
+    url = "http://loki:3100/loki/api/v1/push"
+  }
+}

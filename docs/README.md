@@ -25,6 +25,8 @@ already shipped behavior matters.
 | Task or question | Read |
 | --- | --- |
 | Service boundaries, components, data flow, or ingress | [Current architecture](architecture.md) |
+| Deployment trust boundaries, privileged access, or sensitive data | [Deployment security](security.md) |
+| Telemetry topology, ports, metrics, logs, or dashboard behavior | [Observability](observability.md) |
 | SQLite schema, IDs, transactions, connection setup, or database failure | [Database behavior](db.md) |
 | Owner cookies, invitations, guest access, or mutation authorization | [Bin access](bin-access.md) |
 | Expiry renewal, cleanup, or deletion | [Bin lifecycle](bin-lifecycle.md) |
@@ -33,7 +35,7 @@ already shipped behavior matters.
 | Public ingress verification, rate limits, shutdown, or exposure checks | [Production verification runbook](production-verification-runbook.md) |
 | Backup creation, off-host transfer, retention, or isolated restore drill | [Database backup runbook](database-backup-runbook.md) |
 | Routes, JSON fields, status codes, or SSE wire behavior | [HTTP API](http-api.md) |
-| Vue behavior, session loading, request rendering, or capacity UI | [Frontend behavior](frontend.md) |
+| Vue behavior, session loading, request rendering, or capacity UI | [Frontend behavior](frontend/frontend.md) |
 | Deferred product ideas and explicit v2 exclusions | [V2 deferred](v2-deferred.md) |
 | Why a durable technical decision was made | [Architecture decision records](adr/) |
 | Setup, build, tests, and a first product overview | [Repository README](../README.md) |
@@ -50,3 +52,5 @@ When documents disagree, use this order to investigate:
 Resolve a mismatch instead of silently choosing one: update stale documentation
 when behavior is already settled, or discuss a genuine requirement gap before
 changing product behavior.
+
+- [Observability runbook](observability-runbook.md): validation, private access, deployment, and rollback.

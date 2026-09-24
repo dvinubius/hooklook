@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"strings"
@@ -45,10 +46,13 @@ func resolveOwnBin(w http.ResponseWriter, req *http.Request) (Bin, bool) {
 		return Bin{}, false
 	}
 	streamAccessMu.Lock()
+	started := time.Now()
 	bin, secret, err := store.createOwnedBin()
+	observeDBOperation("create", started, err)
 	if err != nil {
 		streamAccessMu.Unlock()
 		if errors.Is(err, ErrStoreFull) {
+			slog.Warn("bin_creation_capacity_rejected", "reason", "store_full")
 			writeCapacityShell(w)
 		} else {
 			http.Error(w, "internal server error", 500)
@@ -56,6 +60,7 @@ func resolveOwnBin(w http.ResponseWriter, req *http.Request) (Bin, bool) {
 		return Bin{}, false
 	}
 	eventHub.openBin(bin.Code)
+	telemetry.operations.WithLabelValues("create").Inc()
 	streamAccessMu.Unlock()
 	setOwnerCookie(w, secret, bin.ExpiresAt)
 	return bin, true
@@ -177,7 +182,12 @@ func requestDetail(w http.ResponseWriter, req *http.Request) {
 	if _, ok := authorizedAccess(w, req); !ok {
 		return
 	}
+	started := time.Now()
 	detail, err := store.requestDetail(req.PathValue("code"), req.PathValue("id"))
+	observeDBOperation("detail", started, err)
+	if err == nil {
+		telemetry.operations.WithLabelValues("detail").Inc()
+	}
 	if errors.Is(err, ErrRequestNotFound) {
 		http.Error(w, "request not found", 404)
 		return
@@ -212,7 +222,9 @@ func deleteOneRequest(w http.ResponseWriter, req *http.Request) {
 	if !requireOwnerMutation(w, req) {
 		return
 	}
+	started := time.Now()
 	err := store.deleteRequest(req.PathValue("code"), req.PathValue("id"))
+	observeDBOperation("delete", started, err)
 	if errors.Is(err, ErrRequestNotFound) {
 		http.Error(w, "request not found", 404)
 		return
@@ -221,6 +233,7 @@ func deleteOneRequest(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, "internal server error", 500)
 		return
 	}
+	telemetry.operations.WithLabelValues("delete").Inc()
 	eventHub.publish(req.PathValue("code"), SummarizedRequest{})
 	w.WriteHeader(http.StatusNoContent)
 }
@@ -229,10 +242,14 @@ func clearBinRequests(w http.ResponseWriter, req *http.Request) {
 	if !requireOwnerMutation(w, req) {
 		return
 	}
-	if err := store.clearRequests(req.PathValue("code")); err != nil {
+	started := time.Now()
+	err := store.clearRequests(req.PathValue("code"))
+	observeDBOperation("clear", started, err)
+	if err != nil {
 		http.Error(w, "internal server error", 500)
 		return
 	}
+	telemetry.operations.WithLabelValues("clear").Inc()
 	eventHub.publish(req.PathValue("code"), SummarizedRequest{})
 	w.WriteHeader(http.StatusNoContent)
 }

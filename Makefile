@@ -41,6 +41,7 @@ test-race:
 
 test-deploy:
 	./scripts/deploy_test.sh
+	./scripts/telemetry-smoke-test_test.sh
 
 test-backup:
 	./scripts/backup_test.sh

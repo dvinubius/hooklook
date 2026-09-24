@@ -62,10 +62,14 @@ func (s *Store) configureCapacity(maxBytes int64) error {
 }
 
 func (s *Store) storeCapacity() (StoreCapacity, error) {
+	return s.storeCapacityContext(context.Background())
+}
+
+func (s *Store) storeCapacityContext(ctx context.Context) (StoreCapacity, error) {
 	if s.maxStorePages == 0 {
 		return StoreCapacity{}, fmt.Errorf("SQLite capacity is not configured")
 	}
-	conn, err := s.db.Conn(context.Background())
+	conn, err := s.db.Conn(ctx)
 	if err != nil {
 		return StoreCapacity{}, err
 	}
@@ -73,14 +77,14 @@ func (s *Store) storeCapacity() (StoreCapacity, error) {
 	// max_page_count belongs to a SQLite connection, so reassert it before
 	// both reporting capacity and growing writes if database/sql replaced it.
 	var ceiling int64
-	if err := conn.QueryRowContext(context.Background(), fmt.Sprintf(`PRAGMA max_page_count = %d`, s.maxStorePages)).Scan(&ceiling); err != nil {
+	if err := conn.QueryRowContext(ctx, fmt.Sprintf(`PRAGMA max_page_count = %d`, s.maxStorePages)).Scan(&ceiling); err != nil {
 		return StoreCapacity{}, err
 	}
 	var pages, free int64
-	if err := conn.QueryRowContext(context.Background(), `PRAGMA page_count`).Scan(&pages); err != nil {
+	if err := conn.QueryRowContext(ctx, `PRAGMA page_count`).Scan(&pages); err != nil {
 		return StoreCapacity{}, err
 	}
-	if err := conn.QueryRowContext(context.Background(), `PRAGMA freelist_count`).Scan(&free); err != nil {
+	if err := conn.QueryRowContext(ctx, `PRAGMA freelist_count`).Scan(&free); err != nil {
 		return StoreCapacity{}, err
 	}
 	available := max(0, s.maxStorePages-pages+free)

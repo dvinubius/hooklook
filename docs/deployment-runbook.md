@@ -30,10 +30,11 @@ change Caddy. Caddy is shared VPS infrastructure managed separately from
 default SQLite cap is 5,000,000,000 bytes; set `MAX_STORE` only to use another
 positive byte count.
 
-Before any remote changes, the deploy script verifies that the Docker data-root
-filesystem has at least `2 × MAX_STORE + 2 GB` free. With the default cap this
-is 12 GB, covering database growth, a backup staging copy, and operating
-headroom. See [storage capacity and backups](storage-capacity.md) for why.
+For `core` and `full` deployments, before remote changes the script verifies
+that the Docker data-root filesystem has at least `2 × MAX_STORE + 2 GB` free.
+With the default cap this is 12 GB, covering database growth, a backup staging
+copy, and operating headroom. See
+[storage capacity and backups](storage-capacity.md) for why.
 
 ## Deploy
 
@@ -63,6 +64,22 @@ that test gate passes. It then:
 
 The deployment does not build, restart, reload, or otherwise alter Caddy or
 zibs. It also preserves the `hooklook-data` named volume.
+
+The default `DEPLOY_PROFILE=core` follows the steps above. Use
+`DEPLOY_PROFILE=full` with unique `GRAFANA_ADMIN_USER` and
+`GRAFANA_ADMIN_PASSWORD` (at least 24 URL-safe characters) to start Hooklook
+and its private telemetry stack; a telemetry smoke test then checks Prometheus,
+Loki, Grafana, and SQLite readiness. After that initial full deployment,
+`DEPLOY_PROFILE=observability` syncs only telemetry configuration, Compose, and
+the smoke script, updates the four telemetry services, and reruns the full
+telemetry smoke test. `DEPLOY_PROFILE=dashboard` validates and uploads only
+`observability/grafana/dashboards/hooklook.json`, then checks Grafana's
+provisioned dashboard after its file polling interval. The latter two modes
+require only `DEPLOY_HOST` locally and use the existing private environment on
+the VM; neither builds or restarts the app or runs the storage headroom check.
+The script runs local Go tests before all modes. See the
+[observability runbook](observability-runbook.md) for the private dashboard and
+rollback steps.
 
 ## Verify
 

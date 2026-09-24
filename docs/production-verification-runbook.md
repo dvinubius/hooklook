@@ -14,12 +14,15 @@ workstation with the production operator token already exported:
 
 It checks HTTPS health, the home redirect and owner cookie, the embedded
 frontend asset, capture/list/detail authorization, sharing and revocation,
-admin bearer authorization, an idle SSE stream, both 256 KiB body boundaries,
-and the listener-wide header boundary. Caddy is configured with
+admin bearer authorization, the 10 MB (10,000,000-byte) capture-body boundary
+with fixed-length and chunked requests, and the listener-wide header boundary.
+Caddy is configured with
 `max_header_size 32KiB`; Go's HTTP/1.1 parser adds a 4 KiB buffer allowance,
 so the observed rejection boundary is approximately 36 KiB. The verifier uses
 30 KiB as its accepted case and 40 KiB as its rejected case. The script leaves
-its temporary bin to expire normally.
+its temporary bin to expire normally. One accepted boundary capture stores a
+10 MB body, so allow for that temporary SQLite usage on each run. Run this
+version only after the Caddy policy has been deployed.
 
 ## Intentional rate-limit checks
 

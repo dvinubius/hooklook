@@ -37,6 +37,6 @@ COPY --from=go-build --chown=hooklook:hooklook /out/hooklook /usr/local/bin/hook
 
 USER hooklook:hooklook
 
-EXPOSE 8080
+EXPOSE 8080 9092
 
 ENTRYPOINT ["/usr/local/bin/hooklook"]

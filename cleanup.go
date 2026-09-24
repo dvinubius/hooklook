@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"time"
 )
 
@@ -32,10 +33,20 @@ func cleanupWorker(ctx context.Context, s *Store, hub *EventHub, report func(err
 	clean := func() {
 		streamAccessMu.Lock()
 		defer streamAccessMu.Unlock()
+		started := time.Now()
 		codes, err := s.deleteExpired(time.Now().UTC())
+		telemetry.cleanupDuration.WithLabelValues().Observe(time.Since(started).Seconds())
 		if err != nil {
+			telemetry.cleanupRuns.WithLabelValues("error").Inc()
+			telemetry.dbErrors.WithLabelValues("cleanup", dbKind(err)).Inc()
+			slog.Error("cleanup_failed", "error_class", dbKind(err))
 			report(err)
 			return
+		}
+		telemetry.cleanupRuns.WithLabelValues("success").Inc()
+		telemetry.expired.Add(float64(len(codes)))
+		if len(codes) > 0 {
+			slog.Info("cleanup_completed", "bins_deleted", len(codes))
 		}
 		for _, code := range codes {
 			hub.closeBin(code)

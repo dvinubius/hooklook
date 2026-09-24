@@ -19,16 +19,17 @@ import (
 )
 
 const (
-	adminTokenEnvironmentVariable    = "ADMIN_TOKEN"
-	listenAddressEnvironmentVariable = "LISTEN_ADDRESS"
-	publicBaseURLEnvironmentVariable = "PUBLIC_BASE_URL"
-	defaultListenAddress             = "127.0.0.1:8080"
-	defaultReadHeaderTimeout         = 5 * time.Second
-	defaultReadTimeout               = 15 * time.Second
-	defaultIdleTimeout               = 60 * time.Second
-	shutdownTimeout                  = 10 * time.Second
-	databaseCheckInterval            = time.Second
-	databasePath                     = "hooklook.db"
+	adminTokenEnvironmentVariable     = "ADMIN_TOKEN"
+	listenAddressEnvironmentVariable  = "LISTEN_ADDRESS"
+	publicBaseURLEnvironmentVariable  = "PUBLIC_BASE_URL"
+	defaultListenAddress              = "127.0.0.1:8080"
+	metricsAddressEnvironmentVariable = "METRICS_LISTEN_ADDRESS"
+	defaultReadHeaderTimeout          = 5 * time.Second
+	defaultReadTimeout                = 15 * time.Second
+	defaultIdleTimeout                = 60 * time.Second
+	shutdownTimeout                   = 10 * time.Second
+	databaseCheckInterval             = time.Second
+	databasePath                      = "hooklook.db"
 )
 
 var publicBaseURL string
@@ -96,6 +97,7 @@ func requireAdminToken(next http.Handler) http.Handler {
 func routes() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /health", health)
+	mux.HandleFunc("GET /ready", readiness)
 	mux.HandleFunc("GET /{$}", home)
 	mux.HandleFunc("GET /bins/{code}", inspectorPage)
 	mux.HandleFunc("GET /bins/{code}/requests/{id}", inspectorPage)
@@ -120,7 +122,7 @@ func routes() http.Handler {
 	mux.HandleFunc("/b/{code}", captureRequest)
 	mux.HandleFunc("/b/{code}/{path...}", captureRequest)
 
-	return mux
+	return observeHTTP(mux)
 }
 
 func newHTTPServer(addr string, handler http.Handler) *http.Server {
@@ -164,6 +166,16 @@ func run(ctx context.Context, address string, logger *slog.Logger) error {
 		return fmt.Errorf("configure storage: %w", err)
 	}
 	serviceCtx, stopServices := context.WithCancel(context.Background())
+	telemetryDone := make(chan struct{})
+	go func() { defer close(telemetryDone); telemetryWorker(serviceCtx, store) }()
+	metricsAddress := os.Getenv(metricsAddressEnvironmentVariable)
+	if metricsAddress == "" {
+		metricsAddress = "127.0.0.1:9092"
+	}
+	metricsServer := newHTTPServer(metricsAddress, metricsHandler())
+	metricsErrors := make(chan error, 1)
+	go func() { metricsErrors <- metricsServer.ListenAndServe() }()
+	logger.Info("service_started", "metrics_listener", metricsAddress)
 	workerDone := make(chan struct{})
 	databaseMonitorDone := make(chan struct{})
 	databaseErrors := make(chan error, 1)
@@ -185,6 +197,10 @@ func run(ctx context.Context, address string, logger *slog.Logger) error {
 		stopServices()
 		<-workerDone
 		<-databaseMonitorDone
+		<-telemetryDone
+		shutdownContext, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
+		defer cancel()
+		_ = metricsServer.Shutdown(shutdownContext)
 	}()
 	server := newHTTPServer(address, routes())
 	serverErrors := make(chan error, 1)
@@ -208,6 +224,11 @@ func run(ctx context.Context, address string, logger *slog.Logger) error {
 			return nil
 		}
 		return err
+	case err := <-metricsErrors:
+		if shutdownErr := shutdownServer(); shutdownErr != nil {
+			return shutdownErr
+		}
+		return fmt.Errorf("metrics listener stopped: %w", err)
 	case err := <-databaseErrors:
 		if shutdownErr := shutdownServer(); shutdownErr != nil {
 			return fmt.Errorf("database became unavailable (%v); %w", err, shutdownErr)
@@ -251,6 +272,7 @@ func createDevelopmentBin(path string) (string, error) {
 
 func main() {
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+	slog.SetDefault(logger)
 	if len(os.Args) == 3 && os.Args[1] == "backup" {
 		if err := backupDatabase(databasePath, os.Args[2]); err != nil {
 			logger.Error("backup failed", "error", err)

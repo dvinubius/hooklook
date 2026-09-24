@@ -74,6 +74,7 @@ func (hub *EventHub) publish(binCode string, summary SummarizedRequest) {
 		select {
 		case events <- summary:
 		default:
+			telemetry.sseEvents.WithLabelValues("slow_subscriber").Inc()
 			hub.removeSubscriber(binCode, events)
 		}
 	}

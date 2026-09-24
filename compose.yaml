@@ -1,3 +1,4 @@
+name: hooklook
 services:
   hooklook:
     image: hooklook:latest
@@ -9,10 +10,12 @@ services:
       MAX_STORE: ${MAX_STORE:-5000000000}
       # Container loopback would exclude Caddy on the private ingress network.
       LISTEN_ADDRESS: 0.0.0.0:8080
+      METRICS_LISTEN_ADDRESS: 0.0.0.0:9092
     ports:
       - "127.0.0.1:8081:8080"
     expose:
       - "8080"
+      - "9092"
     volumes:
       - hooklook-data:/data
     read_only: true
@@ -23,15 +26,97 @@ services:
     cap_drop:
       - ALL
     restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     networks:
       - hooklook-edge
-    # Port 9092 is reserved for a future private metrics listener. Do not add
-    # it here until milestone 4 implements the listener and its private network.
+      - metrics
+
+  prometheus:
+    profiles: [observability]
+    image: prom/prometheus:v3.5.0
+    command: ["--config.file=/etc/prometheus/prometheus.yml", "--storage.tsdb.path=/prometheus", "--storage.tsdb.retention.time=14d", "--storage.tsdb.retention.size=2GB"]
+    volumes:
+      - ./observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - hooklook-prometheus:/prometheus
+    networks: [metrics, observability]
+    read_only: true
+    tmpfs: [/tmp]
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
+    restart: unless-stopped
+  alloy:
+    profiles: [observability]
+    image: grafana/alloy:v1.10.2
+    command: ["run", "--storage.path=/var/lib/alloy", "/etc/alloy/config.alloy"]
+    # The image seeds its state directory as 473:473. Keep UID 0 for the
+    # root-owned Docker socket while allowing writes with all caps dropped.
+    user: "0:473"
+    volumes:
+      - ./observability/alloy.alloy:/etc/alloy/config.alloy:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - hooklook-alloy:/var/lib/alloy
+    networks: [observability]
+    read_only: true
+    tmpfs: [/tmp]
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
+    restart: unless-stopped
+  loki:
+    profiles: [observability]
+    image: grafana/loki:3.5.3
+    command: ["-config.file=/etc/loki/config.yml"]
+    volumes:
+      - ./observability/loki.yml:/etc/loki/config.yml:ro
+      - hooklook-loki:/loki
+    networks: [observability]
+    read_only: true
+    tmpfs: [/tmp]
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
+    restart: unless-stopped
+  grafana:
+    profiles: [observability]
+    image: grafana/grafana:12.1.1
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-}
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    ports:
+      - "127.0.0.1:3001:3000"
+    volumes:
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./observability/grafana/dashboards:/etc/grafana/dashboards:ro
+      - hooklook-grafana:/var/lib/grafana
+    # Docker does not publish host ports for a container attached only to an
+    # internal bridge. This bridge has Grafana as its sole member; the host
+    # publication remains restricted to 127.0.0.1.
+    networks: [observability, grafana-access]
+    read_only: true
+    tmpfs: [/tmp]
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
+    restart: unless-stopped
 
 volumes:
   hooklook-data:
+  hooklook-prometheus:
+  hooklook-alloy:
+  hooklook-loki:
+  hooklook-grafana:
 
 networks:
   # Caddy's Compose project creates and owns this shared ingress network.
   hooklook-edge:
     external: true
+  metrics:
+    internal: true
+  observability:
+    internal: true
+  # Grafana needs one non-internal bridge for Docker's loopback port mapping.
+  # No other Hooklook service joins this network.
+  grafana-access:

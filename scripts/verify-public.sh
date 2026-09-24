@@ -131,18 +131,18 @@ grep -q '^event: request' "$sse_output" && pass 'SSE receives a persisted captur
 grep -q "\"id\":\"$sse_request_id\"" "$sse_output" && pass 'SSE event identifies the persisted capture' || fail 'SSE event identifies the persisted capture'
 
 echo '== Caddy body and header limits'
-body_256k="$work_dir/body-256k"
-body_256k_plus_one="$work_dir/body-256k-plus-one"
-dd if=/dev/zero bs=1024 count=256 2>/dev/null | tr '\000' x >"$body_256k"
-{ cat "$body_256k"; printf x; } >"$body_256k_plus_one"
+body_10mb="$work_dir/body-10mb"
+body_10mb_plus_one="$work_dir/body-10mb-plus-one"
+dd if=/dev/zero bs=1000000 count=10 2>/dev/null | tr '\000' x >"$body_10mb"
+{ cat "$body_10mb"; printf x; } >"$body_10mb_plus_one"
 curl --silent --show-error --cookie "$cookie_jar" "$base_url/api/bins/$bin_code/requests" >"$requests"
 before_rejected_count=$(count_request_ids "$requests")
-check 'exactly 256 KiB fixed-length capture is accepted' \
-	"$(status --request POST --data-binary "@$body_256k" "$base_url/b/$bin_code/body-fixed")" '201'
-check 'first byte beyond 256 KiB fixed-length is rejected' \
-	"$(status --request POST --data-binary "@$body_256k_plus_one" "$base_url/b/$bin_code/body-too-large")" '413'
-check 'first byte beyond 256 KiB chunked is rejected' \
-	"$(tr '\000' x <"$body_256k_plus_one" | curl --silent --show-error --http1.1 --request POST \
+check 'exactly 10 MB (10,000,000 bytes) fixed-length capture is accepted' \
+	"$(status --request POST --data-binary "@$body_10mb" "$base_url/b/$bin_code/body-fixed")" '201'
+check 'first byte beyond 10 MB fixed-length is rejected' \
+	"$(status --request POST --data-binary "@$body_10mb_plus_one" "$base_url/b/$bin_code/body-too-large")" '413'
+check 'first byte beyond 10 MB chunked is rejected' \
+	"$(cat "$body_10mb_plus_one" | curl --silent --show-error --http1.1 --request POST \
 		--header 'Transfer-Encoding: chunked' --data-binary @- --output /dev/null --write-out '%{http_code}' \
 		"$base_url/b/$bin_code/body-too-large-chunked")" '413'
 curl --silent --show-error --cookie "$cookie_jar" "$base_url/api/bins/$bin_code/requests" >"$requests"

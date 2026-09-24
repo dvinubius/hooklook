@@ -6,8 +6,8 @@ no router, no store and no frontend backend: the page is about exactly one bin,
 and the server is the authority on everything private.
 
 The visual language is not decided here — see
-[visual style](../.agents/VISUAL_STYLE.md) — and the wire contract is the
-[HTTP API](http-api.md).
+[design system](design-system.md) — and the wire contract is the
+[HTTP API](../http-api.md).
 
 ## Where it runs
 
@@ -228,7 +228,8 @@ something readable, in this order:
    mismatched element) rather than repairing it. Formatting failure keeps the
    raw view and explains itself locally. Bodies over 256 KiB skip formatting —
    and highlighting with it, since both walk the whole string — so they are
-   shown raw and unhighlighted rather than truncated. Nothing trims a text
+   shown raw and unhighlighted rather than truncated. This is a display
+   threshold, separate from Caddy's capture-body limit. Nothing trims a text
    body: only the binary dump has a cap.
 5. **Highlight** into tokens carrying a role — `name` (Violet) for JSON keys
    and XML element and attribute names, `value` (Teal) for JSON strings,

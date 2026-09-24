@@ -1,4 +1,6 @@
 .codegraph/
+.claude/
+.vscode/
 
 # Local runtime state
 *.db
@@ -16,6 +18,7 @@ coverage.out
 .DS_Store
 
 
+docs/learning/*
 local-testing/
 
 # Frontend dependencies and build output. `frontend/dist` must exist at Go

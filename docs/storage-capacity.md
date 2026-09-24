@@ -64,7 +64,7 @@ between the page's own bars and calls no API at all. A bin's own fullness is a
 gauge on its request list, which reads 100% only when the `full` flag is set. A
 bin page whose response reports `storeCapacity.full` says so in brick at the top
 of the page, whatever room that particular bin still has. See
-[frontend](frontend.md) for the wording and the refresh behavior.
+[frontend](frontend/frontend.md) for the wording and the refresh behavior.
 
 ## Filesystem headroom
 

@@ -42,5 +42,5 @@ like the bin page. There is no bin replacement endpoint.
 
 See [bin lifecycle](bin-lifecycle.md) for retention,
 [storage capacity](storage-capacity.md) for limits, the [HTTP API](http-api.md)
-for route details, and [frontend](frontend.md) for the client's access and
+for route details, and [frontend](frontend/frontend.md) for the client's access and
 rendering behavior.

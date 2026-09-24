@@ -1,7 +1,7 @@
 # Current HTTP API
 
 This is the contract the Inspection UI ("inspector") is built on; the
-[frontend](frontend.md) describes how it consumes it. The page routes serve the
+[frontend](frontend/frontend.md) describes how it consumes it. The page routes serve the
 built Vue application after authorization. The server binds to `127.0.0.1:8080`
 by default.
 
@@ -40,7 +40,7 @@ header in this endpoint's `headers`, and it reports the *last* hop: Caddy
 appends the address it accepted the connection from, so the first hop is only
 what the caller claimed. Nothing about the address is captured or stored
 separately, and the trust rule assumes Caddy is the only public ingress — see
-[frontend](frontend.md#client-address).
+[frontend](frontend/frontend.md#client-address).
 
 The `capacity` object in `GET /api/bins/{code}` contains `requestCount`,
 `requestLimit`, `bodyBytesUsed`, `bodyBytesLimit`, `requestsFull`,
@@ -84,8 +84,9 @@ captures extend expiry three days; an idle SSE connection does not. Cleanup
 deletes expired bins and closes their streams. Each bin
 accepts at most 500 captures and 100 MB (100,000,000 bytes) of raw request
 bodies. Headers and metadata do not count. Common credential headers are
-redacted before storage. Caddy's body limit applies to public capture routes;
-the sharing update does not capture a request body. Public header and rate
+redacted before storage. Caddy's 10 MB (10,000,000-byte) body limit
+applies to public capture routes; the
+sharing update does not capture a request body. Public header and rate
 limits are separate ingress controls.
 
 Guest inspection endpoints are read-only. The public `/b/{code}` capture route

@@ -67,27 +67,102 @@ sequenceDiagram
 Delete and clear actions likewise commit their change before publishing a
 refresh event. Slow SSE subscribers are disconnected rather than allowed to
 delay request handling. The [HTTP API](http-api.md) specifies the wire
-contract, while [frontend behavior](frontend.md) describes browser-side
+contract, while [frontend behavior](frontend/frontend.md) describes browser-side
 reconnection and rendering.
 
 ## Deployment and ingress boundary
 
-Local development defaults `LISTEN_ADDRESS` to `127.0.0.1:8080`. The intended
-Docker deployment supplies `LISTEN_ADDRESS=0.0.0.0:8080` so Caddy can reach the
-application through a private Docker network; loopback-only host publication
-and Docker network membership prevent direct public access to the application
-container.
+Local development defaults `LISTEN_ADDRESS` to `127.0.0.1:8080`. Docker sets it
+to `0.0.0.0:8080` so Caddy can reach the app through `hooklook-edge`, the
+external network owned by Caddy. The app is also published to the host only at
+`127.0.0.1:8081` for local checks. Caddy terminates TLS, applies a 10 MB
+(10,000,000-byte) body limit to capture routes, and enforces public rate and
+header limits. Hooklook owns
+authorization, capture consistency, retention, and capacity decisions.
 
-In the intended deployment, Caddy is the public TLS and ingress-policy
-boundary. It owns rate limits and the total request-header limit before traffic
-reaches Hooklook. Its request-body limit applies to public capture routes.
-The Go service owns application authorization, capture consistency, retention,
-and capacity decisions. See the
-[shipping plan](../.agents/SHIP_PLAN.md) for the in-progress deployment
-implementation.
+### Port inventory
+
+| Port | Protocol | Where it is reachable | Core purpose |
+| --- | --- | --- | --- |
+| 80 | TCP | Public VM listener owned by shared Caddy | HTTP entry point and HTTPS redirection/certificate handling |
+| 443 | TCP | Public VM listener owned by shared Caddy | HTTPS for `hooklook.app` |
+| 443 | UDP | Public VM listener owned by shared Caddy | HTTP/3 for the same HTTPS site |
+| 8080 | TCP | Hooklook container on `hooklook-edge` and `hooklook_metrics` | Application HTTP listener: pages, capture API, SSE, admin routes, `/health`, and `/ready` |
+| 8081 | TCP | VM loopback `127.0.0.1` only, mapped to container port 8080 | Local application health and readiness checks |
+
+The shared Caddy service owns public 80/443; Hooklook publishes only the
+loopback mapping for its HTTP listener. Port 8080 accepts connections on both
+of Hooklook's Docker networks because the listener binds to `0.0.0.0` inside
+the container. The separate metrics listener and telemetry-service ports are
+inventoried in [observability](observability.md#port-inventory).
+
+```mermaid
+flowchart LR
+    internet[Internet] -->|HTTPS| caddy
+    operator[Operator] -->|SSH tunnel to 127.0.0.1:3001| grafana_access
+
+    subgraph edge["Docker network: hooklook-edge (external, Caddy-owned)"]
+        caddy[Caddy]
+        app_http["Hooklook :8080"]
+        caddy --> app_http
+    end
+
+    subgraph metrics["Docker network: hooklook_metrics (internal)"]
+        app_metrics["Hooklook :9092"]
+        prom_scrape["Prometheus<br/>scrape interface"]
+        prom_scrape -->|GET /metrics| app_metrics
+    end
+
+    subgraph private["Docker network: hooklook_observability (internal)"]
+        prom_query["Prometheus query interface"]
+        alloy[Alloy]
+        loki[Loki]
+        grafana["Grafana :3000"]
+        alloy -->|push logs| loki
+        grafana -->|query metrics| prom_query
+        grafana -->|query logs| loki
+    end
+
+    subgraph access["Docker network: hooklook_grafana-access (Grafana only)"]
+        grafana_access["Grafana host port 127.0.0.1:3001"]
+    end
+
+    app_http -.-|same container| app_metrics
+    prom_scrape -.-|same container| prom_query
+    grafana -.-|same container| grafana_access
+    app_http --> db[(SQLite in<br/>hooklook-data volume)]
+    alloy -->|Docker API| socket((Docker<br/>socket))
+    socket -.->|Hooklook<br/>stdout| app_metrics
+```
+
+The paired Hooklook, Prometheus, and Grafana boxes each represent one container
+attached to two networks. Compose fixes the project name to `hooklook`, so its
+created networks are `hooklook_metrics`,
+`hooklook_observability`, and `hooklook_grafana-access`. The
+external ingress network keeps its literal name, `hooklook-edge`. Grafana's
+access bridge is non-internal and has no other Hooklook member: Docker cannot
+publish its loopback port from an internal-only bridge on the production host.
+The private metrics listener has no host port or Caddy route. Only Grafana
+publishes a telemetry port, on host loopback.
+
+Both Hooklook listeners bind to `0.0.0.0` inside the same container. Caddy can
+therefore reach port 9092 on `hooklook-edge`, and Prometheus can reach port
+8080 on `hooklook_metrics`; Docker's `expose` declaration does not restrict
+either path. The metrics endpoint remains outside the public Caddy routes and
+has no host publication. See [deployment security](security.md) for the trust
+boundary implications.
+
+Alloy reads Hooklook's container stdout through the Docker socket, filtered by
+Compose project and service labels. See the
+[observability overview](observability.md) for the private telemetry topology
+and [observability runbook](observability-runbook.md) for local validation.
 
 ## Where to find detail
 
+- [Deployment security](security.md): trust boundaries, sensitive data,
+  privileged access, and operational checks.
+- [Observability](observability.md): telemetry topology, ports, signals, and
+  dashboard behavior.
 - [Database behavior](db.md): SQLite setup, schema, transactions, and database
   failure handling.
 - [Bin access](bin-access.md): ownership cookies, invitations, and mutation
@@ -96,5 +171,5 @@ implementation.
 - [Storage capacity and backups](storage-capacity.md): limits, `507` behavior,
   backup, and restore.
 - [HTTP API](http-api.md): routes, response formats, and SSE protocol.
-- [Frontend behavior](frontend.md): browser-side session, reconnection, and
+- [Frontend behavior](frontend/frontend.md): browser-side session, reconnection, and
   rendering behavior.

@@ -96,6 +96,8 @@ can be changed.
 - [Current progress](.agents/PROGRESS.md)
 - [Completed milestones](.agents/done-milestones.md)
 - [Current architecture](docs/architecture.md)
+- [Observability](docs/observability.md)
+- [Deployment security](docs/security.md)
 - [Database behavior](docs/db.md)
 - [Bin access](docs/bin-access.md)
 - [Bin lifecycle](docs/bin-lifecycle.md)
@@ -103,7 +105,7 @@ can be changed.
 - [Production verification runbook](docs/production-verification-runbook.md)
 - [Database backup runbook](docs/database-backup-runbook.md)
 - [Current HTTP API](docs/http-api.md)
-- [Frontend behavior and mechanisms](docs/frontend.md)
+- [Frontend behavior and mechanisms](docs/frontend/frontend.md)
 - [Architecture decision records](docs/adr/)
 
 ## Local development
@@ -171,8 +173,13 @@ shared network from this project.
 ### Deploying to the VPS
 
 Deploy a prepared VPS with [`scripts/deploy.sh`](scripts/deploy.sh). It tests
-locally before contacting the host and deploys only the Hooklook service. See
-the [deployment runbook](docs/deployment-runbook.md) for prerequisites,
+locally before contacting the host and deploys the Hooklook service by default.
+Use `DEPLOY_PROFILE=full` with separate Hooklook Grafana credentials to include
+the private telemetry stack. After the first full deployment,
+`DEPLOY_PROFILE=observability` updates only telemetry configuration and services,
+and `DEPLOY_PROFILE=dashboard` uploads only the operator dashboard JSON. Full
+and observability deployments run telemetry smoke checks; dashboard updates
+check Grafana provisioning. See the [deployment runbook](docs/deployment-runbook.md) for prerequisites,
 configuration, rollout, verification, diagnostics, and rollback.
 
 ## Tests
@@ -228,3 +235,18 @@ Hooklook redacts common credential-bearing headers before storing a request.
 Webhook signature headers are retained for debugging, so treat every bin as
 sensitive. See [ADR 0002](docs/adr/0002-captured-header-redaction.md) for the
 exact header list, repeated-header behavior, and security implications.
+
+## Observability
+
+The app exposes `/health` for liveness and `/ready` for a bounded SQLite check.
+A separate listener (`METRICS_LISTEN_ADDRESS`, default `127.0.0.1:9092`)
+serves `/metrics`; Docker configures it as `0.0.0.0:9092` inside Hooklook's
+container so Prometheus can scrape it. It has no host port or Caddy route.
+Because Hooklook also joins `hooklook-edge`, Caddy can reach this listener
+directly over Docker even though the public cannot. HTTP labels use fixed
+route and method classes; captured paths, query strings, headers, and bodies
+stay out of metrics and logs. The private stack is Prometheus, Alloy, Loki, and
+Grafana, enabled with the Compose `observability` profile. Grafana binds only
+`127.0.0.1:3001` on the host. See the
+[observability runbook](docs/observability-runbook.md) for local validation,
+operator access, retention, smoke checks, and rollback.
