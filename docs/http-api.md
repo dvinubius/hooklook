@@ -84,8 +84,9 @@ captures extend expiry three days; an idle SSE connection does not. Cleanup
 deletes expired bins and closes their streams. Each bin
 accepts at most 500 captures and 100 MB (100,000,000 bytes) of raw request
 bodies. Headers and metadata do not count. Common credential headers are
-redacted before storage. Public Caddy body, total-header, and rate limits are
-still required before internet exposure.
+redacted before storage. Caddy's body limit applies to public capture routes;
+the sharing update does not capture a request body. Public header and rate
+limits are separate ingress controls.
 
 Guest inspection endpoints are read-only. The public `/b/{code}` capture route
 is separate: anyone who knows a bin code, including an invited guest, can send

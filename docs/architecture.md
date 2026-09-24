@@ -79,9 +79,10 @@ and Docker network membership prevent direct public access to the application
 container.
 
 In the intended deployment, Caddy is the public TLS and ingress-policy
-boundary. It owns rate limits and total request-body and header limits before
-traffic reaches Hooklook. The Go service owns application authorization,
-capture consistency, retention, and capacity decisions. See the
+boundary. It owns rate limits and the total request-header limit before traffic
+reaches Hooklook. Its request-body limit applies to public capture routes.
+The Go service owns application authorization, capture consistency, retention,
+and capacity decisions. See the
 [shipping plan](../.agents/SHIP_PLAN.md) for the in-progress deployment
 implementation.
 

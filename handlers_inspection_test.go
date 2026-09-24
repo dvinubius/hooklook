@@ -162,6 +162,26 @@ func TestGuestAccessAndOwnerMutations(t *testing.T) {
 	}
 }
 
+func TestSharingUpdateAcceptsLargeValidJSON(t *testing.T) {
+	s := useTestStore(t)
+	bin, owner, err := s.createOwnedBin()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	body := strings.Repeat(" ", 2048) + `{"enabled":true}`
+	response := callInspector(t, http.MethodPut, "/api/bins/"+bin.Code+"/sharing", body, owner)
+	if response.Code != http.StatusNoContent {
+		t.Fatalf("sharing update = %d: %s", response.Code, response.Body.String())
+	}
+
+	info := callInspector(t, http.MethodGet, "/api/bins/"+bin.Code, "", owner)
+	var access BinAccess
+	if err := json.Unmarshal(info.Body.Bytes(), &access); err != nil || !access.SharingEnabled {
+		t.Fatalf("sharing state after update = %d, enabled %t, error %v", info.Code, access.SharingEnabled, err)
+	}
+}
+
 func TestBinReplacementRouteDoesNotExist(t *testing.T) {
 	s := useTestStore(t)
 	bin, owner, err := s.createOwnedBin()
