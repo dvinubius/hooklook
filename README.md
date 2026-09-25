@@ -1,3 +1,24 @@
+<p align="center">
+  <a href="https://hooklook.app"><img src="frontend/public/hooklookwordmarkdark-logo-above.png" alt="hooklook" width="400"></a>
+</p>
+
+<p align="center">
+  A small, self-hosted request bin for testing and debugging webhook integrations.
+</p>
+
+<p align="center">
+  <a href="https://hooklook.app"><b>Try it</b></a> ·
+  <a href="docs/README.md">Docs</a> ·
+  <a href="docs/architecture.md">Architecture</a> ·
+  <a href="docs/observability.md">Observability</a>
+</p>
+
+<p align="center">
+  <a href="https://github.com/dvinubius/hooklook/actions/workflows/deploy.yml"><img src="https://github.com/dvinubius/hooklook/actions/workflows/deploy.yml/badge.svg?branch=main" alt="Deploy production"></a>
+  <a href="go.mod"><img src="https://img.shields.io/github/go-mod/go-version/dvinubius/hooklook" alt="Go version"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/dvinubius/hooklook" alt="MIT license"></a>
+</p>
+
 # hooklook
 
 A small, self-hosted request bin written in Go, helping you to test and debug
@@ -16,7 +37,6 @@ database backups, and a **full observability stack** — Prometheus metrics, str
 logs shipped through Alloy to Loki, and Grafana dashboards provisioned straight 
 from this repository.
 
-- 🔗 **Try it** — [hooklook.app](https://hooklook.app) gives you a free request bin for testing webhooks.
 - 🚧 **Still in the works** — polished documentation and a GH based CI/CD.
 - ⭐ **Like what you see?** Star the repo — it helps others find it.
 
