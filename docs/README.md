@@ -2,23 +2,21 @@
 
 This index helps agents find the smallest useful set of project documents.
 Files under `docs/` describe the currently implemented system unless they say
-otherwise. Planning and work status live under `.agents/`.
+otherwise. Planning and work status live under `.agents/`, which is kept
+locally and is not part of the published repository.
 
 ## Start here
 
 For implementation work, read:
 
-1. [Current progress](../.agents/PROGRESS.md) for the completed state and next
-   milestone.
-2. [Project plan](../.agents/PROJECT_PLAN.md) for scope, constraints, and
-   milestone intent.
+1. `.agents/PROGRESS.md` for the completed state and next milestone.
+2. `.agents/PROJECT_PLAN.md` for scope, constraints, and milestone intent.
 3. [Current architecture](architecture.md) for the component map.
 4. The task-specific document from the table below.
 
-Use [design notes](../.agents/design-notes.md) when a task involves an open
-decision or a later milestone. Use
-[completed milestones](../.agents/done-milestones.md) when the reason for an
-already shipped behavior matters.
+Use `.agents/design-notes.md` when a task involves an open decision or a later
+milestone. Use `.agents/done-milestones.md` when the reason for an already
+shipped behavior matters.
 
 ## Route by task
 

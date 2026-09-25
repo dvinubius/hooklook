@@ -1,6 +1,6 @@
 # Deferred V2 hardening
 
-Historical note: the updated [production v1 plan](../.agents/PROJECT_PLAN.md)
+Historical note: the updated production v1 plan
 now requires Caddy rate limiting and header-size enforcement. The policies
 below describe the earlier plan and are not the current milestone direction.
 

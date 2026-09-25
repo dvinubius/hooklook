@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /* The product mark: the webhook glyph with a magnifying glass over its
    bottom-right hook, beside the wordmark. Geometry and the reasoning behind
-   the numbers live in .agents/BRAND_MARK.md — change them there first.
+   the numbers live in docs/frontend/brand-mark.md — change them there first.
 
    The mark takes the font size it is given. Its box is baseline-aligned and
    pushed down by half its height less 0.343em, which puts its centre on the

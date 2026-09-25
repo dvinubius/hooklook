@@ -2,9 +2,12 @@ name: Deploy production
 
 # Pushes to main deploy every change since the last verified production
 # deployment. See docs/deployment-runbook.md.
+#
+# Push deployments are switched off until the one-time GitHub and VPS setup
+# is done; restore this trigger to turn them on:
+#   push:
+#     branches: [main]
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
     inputs:
       force_full:

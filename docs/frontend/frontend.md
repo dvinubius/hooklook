@@ -5,8 +5,8 @@ routes and built by Vite into `frontend/dist`, which the binary embeds. There is
 no router, no store and no frontend backend: the page is about exactly one bin,
 and the server is the authority on everything private.
 
-The visual language is not decided here — see
-[design system](design-system.md) — and the wire contract is the
+The visual language is not decided here — it comes from the Dinu Barbu design
+system — and the wire contract is the
 [HTTP API](../http-api.md).
 
 ## Where it runs

@@ -1,6 +1,7 @@
 .codegraph/
 .claude/
 .vscode/
+.agents/
 
 # Local runtime state
 *.db
@@ -20,6 +21,7 @@ coverage.out
 
 docs/learning/*
 local-testing/
+.devnotes.md
 
 # Frontend dependencies and build output. `frontend/dist` must exist at Go
 # build time because the binary embeds it, so the directory is kept.

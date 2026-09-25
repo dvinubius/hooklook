@@ -12,7 +12,7 @@ name.
 Both are drawn on the 24-unit grid of the webhook icon they start from, with
 round caps and joins throughout, the glyph in `--text-body` and the lens in
 `--accent` — Ember `#A8500F` on light, Ember Light `#DE8A42` on dark, per the
-accent pair rule in the [design system](design-system.md).
+accent pair rule in the Dinu Barbu design system.
 
 ## The source glyph
 

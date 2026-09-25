@@ -2,8 +2,8 @@
 
 ## Status
 
-Superseded for the production v1 target by
-[`design-notes.md`](../../.agents/design-notes.md). This ADR records the
+Superseded for the production v1 target by the project's design notes. This
+ADR records the
 limits implemented in the current milestone-5 code.
 
 ## Context

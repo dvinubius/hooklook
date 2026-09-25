@@ -6,6 +6,19 @@ captures arbitrary HTTP requests, and provides owner or invited-guest inspection
 APIs. The Go binary serves the built Vue inspector frontend on its authorized
 bin pages, so one binary is the whole deployment.
 
+The app is free to use. 
+
+Behind the one-page frontend sits a complete, self-hosted production service: a Go 
+application with SQLite persistence, deployed as a hardened container behind a 
+TLS-terminating reverse proxy on a single VM, with scripted deployments, verified 
+database backups, and a **full observability stack** — Prometheus metrics, structured 
+logs shipped through Alloy to Loki, and Grafana dashboards provisioned straight 
+from this repository.
+
+- 🔗 **Try it** — [hooklook.app](https://hooklook.app) gives you a free request bin for testing webhooks.
+- 🚧 **Still in the works** — polished documentation and a GH based CI/CD.
+- ⭐ **Like what you see?** Star the repo — it helps others find it.
+
 ## Intended v1 use
 
 Hooklook is designed for small-scale integration testing of systems using
@@ -102,9 +115,6 @@ can be changed.
 ## Project documentation
 
 - [Documentation routing index](docs/README.md)
-- [Plan](.agents/PROJECT_PLAN.md)
-- [Current progress](.agents/PROGRESS.md)
-- [Completed milestones](.agents/done-milestones.md)
 - [Current architecture](docs/architecture.md)
 - [Observability](docs/observability.md)
 - [Deployment security](docs/security.md)

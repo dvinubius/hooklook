@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
   <!-- The hooklook mark whole on an Ink tile: dark in both themes, because a
-       browser tab is not part of the page. Geometry: .agents/BRAND_MARK.md -->
+       browser tab is not part of the page. Geometry: docs/frontend/brand-mark.md -->
   <rect width="32" height="32" rx="7" fill="#141414"/>
   <g transform="translate(3 3) scale(1.022) translate(-1 -0.5)">
     <mask id="cut" maskUnits="userSpaceOnUse" x="-10" y="-10" width="50" height="50">

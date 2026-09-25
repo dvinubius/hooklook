@@ -1,8 +1,6 @@
 /* Dinu Barbu design system — fonts, color and typography tokens.
-   Copied from the Dinu Barbu design-system repository (styles.css and tokens/).
-   Edit there first, then re-copy; do not diverge here.
 
-   One deliberate adaptation: the design system ships light as the bare :root
+   The design system ships light as the bare :root
    default and dark under [data-theme="dark"]. hooklook is a dark-first tool, so
    the semantic aliases below are declared per explicit theme attribute and the
    shell always carries one. The raw palette values are unchanged. */
