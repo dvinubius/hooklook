@@ -56,7 +56,7 @@ GET becomes the first capture. The count is kept in the `hooklook_try_shown` coo
 Link-preview scrapers (Facebook, LinkedIn, X, Slack, Discord, and similar,
 recognised by User-Agent) get the page document with its Open Graph and
 Twitter tags directly from `/`, with no bin and no cookie, so shared links
-show the `/hooklookwordmarkdark.png` thumbnail.
+show the `/hooklookwordmarkdark-logo-above.png` thumbnail.
 
 - **The list updates itself.** Captures appear without a reload, over the SSE
   stream. Because the stream replays nothing, the list is refetched from SQLite

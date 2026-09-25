@@ -282,9 +282,9 @@ func TestMissingAssetsAreNotFound(t *testing.T) {
 func TestSocialThumbnailIsServedWithoutBinAuthorization(t *testing.T) {
 	requireBuiltFrontend(t)
 
-	image := get(t, "/hooklookwordmarkdark.png", "")
+	image := get(t, "/hooklookwordmarkdark-logo-above.png", "")
 	if image.Code != http.StatusOK {
-		t.Fatalf("/hooklookwordmarkdark.png = %d", image.Code)
+		t.Fatalf("/hooklookwordmarkdark-logo-above.png = %d", image.Code)
 	}
 	if len(image.Result().Cookies()) != 0 {
 		t.Error("thumbnail went through bin resolution and set a cookie")

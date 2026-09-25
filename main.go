@@ -108,7 +108,7 @@ func routes() http.Handler {
 	mux.HandleFunc("GET /assets/{path...}", builtAsset(hashedAssetCache))
 	mux.HandleFunc("GET /fonts/{path...}", builtAsset(staticFileCache))
 	mux.HandleFunc("GET /favicon.svg", builtAsset(staticFileCache))
-	mux.HandleFunc("GET /hooklookwordmarkdark.png", builtAsset(staticFileCache))
+	mux.HandleFunc("GET /hooklookwordmarkdark-logo-above.png", builtAsset(staticFileCache))
 	mux.HandleFunc("GET /api/bins/{code}", binInfo)
 	mux.HandleFunc("GET /api/bins/{code}/requests/{id}", requestDetail)
 	mux.HandleFunc("DELETE /api/bins/{code}/requests/{id}", deleteOneRequest)
