@@ -35,6 +35,11 @@ you to its page. The page shows the capture URL to send requests to, the live
 list of what has arrived, and the full detail of whichever request is selected.
 A `curl` example to try the URL with is in the help dialog.
 
+Link-preview scrapers (Facebook, LinkedIn, X, Slack, Discord, and similar,
+recognised by User-Agent) get the page document with its Open Graph and
+Twitter tags directly from `/`, with no bin and no cookie, so shared links
+show the `/hooklookwordmarkdark.png` thumbnail.
+
 - **The list updates itself.** Captures appear without a reload, over the SSE
   stream. Because the stream replays nothing, the list is refetched from SQLite
   after every reconnect and whenever a disconnected tab comes back to the

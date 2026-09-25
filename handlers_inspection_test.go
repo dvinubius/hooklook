@@ -52,6 +52,40 @@ func TestHomeCreatesAndReusesCookieBin(t *testing.T) {
 	}
 }
 
+// Link-preview scrapers drop the owner cookie between the redirect and the
+// bin page, so they would land on a 404. They get the document with its
+// preview tags instead, and no bin is created for them.
+func TestHomeServesLinkPreviewScrapersWithoutCreatingABin(t *testing.T) {
+	requireBuiltFrontend(t)
+	s := useTestStore(t)
+	for _, agent := range []string{
+		"facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)",
+		"LinkedInBot/1.0 (compatible; Mozilla/5.0; Apache-HttpClient +http://www.linkedin.com)",
+		"Twitterbot/1.0",
+	} {
+		req := httptest.NewRequest(http.MethodGet, "/", nil)
+		req.Header.Set("User-Agent", agent)
+		rec := httptest.NewRecorder()
+		routes().ServeHTTP(rec, req)
+		if rec.Code != http.StatusOK {
+			t.Errorf("%s: status = %d, want 200", agent, rec.Code)
+		}
+		if len(rec.Result().Cookies()) != 0 {
+			t.Errorf("%s: set a cookie", agent)
+		}
+		if !strings.Contains(rec.Body.String(), `property="og:image"`) {
+			t.Errorf("%s: document has no og:image tag", agent)
+		}
+	}
+	bins, err := s.getAllBins()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(bins) != 0 {
+		t.Errorf("scrapers created %d bins", len(bins))
+	}
+}
+
 func TestBinInfoReportsCapacityAndReopensAfterDeletion(t *testing.T) {
 	s := useTestStore(t)
 	bin, owner, err := s.createOwnedBin()

@@ -66,8 +66,33 @@ func resolveOwnBin(w http.ResponseWriter, req *http.Request) (Bin, bool) {
 	return bin, true
 }
 
+// linkPreviewAgents are User-Agent fragments of the scrapers that build link
+// previews. They drop cookies between the redirect and the bin page, so the
+// usual flow would hand them a 404 — and a fresh, never-used bin per share.
+var linkPreviewAgents = []string{
+	"facebookexternalhit", "facebot", "linkedinbot", "twitterbot",
+	"slackbot", "discordbot", "whatsapp", "telegrambot", "redditbot",
+	"skypeuripreview", "mastodon", "bluesky", "embedly",
+}
+
+func isLinkPreviewAgent(req *http.Request) bool {
+	agent := strings.ToLower(req.UserAgent())
+	for _, fragment := range linkPreviewAgents {
+		if strings.Contains(agent, fragment) {
+			return true
+		}
+	}
+	return false
+}
+
 func home(w http.ResponseWriter, req *http.Request) {
 	noStore(w)
+	// The application document carries the Open Graph and Twitter tags, and
+	// without a bin it holds nothing private.
+	if isLinkPreviewAgent(req) {
+		writePageShell(w)
+		return
+	}
 	bin, ok := resolveOwnBin(w, req)
 	if !ok {
 		return
