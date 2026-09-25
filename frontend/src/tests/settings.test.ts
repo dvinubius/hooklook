@@ -59,8 +59,8 @@ describe('HelpGuide', () => {
     expect(html).toContain('capture requests')
     expect(html).toContain('as a base URL')
     expect(html).toContain('aria-label="Copy example request"')
-    expect(textOf(html)).toContain('roughly 100MB')
-    expect(textOf(html)).toContain('at most 500 requests')
+    expect(textOf(html)).toContain('up to 100 MB of request bodies and 500 requests')
+    expect(textOf(html)).toContain('can be up to 10 MB')
   })
 
   it('says how a bin is kept', async () => {
