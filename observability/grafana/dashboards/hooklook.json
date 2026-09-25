@@ -610,7 +610,7 @@
         "graphMode": "area",
         "justifyMode": "auto"
       },
-      "description": "Bins removed by expiry cleanup during the past 24 hours."
+      "description": "Bins removed by expiry cleanup during the past 24 hours"
     },
     {
       "id": 23,
