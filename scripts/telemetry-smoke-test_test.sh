@@ -43,7 +43,8 @@ case "$*" in
       mixed) printf '%s\n' '{"data":{"activeTargets":[{"health":"up"},{"health":"unknown"}]}}' ;;
       none) printf '%s\n' '{"data":{"activeTargets":[]}}' ;;
     esac ;;
-  *'/api/datasources/proxy/uid/hooklook-loki/'*) printf '%s\n' '{"data":{"result":[{}]}}' ;;
+  *'/api/datasources/proxy/uid/hooklook-loki/'*)
+    [[ ${SMOKE_TEST_LOKI:-new} == new ]] && printf '%s\n' '{"data":{"result":[{}]}}' || printf '%s\n' '{"data":{"result":[]}}' ;;
   *'/api/datasources/uid/'*) printf '%s\n' '{"status":"OK"}' ;;
 esac
 MOCK
@@ -63,6 +64,7 @@ grep -q 'Telemetry smoke test passed.' "$temporary_dir/output"
 grep -q 'hooklook-prometheus/api/v1/targets' "$temporary_dir/smoke.log"
 grep -q 'scrapePool=hooklook' "$temporary_dir/smoke.log"
 grep -q 'hooklook-loki/loki/api/v1/query_range' "$temporary_dir/smoke.log"
+grep -qE ' start=[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z .*hooklook-loki/' "$temporary_dir/smoke.log"
 ! grep -q ' port grafana 3000' "$temporary_dir/smoke.log"
 grep -q ' inspect --format ' "$temporary_dir/smoke.log"
 grep -q 'compose --env-file .env.observability --env-file .env.image --profile observability ps' "$temporary_dir/smoke.log"
@@ -83,6 +85,16 @@ for prometheus_state in down mixed none; do
   fi
   grep -q 'Prometheus reports Hooklook as up did not pass' "$temporary_dir/output"
 done
+
+# No Hooklook line since the test started: the current pipeline shipped nothing.
+: >"$temporary_dir/smoke.log"
+if PATH="$temporary_dir/bin:$PATH" SMOKE_TEST_LOG="$temporary_dir/smoke.log" \
+  SMOKE_TEST_LOKI=old SMOKE_TEST_TIMEOUT_SECONDS=1 \
+  bash "$temporary_dir/project/scripts/telemetry-smoke-test.sh" full >"$temporary_dir/output" 2>&1; then
+  printf '%s\n' 'Telemetry smoke test accepted Loki without a new Hooklook log.' >&2
+  exit 1
+fi
+grep -q 'Loki received a Hooklook log from this test did not pass' "$temporary_dir/output"
 
 if PATH="$temporary_dir/bin:$PATH" SMOKE_TEST_LOG="$temporary_dir/smoke.log" \
   SMOKE_TEST_BAD_BIND=1 \

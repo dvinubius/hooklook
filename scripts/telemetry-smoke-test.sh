@@ -100,9 +100,11 @@ prometheus_target_up() {
   grep -q '"health":"up"' <<<"$targets" && ! grep -qE '"health":"(down|unknown)"' <<<"$targets"
 }
 
-loki_has_hooklook_log() {
+loki_has_new_hooklook_log() {
+  # Only a line logged during this test proves that the running Alloy and Loki
+  # ship logs; without a start, older lines in Loki would satisfy the query.
   grafana_get --get --data-urlencode 'query={service="hooklook"}' \
-    --data-urlencode 'limit=1' \
+    --data-urlencode "start=$logs_since" --data-urlencode 'limit=1' \
     http://127.0.0.1:3001/api/datasources/proxy/uid/hooklook-loki/loki/api/v1/query_range |
     grep -q '"result":\[{'
 }
@@ -112,11 +114,13 @@ datasource_healthy() {
     grep -q '"status":"OK"'
 }
 
+# The /ready and /health requests below each log an http_request line.
+logs_since=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 curl --fail --silent http://127.0.0.1:8081/ready >/dev/null
 curl --fail --silent http://127.0.0.1:8081/health >/dev/null
 printf '%s\n' 'PASS: Hooklook is live and SQLite is ready.'
 wait_for 'Prometheus reports Hooklook as up' prometheus_target_up
-wait_for 'Loki contains a Hooklook application log' loki_has_hooklook_log
+wait_for 'Loki received a Hooklook log from this test' loki_has_new_hooklook_log
 wait_for 'Grafana Prometheus datasource is healthy' datasource_healthy hooklook-prometheus
 wait_for 'Grafana Loki datasource is healthy' datasource_healthy hooklook-loki
 wait_for 'Hooklook dashboard is provisioned' dashboard_ready
