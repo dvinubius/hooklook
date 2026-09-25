@@ -111,17 +111,29 @@ services has a public Caddy route. See the
 
 ## Operator credentials, deployment, and recovery
 
-Operators load an untracked local `.env.production` before running the
-deployment script, which reads the exported values and writes Hooklook's
-remote environment files with mode `0600`. It excludes local
-`.env*` files from source sync, keeps Grafana credentials in the separate
-remote `.env.observability`, and does not touch zibs or Caddy deployments.
-Compose environment variables remain visible to host administrators and
-anyone with Docker daemon access. The deployment user defaults to `root` over
-SSH, so protect that SSH access and the local deployment environment as
-production credentials. Dashboard-only deployment syncs one JSON file;
-observability-only deployment can recreate the Hooklook container if a network
-attachment changes. See the [deployment runbook](deployment-runbook.md).
+GitHub Actions deploys over SSH as `hooklook-deploy`, an account used only
+for deployment, with a dedicated ed25519 key marked `restrict` in its
+`authorized_keys`. Docker group membership makes that account effectively
+root on the host, so the private key lives only in the `production`
+environment secret, whose deployments are limited to `main`, and on the
+operator's workstation. The workflow checks the VPS host key against the
+verified `DEPLOY_KNOWN_HOSTS` line and never scans it. For a full deployment,
+the VPS receives the run's short-lived `GITHUB_TOKEN` on stdin, logs in to
+GHCR with a temporary Docker config, and deletes it after the pull; the VPS
+holds no Git credential or PAT and never clones the repository.
+
+Runtime secrets stay on the VPS in `.env` and `.env.observability` (mode
+`0600`); deployments never write them. Compose environment variables remain
+visible to host administrators and anyone with Docker daemon access.
+Dashboard-only deployment installs one JSON file; observability-only
+deployment recreates Prometheus, Alloy, Loki, and Grafana but not Hooklook.
+Neither touches zibs or Caddy.
+
+Because the runners' addresses change, SSH is reachable from any source.
+`sshd` accepts keys only (no password or keyboard-interactive login, root by
+key only), limits authentication attempts and unauthenticated connection
+time, and fail2ban bans addresses that repeatedly fail. See the
+[deployment runbook](deployment-runbook.md#ssh-reachability-and-hardening).
 
 The live SQLite database resides in `hooklook-data`. The backup command
 creates a consistent snapshot and a SHA-256 sidecar outside that volume, with

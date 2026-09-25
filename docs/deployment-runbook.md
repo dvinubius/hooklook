@@ -97,10 +97,20 @@ The workflow expects a GitHub environment named `production` holding:
 | `DEPLOY_USER` | variable | `hooklook-deploy` |
 | `DEPLOY_KNOWN_HOSTS` | variable | Verified `known_hosts` line(s) for `DEPLOY_HOST` |
 
-Restrict the environment's deployment branches to `main`, and protect `main`
-with the `test` job as a required check. Environment secrets and branch
-protection on a private repository require a paid GitHub plan; on GitHub Free,
-store the same names as repository secrets and variables instead.
+Environment secrets and branch protection on a private repository require a
+paid GitHub plan; on GitHub Free, store the same names as repository secrets
+and variables instead. The repository is public, so both are available.
+
+Create the environment first (`gh secret set --env` fails when it does not
+exist) and allow deployments from `main` only:
+
+```bash
+gh api -X PUT repos/dvinubius/hooklook/environments/production \
+  -F 'deployment_branch_policy[protected_branches]=false' \
+  -F 'deployment_branch_policy[custom_branch_policies]=true'
+gh api -X POST repos/dvinubius/hooklook/environments/production/deployment-branch-policies \
+  -f name=main -f type=branch
+```
 
 Generate the dedicated key locally and never reuse the operator's key:
 
@@ -110,11 +120,16 @@ ssh-keygen -t ed25519 -N '' -C hooklook-github-deploy -f ~/.ssh/hooklook_github_
 
 Take the host key from a channel you already trust, such as an existing SSH
 session, and never from an unverified `ssh-keyscan` in the workflow. On the
-VPS:
+VPS, print the line with the address written exactly as `DEPLOY_HOST` will
+hold it (an IP and a hostname do not match each other):
 
 ```bash
-printf '%s %s\n' "$DEPLOY_HOST" "$(cut -d' ' -f1,2 /etc/ssh/ssh_host_ed25519_key.pub)"
+printf '%s %s\n' '<vps address>' "$(cut -d' ' -f1,2 /etc/ssh/ssh_host_ed25519_key.pub)"
+ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub
 ```
+
+Its fingerprint must match the one your workstation already trusts
+(`ssh-keygen -F '<vps address>' -l`).
 
 Then, from the repository:
 
@@ -123,6 +138,18 @@ gh secret set DEPLOY_SSH_KEY --env production <~/.ssh/hooklook_github_deploy
 gh variable set DEPLOY_HOST --env production --body "<vps address>"
 gh variable set DEPLOY_USER --env production --body hooklook-deploy
 gh variable set DEPLOY_KNOWN_HOSTS --env production --body "<known_hosts line>"
+```
+
+Protect `main` against force pushes and deletion, and require the `test` job.
+A rewritten `main` leaves the manifest's commit off the branch's history,
+which the classifier treats as a full deployment. Direct pushes by the
+repository admin bypass the required check (GitHub reports the bypass); the
+workflow still deploys nothing unless `test` passes.
+
+```bash
+gh api -X PUT repos/dvinubius/hooklook/branches/main/protection --input - <<'JSON'
+{"required_status_checks":{"strict":false,"contexts":["test"]},"enforce_admins":false,"required_pull_request_reviews":null,"restrictions":null,"allow_force_pushes":false,"allow_deletions":false}
+JSON
 ```
 
 GHCR publication uses the workflow's `GITHUB_TOKEN`. The package is linked to
@@ -149,10 +176,57 @@ chown -R hooklook-deploy:hooklook-deploy /opt/hooklook
 chmod 600 /opt/hooklook/.env /opt/hooklook/.env.observability
 ```
 
+Before handing the key to GitHub, confirm from the workstation that it logs
+in and reaches Docker:
+
+```bash
+ssh -i ~/.ssh/hooklook_github_deploy -o IdentitiesOnly=yes hooklook-deploy@<vps address> 'id; docker ps --format "{{.Names}}"'
+```
+
 `flock` (util-linux), `curl`, Docker, and the Compose plugin must be
 installed. The runtime secrets in `.env` and `.env.observability` stay owned
 by the VPS; to change one, edit the file on the host and run
 `./scripts/compose.sh up -d --no-build` (see below).
+
+### SSH reachability and hardening
+
+GitHub-hosted runners connect from changing addresses that cannot be
+allowlisted, so the Hetzner Cloud firewall allows inbound TCP 22 from any
+IPv4 and IPv6 source, and `ci-deploy.sh` assumes port 22. Before opening it,
+make `sshd` accept keys only. Ubuntu leaves password login on unless it is
+set, and the first value `sshd` reads wins, so use an early drop-in and keep
+a root session open while testing:
+
+```bash
+printf '%s\n' 'PasswordAuthentication no' 'KbdInteractiveAuthentication no' \
+  'PermitRootLogin prohibit-password' 'PubkeyAuthentication yes' \
+  'MaxAuthTries 3' 'LoginGraceTime 20' 'MaxStartups 10:30:60' \
+  >/etc/ssh/sshd_config.d/00-hardening.conf
+sshd -t && systemctl reload ssh
+sshd -T | grep -Ei '^(passwordauthentication|kbdinteractiveauthentication|permitrootlogin|maxauthtries|logingracetime|maxstartups) '
+```
+
+From a second terminal, key logins must still work and
+`ssh -o PubkeyAuthentication=no root@<vps address>` must fail with
+`Permission denied (publickey)`. If `sshd -T` lists `allowusers` or
+`allowgroups`, add `hooklook-deploy` there.
+
+fail2ban bans addresses that keep failing to log in, which trims bot noise;
+the runners and operator keys do not fail, so they are not banned:
+
+```bash
+apt install fail2ban
+printf '%s\n' '[sshd]' 'enabled = true' 'backend = systemd' 'maxretry = 5' \
+  'findtime = 10m' 'bantime = 1h' 'bantime.increment = true' \
+  >/etc/fail2ban/jail.d/sshd.local
+systemctl enable --now fail2ban
+fail2ban-client status sshd
+```
+
+An operator locked out by repeated failures unbans from the Hetzner web
+console with `fail2ban-client set sshd unbanip <ip>`. Do not enable `ufw` for
+rate limiting on this Docker host; Docker bypasses it for published ports and
+a default-deny policy can cut off SSH or Caddy.
 
 ### First GHCR deployment
 
