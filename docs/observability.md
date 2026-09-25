@@ -155,8 +155,8 @@ Capacity and storage, SQLite, Expiry cleanup, Runtime, and Application logs
 sections. Its stat panels show current availability and small operational
 summaries; time series preserve trends and the Loki panel shows recent safe
 application logs. Dashboard JSON in the repository is the durable layout
-source. Use `DEPLOY_PROFILE=dashboard ./scripts/deploy.sh` to update only that
-JSON and verify Grafana provisioning.
+source. A push to `main` that changes only that JSON deploys just the file and
+verifies Grafana provisioning.
 
 After a full or observability deployment, the
 [`telemetry-smoke-test.sh`](../scripts/telemetry-smoke-test.sh) checks Grafana's

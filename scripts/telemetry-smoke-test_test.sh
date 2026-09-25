@@ -5,7 +5,8 @@ project_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
 temporary_dir=$(mktemp -d)
 trap 'rm -rf "$temporary_dir"' EXIT
 mkdir -p "$temporary_dir/project/scripts" "$temporary_dir/bin"
-cp "$project_dir/scripts/telemetry-smoke-test.sh" "$temporary_dir/project/scripts/"
+cp "$project_dir/scripts/telemetry-smoke-test.sh" "$project_dir/scripts/compose.sh" "$temporary_dir/project/scripts/"
+printf '%s\n' 'HOOKLOOK_IMAGE=ghcr.io/example/hooklook@sha256:0000' >"$temporary_dir/project/.env.image"
 printf 'GRAFANA_ADMIN_USER=operator\nGRAFANA_ADMIN_PASSWORD=abcdefghijklmnopqrstuvwxyz123456\n' >"$temporary_dir/project/.env.observability"
 
 cat >"$temporary_dir/bin/docker" <<'MOCK'
@@ -57,6 +58,7 @@ grep -q 'hooklook-prometheus/api/v1/query' "$temporary_dir/smoke.log"
 grep -q 'hooklook-loki/loki/api/v1/query_range' "$temporary_dir/smoke.log"
 ! grep -q ' port grafana 3000' "$temporary_dir/smoke.log"
 grep -q ' inspect --format ' "$temporary_dir/smoke.log"
+grep -q 'compose --env-file .env.observability --env-file .env.image --profile observability ps' "$temporary_dir/smoke.log"
 
 : >"$temporary_dir/smoke.log"
 run_smoke dashboard >"$temporary_dir/output"

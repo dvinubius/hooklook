@@ -173,22 +173,24 @@ shared network from this project.
 
 ### Deploying to the VPS
 
-Deploy a prepared VPS with [`scripts/deploy.sh`](scripts/deploy.sh). It tests
-locally before contacting the host and deploys the Hooklook service by default.
-Use `DEPLOY_PROFILE=full` with separate Hooklook Grafana credentials to include
-the private telemetry stack. After the first full deployment,
-`DEPLOY_PROFILE=observability` updates only telemetry configuration and services,
-and `DEPLOY_PROFILE=dashboard` uploads only the operator dashboard JSON. Full
-and observability deployments run telemetry smoke checks; dashboard updates
-check Grafana provisioning. See the [deployment runbook](docs/deployment-runbook.md) for prerequisites,
-configuration, rollout, verification, diagnostics, and rollback.
+Pushes to `main` deploy through GitHub Actions
+([`deploy.yml`](.github/workflows/deploy.yml)). After tests pass, the workflow
+classifies every change since the last verified production deployment:
+docs-only changes deploy nothing, a dashboard change or other observability
+change updates only that part of the telemetry stack, and anything else is a
+full deployment. A full deployment publishes the image to GHCR and the VPS
+pulls that exact digest; the VPS never builds or clones the source. Failed
+checks restore the previous deployment. On the VPS, run Compose through
+`scripts/compose.sh`, which pins the deployed image. See the
+[deployment runbook](docs/deployment-runbook.md) for one-time setup,
+operation, and rollback.
 
 ## Tests
 
 ```bash
 make test        # frontend (vitest) and Go tests
 make test-race   # Go race detector
-make test-deploy # deployment safety-gate behavior
+make test-deploy # deployment classifier, CI, and VPS deploy behavior
 make test-backup # backup-wrapper safety behavior
 make test-verify-public # public-verifier input-safety behavior
 make vet

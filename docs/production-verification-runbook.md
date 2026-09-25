@@ -57,18 +57,18 @@ application image, then start the same service again:
 
 ```bash
 cd /opt/hooklook
-docker compose stop -t 15 hooklook
-docker compose logs --since=2m hooklook
-docker compose run --rm --no-deps --user 0 \
+./scripts/compose.sh stop -t 15 hooklook
+./scripts/compose.sh logs --since=2m hooklook
+./scripts/compose.sh run --rm --no-deps --user 0 \
   hooklook integrity-check /data/hooklook.db
-docker compose up -d --no-deps hooklook
+./scripts/compose.sh up -d --no-deps --no-build hooklook
 curl --fail http://127.0.0.1:8081/health
 curl --fail https://hooklook.app/health
 ```
 
 The stop log should include the orderly shutdown message, and the integrity
 command must print `ok`. To observe an SSE close specifically, open an
-authorized `curl --no-buffer` SSE connection before `docker compose stop`; it
+authorized `curl --no-buffer` SSE connection before stopping the service; it
 should terminate cleanly when the service stops.
 
 ## Exposure checks
@@ -78,7 +78,7 @@ shared Caddy network:
 
 ```bash
 cd /opt/hooklook
-docker compose ps
+./scripts/compose.sh ps
 docker network inspect hooklook-edge
 ```
 

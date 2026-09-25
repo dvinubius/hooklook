@@ -8,18 +8,20 @@ trap 'rm -rf "$temporary_dir"' EXIT
 
 mkdir -p "$temporary_dir/project/scripts" "$temporary_dir/bin" \
 	"$temporary_dir/data-volume" "$temporary_dir/backups"
-cp "$project_dir/scripts/backup.sh" "$temporary_dir/project/scripts/backup.sh"
+cp "$project_dir/scripts/backup.sh" "$project_dir/scripts/compose.sh" "$temporary_dir/project/scripts/"
+printf '%s\n' 'ADMIN_TOKEN=test' >"$temporary_dir/project/.env"
+printf '%s\n' 'HOOKLOOK_IMAGE=ghcr.io/example/hooklook@sha256:0000' >"$temporary_dir/project/.env.image"
 
 cat >"$temporary_dir/bin/docker" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
 
 printf '%s\n' "$*" >>"$BACKUP_TEST_LOG"
-if [[ $1 == compose && $2 == ps ]]; then
+if [[ $1 == compose && " $* " == *" ps "* ]]; then
 	printf '%s\n' test-container
 	elif [[ $1 == inspect ]]; then
 	printf '%s\n' "$BACKUP_TEST_DATA_DIR"
-	elif [[ $1 == compose && $2 == run ]]; then
+	elif [[ $1 == compose && " $* " == *" run "* ]]; then
 	for argument in "$@"; do
 		if [[ $argument == /backups/*.db ]]; then
 			touch "${BACKUP_TEST_BACKUP_DIR}/${argument#/backups/}"
@@ -117,6 +119,7 @@ run_success_test() {
 		sha256sum --check "$(basename "$checksum_path")" >/dev/null
 	)
 	assert_contains "Backup complete: $backup_path" "$output"
+	assert_contains 'compose --env-file .env --env-file .env.image run' "$(cat "$temporary_dir/docker.log")"
 	assert_contains "--volume $canonical_backup_dir:/backups hooklook backup /backups/$(basename "$backup_path")" "$(cat "$temporary_dir/docker.log")"
 }
 

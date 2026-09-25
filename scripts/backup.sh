@@ -15,7 +15,7 @@ backup_dir=${BACKUP_DIR:-}
 backup_dir=$(cd -- "$backup_dir" && pwd -P)
 
 cd "$project_dir"
-container_id=$(docker compose ps -q hooklook)
+container_id=$(scripts/compose.sh ps -q hooklook)
 [[ -n $container_id ]] || die 'Hooklook is not running; cannot locate its live data volume.'
 data_dir=$(docker inspect --format '{{range .Mounts}}{{if eq .Destination "/data"}}{{.Source}}{{end}}{{end}}' "$container_id")
 [[ -n $data_dir && -d $data_dir ]] || die 'Could not locate Hooklook data volume on this host.'
@@ -35,7 +35,7 @@ checksum_path="$backup_path.sha256"
 # The temporary root user is limited to the one-off container so it can write
 # to an operator-selected host directory. The long-running service stays
 # non-root. The application's backup command uses SQLite VACUUM INTO.
-docker compose run --rm --no-deps --user 0 \
+scripts/compose.sh run --rm --no-deps --user 0 \
 	--volume "$backup_dir:/backups" \
 	hooklook backup "/backups/$backup_name"
 

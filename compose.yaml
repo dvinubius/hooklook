@@ -1,9 +1,9 @@
 name: hooklook
 services:
   hooklook:
-    image: hooklook:latest
-    build:
-      context: .
+    # A published GHCR digest from the VPS-owned .env.image. The host never
+    # builds Hooklook; run Compose through scripts/compose.sh.
+    image: ${HOOKLOOK_IMAGE:?Set HOOKLOOK_IMAGE to a published image digest in .env.image.}
     environment:
       PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:?Set PUBLIC_BASE_URL in the deployment environment.}
       ADMIN_TOKEN: ${ADMIN_TOKEN:?Set ADMIN_TOKEN in the deployment environment.}

@@ -44,7 +44,7 @@ backup script:
 ```bash
 cd /opt/hooklook
 backup_file=/var/backups/hooklook/hooklook-YYYYmmddTHHMMSSZ.db
-docker compose run --rm --no-deps --user 0 \
+./scripts/compose.sh run --rm --no-deps --user 0 \
   --volume "$(dirname "$backup_file"):/backups" \
   hooklook integrity-check "/backups/$(basename "$backup_file")"
 ```
@@ -78,6 +78,7 @@ chown 10001:10001 "$restore_dir" "$restore_dir/hooklook.db"
 
 set -a
 source /opt/hooklook/.env
+source /opt/hooklook/.env.image
 set +a
 ```
 
@@ -87,7 +88,7 @@ Run the application-provided SQLite integrity check against the isolated copy:
 docker run --rm --user 0 --network none \
   --read-only --tmpfs /tmp \
   --volume "$restore_dir:/data" \
-  hooklook:latest integrity-check /data/hooklook.db
+  "$HOOKLOOK_IMAGE" integrity-check /data/hooklook.db
 ```
 
 It must print `ok`. Then start the restored database on an alternate loopback
@@ -103,7 +104,7 @@ docker run --detach --rm \
   --env LISTEN_ADDRESS=0.0.0.0:8080 \
   --publish 127.0.0.1:18081:8080 \
   --volume "$restore_dir:/data" \
-  hooklook:latest
+  "$HOOKLOOK_IMAGE"
 
 curl --fail http://127.0.0.1:18081/health
 curl --fail -H "Authorization: Bearer $ADMIN_TOKEN" \

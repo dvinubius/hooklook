@@ -40,7 +40,9 @@ test-race:
 	go test -race ./...
 
 test-deploy:
-	./scripts/deploy_test.sh
+	./scripts/classify-deploy_test.sh
+	./scripts/ci-deploy_test.sh
+	./scripts/remote-deploy_test.sh
 	./scripts/telemetry-smoke-test_test.sh
 
 test-backup:

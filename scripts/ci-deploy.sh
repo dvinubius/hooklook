@@ -1,0 +1,142 @@
+#!/usr/bin/env bash
+
+# GitHub Actions side of production deployment. It never builds on the VPS and
+# never gives the VPS Git access: it reads the VPS deployment manifest, chooses
+# a mode from every change since that verified deployment, and uploads an
+# allowlisted bundle taken from the exact target commit.
+#
+# Usage:
+#   ci-deploy.sh validate                      Validate the dashboard JSON.
+#   ci-deploy.sh plan <target-sha> [full]      Print none|dashboard|observability|full.
+#   ci-deploy.sh deploy <mode> <target-sha> [image]
+#
+# plan and deploy need DEPLOY_HOST, DEPLOY_USER, DEPLOY_SSH_KEY_FILE, and
+# DEPLOY_KNOWN_HOSTS_FILE (a verified host-key entry). A full deploy needs
+# HOOKLOOK_IMAGE_REPOSITORY (ghcr.io/<owner>/hooklook) and pulls with
+# GHCR_USER/GHCR_PULL_TOKEN when both are set.
+
+set -euo pipefail
+
+project_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
+cd "$project_dir"
+
+remote_dir=/opt/hooklook
+dashboard_path=observability/grafana/dashboards/hooklook.json
+
+die() {
+	printf '%s\n' "$*" >&2
+	exit 1
+}
+
+validate_dashboard() {
+	python3 - "$dashboard_path" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1], encoding="utf-8") as source:
+    dashboard = json.load(source)
+if dashboard.get("uid") != "hooklook-operator" or not isinstance(dashboard.get("panels"), list) or "apiVersion" in dashboard:
+    raise SystemExit("hooklook.json must be a classic Grafana dashboard with UID hooklook-operator")
+PY
+}
+
+require_target() {
+	[[ $1 =~ ^[0-9a-f]{40}$ ]] || die 'Target must be a full commit SHA.'
+	git cat-file -e "$1^{commit}" 2>/dev/null || die "Target commit is not available: $1"
+}
+
+# Production follows main only. A run whose commit is no longer the head of
+# main is stale; the newer run will deploy from the same unchanged baseline.
+require_main_head() {
+	local head
+	head=$(git ls-remote --exit-code origin refs/heads/main | cut -f1) || die 'Could not read the head of main.'
+	[[ $head == "$1" ]] || die "Stale run: main is at $head, not $1."
+}
+
+ssh_options=()
+require_ssh() {
+	[[ -n ${DEPLOY_HOST:-} && -n ${DEPLOY_USER:-} ]] || die 'DEPLOY_HOST and DEPLOY_USER are required.'
+	[[ -s ${DEPLOY_SSH_KEY_FILE:-} ]] || die 'DEPLOY_SSH_KEY_FILE must name the deployment key.'
+	[[ -s ${DEPLOY_KNOWN_HOSTS_FILE:-} ]] || die 'DEPLOY_KNOWN_HOSTS_FILE must hold the verified host key.'
+	ssh_options=(
+		-i "$DEPLOY_SSH_KEY_FILE"
+		-o BatchMode=yes
+		-o ConnectTimeout=15
+		-o IdentitiesOnly=yes
+		-o StrictHostKeyChecking=yes
+		-o UserKnownHostsFile="$DEPLOY_KNOWN_HOSTS_FILE"
+	)
+}
+
+remote() {
+	ssh "${ssh_options[@]}" "$DEPLOY_USER@$DEPLOY_HOST" "$@"
+}
+
+plan() {
+	local target=$1 force=${2:-} manifest deployed
+	require_target "$target"
+	require_ssh
+	# A missing manifest means no verified GHCR deployment yet; an SSH failure
+	# stops the run instead of guessing.
+	manifest=$(remote "cat '$remote_dir/.deploy/manifest' 2>/dev/null || true") ||
+		die 'Could not read the deployment manifest over SSH.'
+	deployed=$(sed -n 's/^commit=//p' <<<"$manifest" | tail -n 1)
+	printf 'Last verified deployment: %s\n' "${deployed:-none}" >&2
+	if [[ $force == full ]]; then
+		printf '%s\n' full
+		return
+	fi
+	bash scripts/classify-deploy.sh "$deployed" "$target"
+}
+
+build_bundle() {
+	git archive --format=tar "$1" -- compose.yaml observability scripts \
+		':(exclude)scripts/*_test.sh' \
+		':(exclude)scripts/ci-deploy.sh' \
+		':(exclude)scripts/classify-deploy.sh'
+}
+
+deploy() {
+	local mode=$1 target=$2 image=${3:-} staging token_stdin=/dev/null remote_env=
+	case $mode in
+	full)
+		[[ -n ${HOOKLOOK_IMAGE_REPOSITORY:-} ]] || die 'HOOKLOOK_IMAGE_REPOSITORY is required for a full deployment.'
+		[[ $image =~ ^${HOOKLOOK_IMAGE_REPOSITORY//./\\.}@sha256:[0-9a-f]{64}$ ]] ||
+			die "Image must be $HOOKLOOK_IMAGE_REPOSITORY@sha256:<digest>."
+		;;
+	observability | dashboard) [[ -z $image ]] || die "A $mode deployment does not take an image." ;;
+	*) die 'Mode must be full, observability, or dashboard.' ;;
+	esac
+	require_target "$target"
+	validate_dashboard
+	require_ssh
+	require_main_head "$target"
+
+	staging=$remote_dir/.deploy/staging/$target
+	build_bundle "$target" |
+		remote "rm -rf '$staging' && mkdir -p '$staging' && tar -x -C '$staging'"
+
+	if [[ $mode == full && -n ${GHCR_USER:-} && -n ${GHCR_PULL_TOKEN:-} ]]; then
+		[[ $GHCR_USER =~ ^[A-Za-z0-9-]+(\[bot\])?$ ]] || die 'GHCR_USER is not a GitHub login.'
+		remote_env="GHCR_USER='$GHCR_USER' "
+		token_stdin=<(printf '%s\n' "$GHCR_PULL_TOKEN")
+	fi
+	remote "${remote_env}bash '$staging/scripts/remote-deploy.sh' $mode $target $image; status=\$?; rm -rf '$staging'; exit \$status" \
+		<"$token_stdin"
+}
+
+case ${1:-} in
+validate)
+	validate_dashboard
+	printf '%s\n' 'Dashboard JSON is valid.'
+	;;
+plan)
+	[[ $# -ge 2 && $# -le 3 ]] || die 'Usage: ci-deploy.sh plan <target-sha> [full]'
+	plan "$2" "${3:-}"
+	;;
+deploy)
+	[[ $# -ge 3 && $# -le 4 ]] || die 'Usage: ci-deploy.sh deploy <mode> <target-sha> [image]'
+	deploy "$2" "$3" "${4:-}"
+	;;
+*) die 'Usage: ci-deploy.sh validate | plan <target-sha> [full] | deploy <mode> <target-sha> [image]' ;;
+esac

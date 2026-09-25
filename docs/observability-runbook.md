@@ -43,6 +43,7 @@ this milestone. Validate Compose with placeholders, without starting services:
 ```sh
 PUBLIC_BASE_URL=https://example.invalid ADMIN_TOKEN=placeholder \
   GRAFANA_ADMIN_USER=operator GRAFANA_ADMIN_PASSWORD=placeholder \
+  HOOKLOOK_IMAGE=ghcr.io/example/hooklook@sha256:$(printf '0%.0s' {1..64}) \
   docker compose --profile observability config --quiet
 ```
 
@@ -65,24 +66,22 @@ v1.23.2 (2025-09-05). All predate the repository's age threshold.
 
 ## Deployment preparation and private access
 
-Set unique `GRAFANA_ADMIN_USER` and `GRAFANA_ADMIN_PASSWORD` in the local
-untracked deployment environment. Use at least 24 URL-safe characters for the
-password. `DEPLOY_PROFILE=full ./scripts/deploy.sh` is the explicit full-stack
-mode. It runs local Go tests first, updates Hooklook only, writes credentials
-to a mode-600 `/opt/hooklook/.env.observability`, and starts the four telemetry
-services and runs `telemetry-smoke-test.sh` after startup. The default
-`core` mode updates only the app. Once the stack exists,
-`DEPLOY_PROFILE=observability` syncs telemetry configuration and Compose,
-updates Prometheus, Alloy, Loki, and Grafana, then runs the same smoke
-checks. It also checks the app's Compose network attachment without rebuilding
-the image; the first run after a network rename recreates the app container
-using the existing image and data volume. `DEPLOY_PROFILE=dashboard` validates
-and syncs only the dashboard JSON, touches it for Grafana polling, then verifies
-the dashboard API. These two
-update modes require only `DEPLOY_HOST` and use the existing remote
-`.env.observability`; dashboard mode does not restart Hooklook. The existing
-`hooklook-data` volume remains unchanged. No command in this runbook deploys
-anything automatically.
+Grafana credentials live only in the VPS-owned, mode-0600
+`/opt/hooklook/.env.observability` (`GRAFANA_ADMIN_USER`, and a
+`GRAFANA_ADMIN_PASSWORD` of at least 24 URL-safe characters). Its presence is
+what makes deployment manage the telemetry stack.
+
+Pushes to `main` deploy through GitHub Actions; see the
+[deployment runbook](deployment-runbook.md). A full deployment recreates the
+app from its GHCR image, recreates the four telemetry services, and runs
+`telemetry-smoke-test.sh`. A push that changes only `observability/` files
+other than the dashboard installs that directory, recreates Prometheus, Alloy,
+Loki, and Grafana, and runs the same smoke checks without pulling or
+recreating the app. A push that changes only
+`observability/grafana/dashboards/hooklook.json` installs that file and checks
+the dashboard API after Grafana's polling interval, with no Compose `up`.
+Changing both the dashboard and other observability files is a full
+deployment. The `hooklook-data` volume remains unchanged.
 
 Only Grafana publishes a port: `127.0.0.1:3001:3000`. Use an SSH tunnel from
 the operator workstation, then open `http://127.0.0.1:3001`:
@@ -129,8 +128,8 @@ behavior. Configure two alerts only when a notification destination exists:
 SQLite/volume capacity approaching the limit and any `store_full` rejection.
 The dashboard also shows scrape loss, repeated cleanup failures, and 5xx.
 
-For rollback, stop only Hooklook telemetry containers with
-`docker compose --profile observability stop prometheus alloy loki grafana`.
-Keep their named volumes for investigation. If the app instrumentation itself
-needs rollback, restore the previous Hooklook image using the deployment
-runbook. Do not modify Caddy, zibs, or host monitoring.
+A failed telemetry deployment restores its snapshot automatically. To reverse a
+successful one, use the snapshot rollback in the deployment runbook. To stop
+only the Hooklook telemetry containers, run
+`./scripts/compose.sh stop prometheus alloy loki grafana` from
+`/opt/hooklook`, and keep their named volumes for investigation. Do not modify Caddy, zibs, or host monitoring.

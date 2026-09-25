@@ -82,8 +82,8 @@ Before starting or recreating the production service, run
 Docker's data root and requires at least `2 × MAX_STORE + 2,000,000,000` bytes
 free: one full configured database-growth allowance, one SQLite backup staging
 copy, and 2 GB for images, journals, and ordinary deployment work. With the
-default `MAX_STORE`, that is 12 GB. The later deployment script calls this same
-check before `docker compose up`.
+default `MAX_STORE`, that is 12 GB. A full deployment runs this same check
+before it pulls an image or changes containers.
 
 The application is published only on VM loopback; public traffic reaches it
 through the separately managed Caddy ingress. Its body-size, header-size, and

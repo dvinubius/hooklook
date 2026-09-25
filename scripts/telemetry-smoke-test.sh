@@ -27,7 +27,7 @@ if [[ ! $grafana_user =~ ^[A-Za-z0-9_-]+$ || ! $grafana_password =~ ^[A-Za-z0-9_
   exit 1
 fi
 
-compose=(docker compose --env-file .env.observability --profile observability)
+compose=(scripts/compose.sh)
 grafana_id=$("${compose[@]}" ps --status running -q grafana)
 if [[ -z $grafana_id ]]; then
   printf '%s\n' 'grafana is not running.' >&2
