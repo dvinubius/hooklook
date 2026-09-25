@@ -51,9 +51,9 @@ watch(
 <template>
   <div class="pane">
     <section ref="scroller" class="detail scroll">
-      <p v-if="selectedId === null" class="comment prompt">// Select a request</p>
+      <p v-if="selectedId === null" class="comment prompt">// select a request</p>
 
-      <p v-else-if="missing" class="placeholder centered shade">
+      <p v-else-if="missing" class="placeholder centered">
         <span class="comment">// request {{ selectedId }} is not in this bin</span>
       </p>
 

@@ -306,7 +306,7 @@ these decisions were made here and should stay consistent:
 
     | Role | Set as | Used for |
     | --- | --- | --- |
-    | `.comment` | mono, `--text-mono-meta`, muted, 0.01em | the machine's own `//` asides — nothing captured yet, no body, bin expired |
+    | `.comment` | mono, `--text-mono-meta`, muted, 0.01em | the machine's own `//` asides — no requests captured yet, no body, bin expired |
     | `.caps` | mono, 500, 0.12em, uppercase, body | section labels, dialog titles, guide headings; carries no size (adaptation 9) |
     | `.fact` | mono, `--text-mono-meta`, dim | a count, a figure, a control label, beside the label it belongs to |
     | `.note` | inherited sans, `--text-small`, `--leading-small`, dim, margin-free | prose meant to be read: dialog notes, the help guide, a page explaining itself |

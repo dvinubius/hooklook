@@ -22,6 +22,7 @@ import SharePopover from './SharePopover.vue'
 import { api, ApiError } from '../api'
 import { browserFeedEnvironment, createFeed } from '../lib/feed'
 import { captureUrl, inviteUrl, pagePath, parseLocation } from '../lib/location'
+import { claimTryInBrowser } from '../lib/tryInBrowser'
 import type { BinSession } from '../lib/session'
 import type { BinAccess, RequestDetail } from '../types'
 
@@ -127,6 +128,29 @@ async function loadDetail(): Promise<void> {
 }
 
 watch(selectedId, () => void loadDetail(), { immediate: true })
+
+// An empty bin has nothing to list or inspect, so the page shows only what to
+// do next. A selection held in the URL keeps the workspace, which reports it
+// as missing; a failed or unfinished fetch keeps it too, to say so.
+const binEmpty = computed(
+  () =>
+    feed.loaded.value &&
+    !feed.error.value &&
+    feed.summaries.value.length === 0 &&
+    selectedId.value === null,
+)
+
+// Each time the empty bin appears it may offer the button, until this browser
+// has been offered it three times. The decision holds for that appearance, so
+// the button does not vanish while it is on screen.
+const showTryInBrowser = ref(false)
+watch(
+  binEmpty,
+  (empty) => {
+    showTryInBrowser.value = empty && claimTryInBrowser()
+  },
+  { immediate: true },
+)
 
 // A selection that the list no longer contains — cleared from another tab, or
 // gone with a clear-all — is reported rather than left showing stale detail.
@@ -309,7 +333,22 @@ onBeforeUnmount(() => {
 
       <hr class="rule" />
 
-      <div class="workspace">
+      <div v-if="binEmpty" class="empty-bin">
+        <p class="comment">
+          // no requests captured yet
+        </p>
+        <!-- A GET from a new tab is a real capture: it arrives here like any
+             other, and the list takes this note's place. -->
+        <a
+          v-if="showTryInBrowser"
+          class="btn btn-outline btn-sm try-in-browser"
+          :href="`${captureUrl(access.bin.code, page.origin)}/test/path?param=value`"
+          target="_blank"
+          rel="noopener noreferrer"
+        >Test in the browser</a>
+      </div>
+
+      <div v-else class="workspace">
         <RequestList
           :summaries="feed.summaries.value"
           :loading="feed.loading.value"
@@ -398,6 +437,25 @@ onBeforeUnmount(() => {
 /* A window too short to leave this much makes the page scroll instead. The
    two panes are parted by the list's own fill now, not by a hairline down
    the gutter. */
+/* Takes the room the workspace would, and puts the note in its middle. */
+.empty-bin {
+  flex: 1;
+  min-height: 280px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 36px;
+}
+.empty-bin p {
+  margin: 0;
+  font-size: var(--text-small);
+}
+/* The one action on an otherwise empty page, a step up from btn-sm. */
+.try-in-browser {
+  padding: 9px 16px;
+  font-size: 14px;
+}
 .workspace {
   --list-width: 440px;
   --column-gap: 32px;

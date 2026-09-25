@@ -12,9 +12,9 @@ defineProps<{ kind: 'expired' | 'shared' }>()
     <main class="page-state">
       <div class="content">
         <p v-if="kind === 'expired'" class="comment message">
-          // This bin has expired or no longer exists.
+          // this bin has expired or no longer exists
         </p>
-        <p v-else class="comment message">// This shared bin no longer exists.</p>
+        <p v-else class="comment message">// this shared bin no longer exists</p>
         <a class="btn btn-primary" href="/">Create New Bin</a>
       </div>
     </main>

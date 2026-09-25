@@ -110,7 +110,7 @@ var expiredBinShell = []byte(`<!doctype html>
 <html lang="en">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="referrer" content="no-referrer"><title>hooklook — bin expired</title></head>
-<body><main><p>// This bin has expired or no longer exists.</p><a href="/">Create New Bin</a></main></body>
+<body><main><p>// this bin has expired or no longer exists</p><a href="/">Create New Bin</a></main></body>
 </html>
 `)
 
@@ -118,7 +118,7 @@ var sharedBinUnavailableShell = []byte(`<!doctype html>
 <html lang="en">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="referrer" content="no-referrer"><title>hooklook — shared bin unavailable</title></head>
-<body><main><p>// This shared bin no longer exists.</p><a href="/">Create New Bin</a></main></body>
+<body><main><p>// this shared bin no longer exists</p><a href="/">Create New Bin</a></main></body>
 </html>
 `)
 

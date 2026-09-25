@@ -186,9 +186,9 @@ describe('RequestList', () => {
     expect(textOf(await render(RequestList, listProps))).not.toContain('Results:')
   })
 
-  it('distinguishes nothing-yet from nothing-matching', async () => {
+  it('distinguishes no-requests-yet from nothing-matching', async () => {
     const empty = await render(RequestList, { ...listProps, summaries: [] })
-    expect(empty).toContain('nothing captured yet')
+    expect(empty).toContain('no requests captured yet')
 
     const loading = await render(RequestList, { ...listProps, loading: true, loaded: false, summaries: [] })
     expect(loading).toContain('loading captured requests')
@@ -260,7 +260,7 @@ describe('RequestDetail', () => {
     const html = await render(RequestDetailView, {
       detail: null, selectedId: null, loading: false, error: '', missing: false,
     })
-    expect(html).toContain('// Select a request')
+    expect(html).toContain('// select a request')
   })
 
   it('leads with the client address when the capture came through the proxy', async () => {
@@ -381,8 +381,8 @@ describe('ServiceFull', () => {
 
 describe('BinUnavailable', () => {
   it.each([
-    ['expired', '// This bin has expired or no longer exists.'],
-    ['shared', '// This shared bin no longer exists.'],
+    ['expired', '// this bin has expired or no longer exists'],
+    ['shared', '// this shared bin no longer exists'],
   ] as const)('renders the %s explanation before the replacement action', async (kind, message) => {
     const html = await render(BinUnavailable, { kind })
     const text = textOf(html)

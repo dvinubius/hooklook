@@ -130,7 +130,7 @@ input,select{font:inherit;border-radius:var(--radius-control);}
 
 .mono{font-family:var(--font-mono);}
 /* The machine's own voice: every line set this way is one of the `//` asides
-   the app answers with — nothing captured yet, no body, bin expired. It is
+   the app answers with — no requests captured yet, no body, bin expired. It is
    incidental by definition, so the tier is part of the role. */
 .comment{
   font-family:var(--font-mono);

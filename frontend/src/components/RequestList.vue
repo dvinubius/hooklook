@@ -185,9 +185,8 @@ function step(event: KeyboardEvent): void {
 
     <p v-if="loading && !loaded" class="comment state">// loading captured requests…</p>
 
-    <p v-else-if="summaries.length === 0" class="state">
-      <span class="comment">// nothing captured yet</span>
-      <span class="hint">Send anything to the capture URL above and it appears here without a reload.</span>
+    <p v-else-if="summaries.length === 0" class="state empty">
+      <span class="comment">// no requests captured yet</span>
     </p>
 
     <!-- What a filter leaves stands where the rows would, under the same
@@ -326,12 +325,16 @@ function step(event: KeyboardEvent): void {
   border-radius: var(--radius-surface);
   font-size: var(--text-small);
 }
+/* An empty bin has nothing below the controls, so its note sits in the
+   middle of the room the column leaves, as the detail prompt does — on the
+   column itself, without a surface of its own. */
+.empty {
+  margin-block: auto;
+  justify-content: center;
+  background: none;
+}
 .clear-filter-btn {
   margin-left: auto;
-}
-.hint {
-  color: var(--text-dim);
-  font-size: var(--text-small);
 }
 /* The line is its own element, so what it introduces starts clear of it. */
 .divider {

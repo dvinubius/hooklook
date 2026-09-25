@@ -33,7 +33,11 @@ server shutdown also close its open event streams.
 Open `/` and hooklook resolves or creates the bin your browser owns, then takes
 you to its page. The page shows the capture URL to send requests to, the live
 list of what has arrived, and the full detail of whichever request is selected.
-A `curl` example to try the URL with is in the help dialog.
+A `curl` example to try the URL with is in the help dialog. While the bin is
+empty, the page shows only a short note instead of the list and detail. For
+the first three times a browser sees that note, it also offers **Test in the
+browser**, which opens `/b/{binCode}/test/path?param=value` in a new tab so its
+GET becomes the first capture. The count is kept in the `hooklook_try_shown` cookie.
 
 Link-preview scrapers (Facebook, LinkedIn, X, Slack, Discord, and similar,
 recognised by User-Agent) get the page document with its Open Graph and
