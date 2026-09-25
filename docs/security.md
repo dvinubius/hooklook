@@ -7,6 +7,12 @@ private telemetry, operator access, and persistent data. This document
 describes the implemented topology and its limits; the
 [architecture](architecture.md) shows the full container diagram.
 
+Public ingress is not in this repository. Caddy, its TLS certificates, public
+ports, routes, and edge limits belong to
+[hetzner-one](https://github.com/dvinubius/hetzner-one); its
+[`Caddyfile`](https://github.com/dvinubius/hetzner-one/blob/main/Caddyfile) is
+the source of truth for the limits described below.
+
 ## Reachability and trust boundaries
 
 | Boundary | Members and exposure | Security purpose |
@@ -19,7 +25,7 @@ describes the implemented topology and its limits; the
 
 Compose fixes the project name to `hooklook`, which prefixes the three
 Compose-owned network names above. `hooklook-edge` is external in the Compose
-sense: Caddy's project creates and owns it. `external` describes network
+sense: Caddy's project, hetzner-one, creates and owns it. `external` describes network
 ownership, while `internal` controls Docker's external routing behavior.
 Neither setting is an application authorization rule. Containers on the same
 bridge can initiate connections to one another; these networks do not provide
@@ -29,10 +35,15 @@ and 9092 to `0.0.0.0` inside its container, so both ports accept connections
 from either network joined by that container. The `9092/tcp` entry in
 `docker compose ps` is exposure metadata, not a host publication or a firewall
 rule. The public cannot reach 9092 through Caddy's current routes, while
-Caddy itself can reach that port on `hooklook-edge`.
+Caddy itself can reach that port on `hooklook-edge`. The reverse also holds:
+Caddy's unpublished metrics listener, port 9180, is on `hooklook-edge`, so the
+Hooklook container can reach it. It serves metrics only, not Caddy's admin API,
+which stays on the Caddy container's loopback; see hetzner-one's
+[topology](https://github.com/dvinubius/hetzner-one/blob/main/docs/topology.md).
 
-Zibs has its own Compose project, networks, telemetry volumes, Grafana
-credentials, and dashboard. Hooklook does not attach to them. Both projects
+Zibs is another application on the same VPS, also served by the shared Caddy
+through its own `zibs-edge` network. It has its own Compose project,
+networks, telemetry volumes, Grafana credentials, and dashboard. Hooklook does not attach to them. Both projects
 still share the VPS and Docker daemon, so project separation does not protect
 one from a compromised host or Docker administrator.
 

@@ -3,9 +3,16 @@
 Pushes to `main` on GitHub deploy Hooklook to the prepared VPS through the
 [`Deploy production`](../.github/workflows/deploy.yml) workflow. The VPS pulls
 a published container image from GHCR; it never clones the repository and
-never builds Hooklook. This runbook does not provision a VM, install Docker,
-configure DNS, or change Caddy, which is shared VPS infrastructure managed from
-`/opt/caddy`.
+never builds Hooklook.
+
+Hooklook does not ship its own public ingress. On the production VPS, TLS, the
+`hooklook.app` route, the public rate, body, and header limits, and the
+`hooklook-edge` Docker network all belong to
+[hetzner-one](https://github.com/dvinubius/hetzner-one), a separate Compose
+project deployed at `/opt/caddy`. This runbook assumes hetzner-one is already
+running. Without it, a full deployment stops at the `hooklook-edge` check, and
+the site is not publicly reachable. This runbook does not provision a VM,
+install Docker, configure DNS, or change Caddy.
 
 ## How a push deploys
 
@@ -66,9 +73,18 @@ deployment; a rollback that also fails is reported as `ROLLBACK FAILED`. Five
 snapshots are kept in `/opt/hooklook/.deploy/snapshots`.
 
 Deployment never touches `.env`, `.env.observability`, the named volumes,
-Caddy, or zibs, and never runs `docker compose down`.
+Caddy, or zibs (another application behind the same Caddy), and never runs `docker compose down`.
 
 ## One-time setup
+
+### Shared ingress
+
+Deploy hetzner-one first by following its
+[deployment runbook](https://github.com/dvinubius/hetzner-one/blob/main/docs/deployment-runbook.md).
+It creates `hooklook-edge`, obtains the `hooklook.app` certificate, and
+proxies that hostname to `hooklook:8080`. DNS for `hooklook.app` must already
+point at the VPS. Until Hooklook joins the network, Caddy answers
+`hooklook.app` with `502`; that is expected before the first deployment.
 
 ### GitHub repository
 
@@ -109,10 +125,10 @@ gh variable set DEPLOY_USER --env production --body hooklook-deploy
 gh variable set DEPLOY_KNOWN_HOSTS --env production --body "<known_hosts line>"
 ```
 
-GHCR publication uses the workflow's `GITHUB_TOKEN`. The package inherits the
-repository's private visibility and access through its
-`org.opencontainers.image.source` label; the VPS needs no PAT or Git
-credential.
+GHCR publication uses the workflow's `GITHUB_TOKEN`. The package is linked to
+the repository through its `org.opencontainers.image.source` label and is
+public, so anyone can pull it. The VPS still pulls with the run's short-lived
+`GITHUB_TOKEN` and needs no PAT or Git credential.
 
 ### VPS deployment account
 
@@ -160,7 +176,7 @@ Its snapshot tags the running host-built image as
    ls -A   # review first
    rm -rf -- *.go go.mod go.sum Dockerfile .dockerignore Makefile frontend docs \
      README.md AGENTS.md CLAUDE.md .devnotes.md .vscode .gitignore .env.example \
-     webhook-inspector local-testing .codegraph .claude .DS_Store
+     webhook-inspector local-testing .codegraph .claude .DS_Store .previous-image
    ```
 
    Confirm no `.git` directory or Go/frontend source remains.
@@ -192,8 +208,9 @@ curl --fail -H "Authorization: Bearer $ADMIN_TOKEN" http://127.0.0.1:8081/admin/
 ```
 
 If the loopback health check passes but the public check fails, inspect the
-shared ingress project at `/opt/caddy`. Do not rerun a Hooklook deployment as
-an ingress repair.
+shared ingress project at `/opt/caddy` using hetzner-one's
+[verify and diagnose](https://github.com/dvinubius/hetzner-one/blob/main/docs/deployment-runbook.md#verify-and-diagnose)
+steps. Do not rerun a Hooklook deployment as an ingress repair.
 
 ## Roll back
 

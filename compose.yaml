@@ -110,7 +110,8 @@ volumes:
   hooklook-grafana:
 
 networks:
-  # Caddy's Compose project creates and owns this shared ingress network.
+  # Caddy's Compose project, hetzner-one (github.com/dvinubius/hetzner-one),
+  # creates and owns this shared ingress network; deploy it first.
   hooklook-edge:
     external: true
   metrics:

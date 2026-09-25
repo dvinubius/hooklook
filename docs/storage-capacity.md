@@ -86,7 +86,8 @@ default `MAX_STORE`, that is 12 GB. A full deployment runs this same check
 before it pulls an image or changes containers.
 
 The application is published only on VM loopback; public traffic reaches it
-through the separately managed Caddy ingress. Its body-size, header-size, and
+through the separately managed Caddy ingress in
+[hetzner-one](https://github.com/dvinubius/hetzner-one). Its body-size, header-size, and
 rate limits are separate from the SQLite page cap.
 
 ## Online backup

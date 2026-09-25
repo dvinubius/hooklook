@@ -72,6 +72,13 @@ reconnection and rendering.
 
 ## Deployment and ingress boundary
 
+Caddy is not part of this repository. It runs as a separate Compose project,
+[hetzner-one](https://github.com/dvinubius/hetzner-one), which owns the VPS's
+public ports, TLS, the `hooklook.app` route and edge limits (see its
+[`Caddyfile`](https://github.com/dvinubius/hetzner-one/blob/main/Caddyfile)),
+and creates the `hooklook-edge` network. The same Caddy also serves other
+sites on the VPS.
+
 Local development defaults `LISTEN_ADDRESS` to `127.0.0.1:8080`. Docker sets it
 to `0.0.0.0:8080` so Caddy can reach the app through `hooklook-edge`, the
 external network owned by Caddy. The app is also published to the host only at

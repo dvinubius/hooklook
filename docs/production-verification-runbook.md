@@ -5,7 +5,8 @@ public contract through `https://hooklook.app` with protocol-level requests;
 it does not use browser automation.
 
 The public verifier creates one temporary Hooklook bin and test captures. It
-does not restart containers, reload Caddy, or alter zibs. Run it from a trusted
+does not restart containers, reload Caddy, or alter zibs, the other
+application behind the shared Caddy. Run it from a trusted
 workstation with the production operator token already exported:
 
 ```bash
@@ -17,12 +18,15 @@ frontend asset, capture/list/detail authorization, sharing and revocation,
 admin bearer authorization, the 10 MB (10,000,000-byte) capture-body boundary
 with fixed-length and chunked requests, and the listener-wide header boundary.
 Caddy is configured with
-`max_header_size 32KiB`; Go's HTTP/1.1 parser adds a 4 KiB buffer allowance,
+`max_header_size 32KiB` in hetzner-one's
+[`Caddyfile`](https://github.com/dvinubius/hetzner-one/blob/main/Caddyfile); Go's HTTP/1.1 parser adds a 4 KiB buffer allowance,
 so the observed rejection boundary is approximately 36 KiB. The verifier uses
 30 KiB as its accepted case and 40 KiB as its rejected case. The script leaves
 its temporary bin to expire normally. One accepted boundary capture stores a
 10 MB body, so allow for that temporary SQLite usage on each run. Run this
-version only after the Caddy policy has been deployed.
+version only after the Caddy policy has been deployed. The body and rate
+limits this verifier expects are described in hetzner-one's
+[Hooklook ingress policy](https://github.com/dvinubius/hetzner-one#hooklook-ingress-policy).
 
 ## Intentional rate-limit checks
 
@@ -86,4 +90,5 @@ From a machine outside the VPS, `http://<VPS-IP>:8081/health` must not be
 reachable; use `https://hooklook.app/health` instead.
 
 If a loopback check passes but a public check fails, inspect `/opt/caddy` as an
-ingress incident. Do not rerun a Hooklook deploy as a Caddy repair.
+ingress incident, following hetzner-one's
+[deployment runbook](https://github.com/dvinubius/hetzner-one/blob/main/docs/deployment-runbook.md#verify-and-diagnose). Do not rerun a Hooklook deploy as a Caddy repair.

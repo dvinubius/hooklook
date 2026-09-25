@@ -10,7 +10,8 @@ The app is free to use.
 
 Behind the one-page frontend sits a complete, self-hosted production service: a Go 
 application with SQLite persistence, deployed as a hardened container behind a 
-TLS-terminating reverse proxy on a single VM, with scripted deployments, verified 
+TLS-terminating reverse proxy on a single VM (the proxy lives in the separate
+[hetzner-one](https://github.com/dvinubius/hetzner-one) repository), with scripted deployments, verified 
 database backups, and a **full observability stack** — Prometheus metrics, structured 
 logs shipped through Alloy to Loki, and Grafana dashboards provisioned straight 
 from this repository.
@@ -191,6 +192,13 @@ Caddy-owned external `hooklook-edge` network. Do not create or manage that
 shared network from this project.
 
 ### Deploying to the VPS
+
+This repository alone does not make Hooklook publicly reachable. The VPS's
+public ingress — ports 80/443, TLS for `hooklook.app`, the route to the app,
+the edge rate, body, and header limits, and the `hooklook-edge` network — is
+the shared Caddy project in
+[hetzner-one](https://github.com/dvinubius/hetzner-one), which must be deployed
+first.
 
 Pushes to `main` deploy through GitHub Actions
 ([`deploy.yml`](.github/workflows/deploy.yml)). After tests pass, the workflow
