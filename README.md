@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  A small, self-hosted request bin for testing and debugging webhook integrations.
+  A free inspector for testing and debugging webhook integrations.
 </p>
 
 <p align="center">
