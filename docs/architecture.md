@@ -103,6 +103,7 @@ of Hooklook's Docker networks because the listener binds to `0.0.0.0` inside
 the container. The separate metrics listener and telemetry-service ports are
 inventoried in [observability](observability.md#port-inventory).
 
+
 ```mermaid
 flowchart LR
     internet[Internet] -->|HTTPS| caddy
