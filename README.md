@@ -7,7 +7,6 @@
 </p>
 
 <p align="center">
-  <a href="https://hooklook.app"><b>Try it</b></a> ·
   <a href="docs/README.md">Docs</a> ·
   <a href="docs/architecture.md">Architecture</a> ·
   <a href="docs/observability.md">Observability</a>
@@ -19,6 +18,10 @@
   <a href="LICENSE"><img src="https://img.shields.io/github/license/dvinubius/hooklook" alt="MIT license"></a>
 </p>
 
+<h3 align="center">
+  <a href="https://hooklook.app">https://hooklook.app</a>
+</h3>
+
 # hooklook
 
 A small, self-hosted request bin written in Go, helping you to test and debug
@@ -27,7 +30,7 @@ captures arbitrary HTTP requests, and provides owner or invited-guest inspection
 APIs. The Go binary serves the built Vue inspector frontend on its authorized
 bin pages, so one binary is the whole deployment.
 
-The app is free to use. 
+The app is **free to use**. 
 
 Behind the one-page frontend sits a complete, self-hosted production service: a Go 
 application with SQLite persistence, deployed as a hardened container behind a 
