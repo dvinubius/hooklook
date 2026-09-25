@@ -276,3 +276,23 @@ func TestMissingAssetsAreNotFound(t *testing.T) {
 		}
 	}
 }
+
+// Link previews fetch the social thumbnail from outside any bin, so like the
+// favicon it has a root route that skips bin authorization.
+func TestSocialThumbnailIsServedWithoutBinAuthorization(t *testing.T) {
+	requireBuiltFrontend(t)
+
+	image := get(t, "/hooklookwordmarkdark.png", "")
+	if image.Code != http.StatusOK {
+		t.Fatalf("/hooklookwordmarkdark.png = %d", image.Code)
+	}
+	if len(image.Result().Cookies()) != 0 {
+		t.Error("thumbnail went through bin resolution and set a cookie")
+	}
+	if got := image.Header().Get("Content-Type"); got != "image/png" {
+		t.Errorf("thumbnail content type = %q", got)
+	}
+	if got := image.Header().Get("Cache-Control"); got != staticFileCache {
+		t.Errorf("thumbnail cache control = %q", got)
+	}
+}

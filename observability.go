@@ -79,7 +79,7 @@ func routeClass(r *http.Request) string {
 		return "capture"
 	case strings.HasSuffix(p, "/events") && strings.HasPrefix(p, "/api/bins/"):
 		return "sse"
-	case strings.HasPrefix(p, "/assets/") || strings.HasPrefix(p, "/fonts/") || p == "/favicon.svg":
+	case strings.HasPrefix(p, "/assets/") || strings.HasPrefix(p, "/fonts/") || p == "/favicon.svg" || p == "/hooklookwordmarkdark.png":
 		return "static"
 	case strings.HasPrefix(p, "/admin/bins"):
 		return "admin_bins"
