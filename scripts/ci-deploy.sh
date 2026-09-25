@@ -97,7 +97,7 @@ build_bundle() {
 }
 
 deploy() {
-	local mode=$1 target=$2 image=${3:-} staging token_stdin=/dev/null remote_env=
+	local mode=$1 target=$2 image=${3:-} staging command
 	case $mode in
 	full)
 		[[ -n ${HOOKLOOK_IMAGE_REPOSITORY:-} ]] || die 'HOOKLOOK_IMAGE_REPOSITORY is required for a full deployment.'
@@ -116,13 +116,16 @@ deploy() {
 	build_bundle "$target" |
 		remote "rm -rf '$staging' && mkdir -p '$staging' && tar -x -C '$staging'"
 
+	command="bash '$staging/scripts/remote-deploy.sh' $mode $target $image; status=\$?; rm -rf '$staging'; exit \$status"
+	# The token goes on stdin, never in arguments. A here-string rather than a
+	# process substitution: bash 5 closes a <(...) descriptor once the command
+	# that created it ends, so it cannot be kept in a variable.
 	if [[ $mode == full && -n ${GHCR_USER:-} && -n ${GHCR_PULL_TOKEN:-} ]]; then
 		[[ $GHCR_USER =~ ^[A-Za-z0-9-]+(\[bot\])?$ ]] || die 'GHCR_USER is not a GitHub login.'
-		remote_env="GHCR_USER='$GHCR_USER' "
-		token_stdin=<(printf '%s\n' "$GHCR_PULL_TOKEN")
+		remote "GHCR_USER='$GHCR_USER' $command" <<<"$GHCR_PULL_TOKEN"
+	else
+		remote "$command" </dev/null
 	fi
-	remote "${remote_env}bash '$staging/scripts/remote-deploy.sh' $mode $target $image; status=\$?; rm -rf '$staging'; exit \$status" \
-		<"$token_stdin"
 }
 
 case ${1:-} in
