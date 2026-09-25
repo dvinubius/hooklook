@@ -24,7 +24,7 @@
 
 # hooklook
 
-A small, self-hosted request bin written in Go, helping you to test and debug
+A small, self-hosted web request inspector written in Go, helping you to test and debug
 webhook integrations. The backend creates one cookie-associated bin per browser,
 captures arbitrary HTTP requests, and provides owner or invited-guest inspection
 APIs. The Go binary serves the built Vue inspector frontend on its authorized
