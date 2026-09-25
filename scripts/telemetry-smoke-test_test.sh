@@ -36,7 +36,13 @@ fi
 case "$*" in
   *'/api/dashboards/uid/hooklook-operator'*) printf '%s\n' '{"dashboard":{"uid":"hooklook-operator"}}' ;;
   *'/api/datasources/proxy/uid/hooklook-prometheus/'*)
-    [[ ${SMOKE_TEST_FAIL_PROMETHEUS:-0} == 0 ]] && printf '%s\n' '{"data":{"result":[{}]}}' || printf '%s\n' '{"data":{"result":[]}}' ;;
+    case ${SMOKE_TEST_PROMETHEUS:-up} in
+      up) printf '%s\n' '{"data":{"activeTargets":[{"scrapeUrl":"http://hooklook:9092/metrics","health":"up"}]}}' ;;
+      # A changed target is down; the old series still answers `up == 1`.
+      down) printf '%s\n' '{"data":{"activeTargets":[{"scrapeUrl":"http://hooklook:9999/metrics","health":"down"}],"result":[{}]}}' ;;
+      mixed) printf '%s\n' '{"data":{"activeTargets":[{"health":"up"},{"health":"unknown"}]}}' ;;
+      none) printf '%s\n' '{"data":{"activeTargets":[]}}' ;;
+    esac ;;
   *'/api/datasources/proxy/uid/hooklook-loki/'*) printf '%s\n' '{"data":{"result":[{}]}}' ;;
   *'/api/datasources/uid/'*) printf '%s\n' '{"status":"OK"}' ;;
 esac
@@ -54,7 +60,8 @@ run_smoke() {
 
 run_smoke full >"$temporary_dir/output"
 grep -q 'Telemetry smoke test passed.' "$temporary_dir/output"
-grep -q 'hooklook-prometheus/api/v1/query' "$temporary_dir/smoke.log"
+grep -q 'hooklook-prometheus/api/v1/targets' "$temporary_dir/smoke.log"
+grep -q 'scrapePool=hooklook' "$temporary_dir/smoke.log"
 grep -q 'hooklook-loki/loki/api/v1/query_range' "$temporary_dir/smoke.log"
 ! grep -q ' port grafana 3000' "$temporary_dir/smoke.log"
 grep -q ' inspect --format ' "$temporary_dir/smoke.log"
@@ -63,17 +70,19 @@ grep -q 'compose --env-file .env.observability --env-file .env.image --profile o
 : >"$temporary_dir/smoke.log"
 run_smoke dashboard >"$temporary_dir/output"
 grep -q 'Dashboard smoke test passed.' "$temporary_dir/output"
-! grep -q 'hooklook-prometheus/api/v1/query' "$temporary_dir/smoke.log"
+! grep -q 'hooklook-prometheus/' "$temporary_dir/smoke.log"
 ! grep -q '/ready' "$temporary_dir/smoke.log"
 
-: >"$temporary_dir/smoke.log"
-if PATH="$temporary_dir/bin:$PATH" SMOKE_TEST_LOG="$temporary_dir/smoke.log" \
-  SMOKE_TEST_FAIL_PROMETHEUS=1 SMOKE_TEST_TIMEOUT_SECONDS=1 \
-  bash "$temporary_dir/project/scripts/telemetry-smoke-test.sh" full >"$temporary_dir/output" 2>&1; then
-  printf '%s\n' 'Telemetry smoke test accepted a down Prometheus target.' >&2
-  exit 1
-fi
-grep -q 'Prometheus reports Hooklook as up did not pass' "$temporary_dir/output"
+for prometheus_state in down mixed none; do
+  : >"$temporary_dir/smoke.log"
+  if PATH="$temporary_dir/bin:$PATH" SMOKE_TEST_LOG="$temporary_dir/smoke.log" \
+    SMOKE_TEST_PROMETHEUS=$prometheus_state SMOKE_TEST_TIMEOUT_SECONDS=1 \
+    bash "$temporary_dir/project/scripts/telemetry-smoke-test.sh" full >"$temporary_dir/output" 2>&1; then
+    printf 'Telemetry smoke test accepted Prometheus targets: %s.\n' "$prometheus_state" >&2
+    exit 1
+  fi
+  grep -q 'Prometheus reports Hooklook as up did not pass' "$temporary_dir/output"
+done
 
 if PATH="$temporary_dir/bin:$PATH" SMOKE_TEST_LOG="$temporary_dir/smoke.log" \
   SMOKE_TEST_BAD_BIND=1 \

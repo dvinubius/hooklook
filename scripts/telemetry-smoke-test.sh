@@ -91,9 +91,13 @@ if [[ $mode == dashboard ]]; then
 fi
 
 prometheus_target_up() {
-  grafana_get --get --data-urlencode 'query=up{job="hooklook"} == 1' \
-    http://127.0.0.1:3001/api/datasources/proxy/uid/hooklook-prometheus/api/v1/query |
-    grep -q '"result":\[{'
+  # Ask for the targets Prometheus scrapes now. An `up` query would still
+  # return the previous target's last sample for about five minutes after a
+  # restart with a changed scrape config.
+  local targets
+  targets=$(grafana_get --get --data-urlencode 'state=active' --data-urlencode 'scrapePool=hooklook' \
+    http://127.0.0.1:3001/api/datasources/proxy/uid/hooklook-prometheus/api/v1/targets) || return 1
+  grep -q '"health":"up"' <<<"$targets" && ! grep -qE '"health":"(down|unknown)"' <<<"$targets"
 }
 
 loki_has_hooklook_log() {
