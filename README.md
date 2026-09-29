@@ -224,7 +224,9 @@ the shared Caddy project in
 first.
 
 Pushes to `main` deploy through GitHub Actions
-([`deploy.yml`](.github/workflows/deploy.yml)). After tests pass, the workflow
+([`deploy.yml`](.github/workflows/deploy.yml)). Pull requests into `main` run
+the same tests through [`test.yml`](.github/workflows/test.yml), which branch
+protection requires. After tests pass, the deploy workflow
 classifies every change since the last verified production deployment:
 docs-only changes deploy nothing, a dashboard change or other observability
 change updates only that part of the telemetry stack, and anything else is a

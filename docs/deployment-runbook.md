@@ -141,7 +141,9 @@ gh variable set DEPLOY_KNOWN_HOSTS --env production --body "<known_hosts line>"
 ```
 
 Protect `main` against force pushes and deletion, and require the `test` job.
-A rewritten `main` leaves the manifest's commit off the branch's history,
+The [`Test`](../.github/workflows/test.yml) workflow reports that check on every
+pull request into `main`; `Deploy production` reuses the same workflow as its
+first job. A rewritten `main` leaves the manifest's commit off the branch's history,
 which the classifier treats as a full deployment. Direct pushes by the
 repository admin bypass the required check (GitHub reports the bypass); the
 workflow still deploys nothing unless `test` passes.
