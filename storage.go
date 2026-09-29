@@ -119,7 +119,7 @@ func (s *Store) checkCapacity(estimatedBytes int64) error {
 func classifyStoreError(err error) error {
 	var sqliteErr sqlite3.Error
 	if errors.As(err, &sqliteErr) && sqliteErr.Code == sqlite3.ErrFull {
-		return fmt.Errorf("%w: %v", ErrStoreFull, err)
+		return fmt.Errorf("%w: %w", ErrStoreFull, err)
 	}
 	return err
 }

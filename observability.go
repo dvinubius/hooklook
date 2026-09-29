@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"log/slog"
 	"net/http"
 	"os"
@@ -10,6 +11,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/mattn/go-sqlite3"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
@@ -50,7 +52,7 @@ func newTelemetry() *telemetryState {
 	t.captures = prometheus.NewCounterVec(prometheus.CounterOpts{Name: "hooklook_capture_results_total", Help: "Capture results."}, []string{"result"})
 	t.dbOperations = prometheus.NewCounterVec(prometheus.CounterOpts{Name: "hooklook_db_operations_total", Help: "Selected SQLite operation results."}, []string{"operation", "result"})
 	t.dbDuration = prometheus.NewHistogramVec(prometheus.HistogramOpts{Name: "hooklook_db_operation_duration_seconds", Help: "Selected SQLite operation duration.", Buckets: prometheus.DefBuckets}, []string{"operation"})
-	t.dbErrors = prometheus.NewCounterVec(prometheus.CounterOpts{Name: "hooklook_db_errors_total", Help: "Selected SQLite operation errors."}, []string{"operation", "kind"})
+	t.dbErrors = prometheus.NewCounterVec(prometheus.CounterOpts{Name: "hooklook_db_errors_total", Help: "Selected SQLite operation failures, excluding not-found and capacity outcomes."}, []string{"operation", "kind"})
 	t.cleanupDuration = prometheus.NewHistogramVec(prometheus.HistogramOpts{Name: "hooklook_expiry_cleanup_duration_seconds", Help: "Expiry cleanup run duration."}, nil)
 	t.cleanupRuns = prometheus.NewCounterVec(prometheus.CounterOpts{Name: "hooklook_expiry_cleanup_runs_total", Help: "Expiry cleanup outcomes."}, []string{"result"})
 	t.expired = prometheus.NewCounter(prometheus.CounterOpts{Name: "hooklook_expired_bins_deleted_total", Help: "Expired bins deleted."})
@@ -258,11 +260,28 @@ func dbKind(err error) string {
 	return "other"
 }
 
+// dbResult separates expected domain outcomes from database failures. A
+// SQLITE_FULL wrapped as ErrStoreFull is SQLite's hard cap or a full disk,
+// so it stays an error; only the advisory ErrStoreFull counts as capacity.
+func dbResult(err error) string {
+	var sqliteErr sqlite3.Error
+	switch {
+	case err == nil:
+		return "success"
+	case errors.As(err, &sqliteErr):
+		return "error"
+	case errors.Is(err, ErrBinNotFound), errors.Is(err, ErrRequestNotFound), errors.Is(err, sql.ErrNoRows):
+		return "not_found"
+	case errors.Is(err, ErrBinFull), errors.Is(err, ErrStoreFull):
+		return "capacity"
+	}
+	return "error"
+}
+
 func observeDBOperation(operation string, started time.Time, err error) {
 	telemetry.dbDuration.WithLabelValues(operation).Observe(time.Since(started).Seconds())
-	result := "success"
-	if err != nil {
-		result = "error"
+	result := dbResult(err)
+	if result == "error" {
 		telemetry.dbErrors.WithLabelValues(operation, dbKind(err)).Inc()
 	}
 	telemetry.dbOperations.WithLabelValues(operation, result).Inc()
