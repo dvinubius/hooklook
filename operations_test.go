@@ -147,7 +147,7 @@ func TestSmallStoreCapRejectsCreationAndCapture(t *testing.T) {
 	if capture.Code != http.StatusInsufficientStorage || capture.Header().Get("X-Hooklook-Error") != "store_full" || !strings.Contains(capture.Body.String(), "global storage limit reached") {
 		t.Errorf("global capacity response = %d, %q, %q", capture.Code, capture.Header().Get("X-Hooklook-Error"), capture.Body.String())
 	}
-	response := callInspector(t, "GET", "/", "", "")
+	response := callHome(t, "/?cookie-check", cookieCheck)
 	if response.Code != http.StatusInsufficientStorage || len(response.Result().Cookies()) != 0 {
 		t.Errorf("home = %d, cookies %d", response.Code, len(response.Result().Cookies()))
 	}
@@ -240,7 +240,7 @@ func TestStartupWithDatabaseAlreadyAboveMaxStore(t *testing.T) {
 	if !access.StoreCapacity.Full || access.StoreCapacity.DatabaseBytes <= access.StoreCapacity.MaxBytes {
 		t.Errorf("over-cap capacity = %+v", access.StoreCapacity)
 	}
-	if home := callInspector(t, "GET", "/", "", ""); home.Code != http.StatusInsufficientStorage || len(home.Result().Cookies()) != 0 {
+	if home := callHome(t, "/?cookie-check", cookieCheck); home.Code != http.StatusInsufficientStorage || len(home.Result().Cookies()) != 0 {
 		t.Errorf("new visitor home = %d, cookies %d", home.Code, len(home.Result().Cookies()))
 	}
 	if capture := callInspector(t, "POST", "/b/"+bin.Code, "new", ""); capture.Code != http.StatusInsufficientStorage || capture.Header().Get("X-Hooklook-Error") != "store_full" {
@@ -304,7 +304,7 @@ func TestHomeStoreFullBootstrapsAppWithoutCookie(t *testing.T) {
 	if err := s.configureCapacity((pages + 1) * pageSize); err != nil {
 		t.Fatal(err)
 	}
-	response := callInspector(t, "GET", "/", "", "")
+	response := callHome(t, "/?cookie-check", cookieCheck)
 	if response.Code != http.StatusInsufficientStorage || response.Header().Get("X-Hooklook-Error") != "store_full" || len(response.Result().Cookies()) != 0 {
 		t.Fatalf("home = %d, error %q, cookies %d", response.Code, response.Header().Get("X-Hooklook-Error"), len(response.Result().Cookies()))
 	}

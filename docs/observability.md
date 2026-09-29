@@ -98,6 +98,7 @@ application metrics:
 | `hooklook_http_requests_total` | Counter: `route`, `method`, `status` | Completed application HTTP requests, using normalized route classes |
 | `hooklook_http_request_duration_seconds` | Histogram: `route`, `method` | Request duration excluding long-lived SSE streams |
 | `hooklook_http_in_flight_requests` | Gauge | Current non-SSE handler work |
+| `hooklook_bin_creation_results_total` | Counter: `result` | Bin creation attempts from `/`: `created`, `no_cookie` (the client did not return the cookie check), or `store_full` |
 | `hooklook_capture_results_total` | Counter: `result` | Capture outcomes: `accepted`, `missing_bin`, `bin_full`, `store_full`, or `internal_error` |
 | `hooklook_bin_operations_total` | Counter: `operation` | Successful create, capture, list, detail, delete, clear, and admin-list operations; list and detail count successful API reads, not page views or SSE reconnects |
 | `hooklook_db_operations_total`, `hooklook_db_operation_duration_seconds`, `hooklook_db_errors_total` | Counter, histogram, counter; bounded operation/result/kind labels | SQLite outcomes (`success`, `not_found`, `capacity`, `error`), latency, and real failures only (kind `full` or `other`) |

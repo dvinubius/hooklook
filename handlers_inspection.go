@@ -13,6 +13,15 @@ import (
 
 const ownerCookieName = "hooklook_owner"
 
+// cookieCheckName is the short-lived probe `/` sets before it creates a bin.
+// Only a client that sends it back on the next hop has shown it keeps
+// cookies, and so can ever return to the bin it would be given.
+const cookieCheckName = "hooklook_cookie_check"
+
+// cookieCheckQuery marks the second hop, so a client that dropped the probe is
+// told so instead of being sent round again.
+const cookieCheckQuery = "cookie-check"
+
 var resolveMu sync.Mutex
 var streamAccessMu sync.Mutex
 
@@ -26,6 +35,15 @@ func ownerSecret(req *http.Request) string {
 
 func setOwnerCookie(w http.ResponseWriter, secret string, expires time.Time) {
 	http.SetCookie(w, &http.Cookie{Name: ownerCookieName, Value: secret, Path: "/", Expires: expires, HttpOnly: true, Secure: strings.HasPrefix(publicBaseURL, "https://"), SameSite: http.SameSiteLaxMode})
+}
+
+func setCookieCheck(w http.ResponseWriter, maxAge int) {
+	http.SetCookie(w, &http.Cookie{Name: cookieCheckName, Value: "1", Path: "/", MaxAge: maxAge, HttpOnly: true, Secure: strings.HasPrefix(publicBaseURL, "https://"), SameSite: http.SameSiteLaxMode})
+}
+
+func hasCookieCheck(req *http.Request) bool {
+	_, err := req.Cookie(cookieCheckName)
+	return err == nil
 }
 
 func noStore(w http.ResponseWriter) {
@@ -45,13 +63,30 @@ func resolveOwnBin(w http.ResponseWriter, req *http.Request) (Bin, bool) {
 		http.Error(w, "internal server error", 500)
 		return Bin{}, false
 	}
+	// A bin is only worth creating for a client that will bring the owner
+	// cookie back. Crawlers that drop cookies would otherwise leave one unused
+	// bin per visit.
+	if !hasCookieCheck(req) {
+		if req.URL.Query().Has(cookieCheckQuery) {
+			telemetry.binCreations.WithLabelValues("no_cookie").Inc()
+			slog.Info("bin_creation_cookie_missing")
+			writeCookiesRequiredShell(w)
+			return Bin{}, false
+		}
+		setCookieCheck(w, 60)
+		http.Redirect(w, req, "/?"+cookieCheckQuery, http.StatusSeeOther)
+		return Bin{}, false
+	}
 	streamAccessMu.Lock()
 	started := time.Now()
 	bin, secret, err := store.createOwnedBin()
 	observeDBOperation("create", started, err)
 	if err != nil {
 		streamAccessMu.Unlock()
+		// The probe stays: reloading this address once room is freed should
+		// retry the creation, not report missing cookies.
 		if errors.Is(err, ErrStoreFull) {
+			telemetry.binCreations.WithLabelValues("store_full").Inc()
 			slog.Warn("bin_creation_capacity_rejected", "reason", "store_full")
 			writeCapacityShell(w)
 		} else {
@@ -61,7 +96,9 @@ func resolveOwnBin(w http.ResponseWriter, req *http.Request) (Bin, bool) {
 	}
 	eventHub.openBin(bin.Code)
 	telemetry.operations.WithLabelValues("create").Inc()
+	telemetry.binCreations.WithLabelValues("created").Inc()
 	streamAccessMu.Unlock()
+	setCookieCheck(w, -1)
 	setOwnerCookie(w, secret, bin.ExpiresAt)
 	return bin, true
 }

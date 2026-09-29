@@ -62,10 +62,22 @@ check 'invalid admin bearer is refused' \
 check 'valid admin bearer works' \
 	"$(status --header "Authorization: Bearer $admin_token" "$base_url/admin/storage")" '200'
 
+refused_headers="$work_dir/refused.headers"
+check 'client without cookies gets no bin' \
+	"$(status --dump-header "$refused_headers" "$base_url/?cookie-check")" '200'
+check 'refusal is marked cookies_required' "$(header_value X-Hooklook-Error "$refused_headers")" 'cookies_required'
+
+# A bin is created only on the second hop, for a client that returned the
+# cookie check set on the first. Both hops read and write the same jar.
+probe_headers="$work_dir/probe.headers"
+probe_status=$(curl --silent --show-error --cookie "$cookie_jar" --cookie-jar "$cookie_jar" \
+	--dump-header "$probe_headers" --output /dev/null --write-out '%{http_code}' "$base_url/")
+check 'home checks cookies first' "$probe_status" '303'
+check 'cookie check redirects to its marked address' "$(header_value Location "$probe_headers")" '/?cookie-check'
 home_headers="$work_dir/home.headers"
-home_status=$(curl --silent --show-error --cookie-jar "$cookie_jar" --dump-header "$home_headers" \
-	--output /dev/null --write-out '%{http_code}' "$base_url/")
-check 'home redirects to a new bin' "$home_status" '303'
+home_status=$(curl --silent --show-error --cookie "$cookie_jar" --cookie-jar "$cookie_jar" \
+	--dump-header "$home_headers" --output /dev/null --write-out '%{http_code}' "$base_url/?cookie-check")
+check 'returned cookie check redirects to a new bin' "$home_status" '303'
 location=$(header_value Location "$home_headers")
 case "$location" in
 "/bins/"*) bin_code=${location#/bins/} ;;
@@ -161,9 +173,11 @@ if [[ $verify_rate_limits == 1 ]]; then
 	printf '  This deliberately triggers 429 for the current public source IP.\n'
 	create_limit_status=''
 	# The ordinary checks can run for more than one minute, so do not rely on
-	# their earlier GET / being in this sliding window. Make eleven requests to
-	# exceed Caddy's explicit ten-per-minute creation allowance on their own.
-	for _ in $(seq 1 11); do
+	# their earlier GET / being in this sliding window. Make twenty-one requests
+	# to exceed Caddy's twenty-per-minute allowance on `/` on their own: ten new
+	# bins, each taking two hops through the cookie check. The loop stops at the
+	# first 429, so a lower limit is still detected.
+	for _ in $(seq 1 21); do
 		create_headers="$work_dir/create-rate.headers"
 		create_limit_status=$(curl --silent --show-error --cookie "$cookie_jar" --dump-header "$create_headers" \
 			--output /dev/null --write-out '%{http_code}' "$base_url/")

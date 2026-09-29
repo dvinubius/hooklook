@@ -3,7 +3,13 @@
 ## Browser ownership
 
 A visit to `/` resolves the browser's existing bin or creates one, then
-redirects to `/bins/{code}`. Bin codes have readable adjective-noun-number
+redirects to `/bins/{code}`. Creation needs proof that the client keeps
+cookies, since one that drops them could never return to its bin: a visit
+without a valid owner cookie first gets a 60-second `hooklook_cookie_check`
+cookie and a redirect to `/?cookie-check`. There the bin is created only if the
+check came back; otherwise the visitor sees a "Hooklook needs cookies" page and
+no bin exists. Any HTTP client with a cookie jar passes, with no browser or
+JavaScript required. Bin codes have readable adjective-noun-number
 addresses. Each bin has a cryptographically random ownership secret. SQLite
 stores its SHA-256 digest; the browser receives the secret in an `HttpOnly`,
 `SameSite=Lax` cookie, marked `Secure` when `PUBLIC_BASE_URL` uses HTTPS. The

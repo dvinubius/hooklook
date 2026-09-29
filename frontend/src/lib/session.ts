@@ -22,7 +22,11 @@ import { parseLocation, type PageLocation } from './location'
 import type { BinAccess } from '../types'
 
 /** Marked documents have no bin session to authorize. */
-export type StartupState = 'store_full' | 'bin_expired' | 'shared_bin_unavailable'
+export type StartupState =
+  | 'store_full'
+  | 'cookies_required'
+  | 'bin_expired'
+  | 'shared_bin_unavailable'
 export type SessionState = 'loading' | 'ready' | 'unavailable' | 'leaving' | StartupState
 
 /** Whether a failure means "not for you" rather than "not right now". */
@@ -71,6 +75,7 @@ export function browserEnvironment(): SessionEnvironment {
     origin: window.location.origin,
     startupState:
       markedState === 'store_full' ||
+      markedState === 'cookies_required' ||
       markedState === 'bin_expired' ||
       markedState === 'shared_bin_unavailable'
         ? markedState

@@ -204,6 +204,20 @@ describe('bin session', () => {
     expect(navigations).toEqual([])
   })
 
+  it('recognizes a browser that did not return the cookie check, and asks it nothing', async () => {
+    const { env, navigations, calls } = harness(async () => ownerAccess, {
+      href: `${origin}/?cookie-check`,
+      startup: 'cookies_required',
+    })
+    const session = createSession(env)
+    await session.start()
+
+    // Sending this browser home again would only repeat the check it failed.
+    expect(session.state.value).toBe('cookies_required')
+    expect(calls).toEqual([])
+    expect(navigations).toEqual([])
+  })
+
   it.each(['bin_expired', 'shared_bin_unavailable'] as const)(
     'recognizes the marked %s page, and asks it nothing',
     async (startup) => {

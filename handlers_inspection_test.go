@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"net/http/cookiejar"
 	"net/http/httptest"
 	"strings"
 	"testing"
@@ -24,20 +25,65 @@ func callInspector(t *testing.T, method, path, body, owner string) *httptest.Res
 	return rec
 }
 
-func TestHomeCreatesAndReusesCookieBin(t *testing.T) {
-	s := useTestStore(t)
-	first := callInspector(t, "GET", "/", "", "")
-	if first.Code != http.StatusSeeOther || len(first.Result().Cookies()) != 1 {
-		t.Fatalf("first home: %d %v", first.Code, first.Result().Cookies())
+// cookieCheck is the probe a client with a cookie jar returns on the second
+// hop through `/`.
+var cookieCheck = &http.Cookie{Name: cookieCheckName, Value: "1"}
+
+// callHome sends one GET through `/` with the cookies a client would carry on
+// that hop.
+func callHome(t *testing.T, path string, cookies ...*http.Cookie) *httptest.ResponseRecorder {
+	t.Helper()
+	req := httptest.NewRequest(http.MethodGet, path, nil)
+	for _, cookie := range cookies {
+		req.AddCookie(cookie)
 	}
-	cookie := first.Result().Cookies()[0]
-	if !cookie.HttpOnly || !cookie.Secure || cookie.SameSite != http.SameSiteLaxMode {
-		t.Errorf("cookie flags: %#v", cookie)
+	rec := httptest.NewRecorder()
+	routes().ServeHTTP(rec, req)
+	return rec
+}
+
+func responseCookie(rec *httptest.ResponseRecorder, name string) *http.Cookie {
+	for _, cookie := range rec.Result().Cookies() {
+		if cookie.Name == name {
+			return cookie
+		}
+	}
+	return nil
+}
+
+func TestHomeChecksCookiesBeforeCreatingABin(t *testing.T) {
+	s := useTestStore(t)
+	probe := callHome(t, "/")
+	if probe.Code != http.StatusSeeOther || probe.Header().Get("Location") != "/?cookie-check" {
+		t.Fatalf("first hop: %d %q", probe.Code, probe.Header().Get("Location"))
+	}
+	check := responseCookie(probe, cookieCheckName)
+	if check == nil || check.MaxAge != 60 || !check.HttpOnly || !check.Secure || check.SameSite != http.SameSiteLaxMode {
+		t.Fatalf("cookie check: %#v", check)
+	}
+	if responseCookie(probe, ownerCookieName) != nil {
+		t.Error("first hop set an owner cookie")
+	}
+	if bins, err := s.getAllBins(); err != nil || len(bins) != 0 {
+		t.Fatalf("first hop created %d bins (%v)", len(bins), err)
+	}
+
+	first := callHome(t, "/?cookie-check", check)
+	if first.Code != http.StatusSeeOther || !strings.HasPrefix(first.Header().Get("Location"), "/bins/") {
+		t.Fatalf("second hop: %d %q", first.Code, first.Header().Get("Location"))
+	}
+	if cleared := responseCookie(first, cookieCheckName); cleared == nil || cleared.MaxAge >= 0 {
+		t.Errorf("cookie check was not cleared: %#v", cleared)
+	}
+	cookie := responseCookie(first, ownerCookieName)
+	if cookie == nil || !cookie.HttpOnly || !cookie.Secure || cookie.SameSite != http.SameSiteLaxMode {
+		t.Fatalf("owner cookie: %#v", cookie)
 	}
 	code := strings.TrimPrefix(first.Header().Get("Location"), "/bins/")
 	if _, err := s.ownedBin(cookie.Value); err != nil {
 		t.Fatalf("owner lookup: %v", err)
 	}
+
 	second := callInspector(t, "GET", "/", "", cookie.Value)
 	if second.Header().Get("Location") != first.Header().Get("Location") || len(second.Result().Cookies()) != 1 {
 		t.Errorf("repeat home: %d %s", second.Code, second.Header().Get("Location"))
@@ -49,6 +95,87 @@ func TestHomeCreatesAndReusesCookieBin(t *testing.T) {
 	owner := callInspector(t, "GET", "/api/bins/"+code+"/requests", "", cookie.Value)
 	if owner.Code != 200 {
 		t.Errorf("owner list status = %d", owner.Code)
+	}
+}
+
+// A client that drops cookies is told so on the marked second hop, and not
+// sent round again.
+func TestHomeCreatesNoBinForAClientThatDropsCookies(t *testing.T) {
+	t.Setenv(frontendDevEnvironmentVariable, "1")
+	s := useTestStore(t)
+	original := telemetry
+	telemetry = newTelemetry()
+	t.Cleanup(func() { telemetry = original })
+
+	refused := callHome(t, "/?cookie-check")
+	if refused.Code != http.StatusOK || refused.Header().Get("X-Hooklook-Error") != "cookies_required" {
+		t.Fatalf("second hop without the check = %d, error %q", refused.Code, refused.Header().Get("X-Hooklook-Error"))
+	}
+	if refused.Header().Get("Location") != "" || len(refused.Result().Cookies()) != 0 {
+		t.Errorf("refusal redirected or set cookies: %q %v", refused.Header().Get("Location"), refused.Result().Cookies())
+	}
+	if !strings.Contains(refused.Body.String(), `data-hooklook-startup="cookies_required"`) {
+		t.Errorf("refusal does not bootstrap the app: %s", refused.Body.String())
+	}
+	if bins, err := s.getAllBins(); err != nil || len(bins) != 0 {
+		t.Fatalf("refusal created %d bins (%v)", len(bins), err)
+	}
+
+	metrics := httptest.NewRecorder()
+	metricsHandler().ServeHTTP(metrics, httptest.NewRequest(http.MethodGet, "/metrics", nil))
+	if !strings.Contains(metrics.Body.String(), `hooklook_bin_creation_results_total{result="no_cookie"} 1`) {
+		t.Error("refusal was not counted as no_cookie")
+	}
+}
+
+// Holding the cookie of an expired bin is not the cookie check: the visitor
+// goes through the same round-trip as a first-time one.
+func TestHomeChecksCookiesAgainForAStaleOwnerCookie(t *testing.T) {
+	s := useTestStore(t)
+	response := callInspector(t, "GET", "/", "", "stale-owner-secret")
+	if response.Code != http.StatusSeeOther || response.Header().Get("Location") != "/?cookie-check" {
+		t.Fatalf("stale owner home: %d %q", response.Code, response.Header().Get("Location"))
+	}
+	if bins, err := s.getAllBins(); err != nil || len(bins) != 0 {
+		t.Fatalf("stale owner created %d bins (%v)", len(bins), err)
+	}
+}
+
+// The whole flow has to work for a plain HTTP client that keeps cookies, such
+// as the synthetic traffic generator, and end without a bin for one that does
+// not.
+func TestHomeFlowThroughAnHTTPClient(t *testing.T) {
+	t.Setenv(frontendDevEnvironmentVariable, "1")
+	s := useTestStore(t)
+	server := httptest.NewTLSServer(routes())
+	defer server.Close()
+
+	jar, err := cookiejar.New(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	withJar := &http.Client{Transport: server.Client().Transport, Jar: jar}
+	page, err := withJar.Get(server.URL + "/")
+	if err != nil {
+		t.Fatal(err)
+	}
+	page.Body.Close()
+	if page.StatusCode != http.StatusOK || !strings.HasPrefix(page.Request.URL.Path, "/bins/") {
+		t.Fatalf("client with a jar ended at %d %s", page.StatusCode, page.Request.URL)
+	}
+
+	withoutJar := &http.Client{Transport: server.Client().Transport}
+	refused, err := withoutJar.Get(server.URL + "/")
+	if err != nil {
+		t.Fatal(err)
+	}
+	refused.Body.Close()
+	if refused.StatusCode != http.StatusOK || refused.Header.Get("X-Hooklook-Error") != "cookies_required" {
+		t.Fatalf("client without a jar ended at %d %s, error %q", refused.StatusCode, refused.Request.URL, refused.Header.Get("X-Hooklook-Error"))
+	}
+
+	if bins, err := s.getAllBins(); err != nil || len(bins) != 1 {
+		t.Errorf("bins created = %d (%v), want 1", len(bins), err)
 	}
 }
 

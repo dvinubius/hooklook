@@ -9,6 +9,7 @@ import { createSSRApp, h, type Component } from 'vue'
 import { renderToString } from 'vue/server-renderer'
 import BodyView from '../components/BodyView.vue'
 import BinUnavailable from '../components/BinUnavailable.vue'
+import CookiesRequired from '../components/CookiesRequired.vue'
 import HeadersTable from '../components/HeadersTable.vue'
 import RequestDetailView from '../components/RequestDetail.vue'
 import CapacityGauge from '../components/CapacityGauge.vue'
@@ -391,5 +392,18 @@ describe('BinUnavailable', () => {
     expect(html).toContain('href="/"')
     expect(html).toContain('aria-label="hooklook home"')
     expect(text).toContain('Dinu Barbu')
+  })
+})
+
+describe('CookiesRequired', () => {
+  it('explains why no bin was opened, and links back to the check', async () => {
+    const html = await render(CookiesRequired, {})
+    const text = textOf(html)
+    expect(text).toContain('Hooklook needs cookies')
+    expect(text).toContain('Allow cookies')
+    expect(html).toContain('href="/"')
+    expect(text).toContain('Try again')
+    // No replacement bin is on offer: there is no bin to replace.
+    expect(text).not.toContain('Create New Bin')
   })
 })

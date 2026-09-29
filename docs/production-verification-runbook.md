@@ -13,7 +13,7 @@ workstation with the production operator token already exported:
 ./scripts/verify-public.sh
 ```
 
-It checks HTTPS health, the home redirect and owner cookie, the embedded
+It checks HTTPS health, the cookie check, the home redirect and owner cookie, the embedded
 frontend asset, capture/list/detail authorization, sharing and revocation,
 admin bearer authorization, the 10 MB (10,000,000-byte) capture-body boundary
 with fixed-length and chunked requests, and the listener-wide header boundary.
@@ -39,8 +39,9 @@ VERIFY_RATE_LIMITS=1 \
 ./scripts/verify-public.sh
 ```
 
-It expects `429` plus `Retry-After` for the eleventh home request in its own
-one-minute window and for the twenty-first capture in a 20-second window. It also proves that an
+It expects `429` plus `Retry-After` by the twenty-first home request in its own
+one-minute window (Caddy allows twenty a minute on `/`: ten new bins, each
+taking two requests through the cookie check) and for the twenty-first capture in a 20-second window. It also proves that an
 ordinary authorized inspector API request remains available after each limit.
 The script waits 21 seconds before its capture-burst test and can take more
 than a minute because it verifies that an SSE stream survives idle time.

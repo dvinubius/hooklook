@@ -68,7 +68,9 @@ server shutdown also close its open event streams.
 ## Inspecting a webhook bin
 
 Open `/` and hooklook resolves or creates the bin your browser owns, then takes
-you to its page. The page shows the capture URL to send requests to, the live
+you to its page. A new bin is created only after one extra redirect through
+`/?cookie-check` shows that the browser keeps cookies; without them the page
+explains that hooklook needs cookies, and no bin is created. The page shows the capture URL to send requests to, the live
 list of what has arrived, and the full detail of whichever request is selected.
 A `curl` example to try the URL with is in the help dialog. While the bin is
 empty, the page shows only a short note instead of the list and detail. For
@@ -256,7 +258,8 @@ reviewed in a browser by hand.
 
 ## Inspection exercise
 
-Exercises the whole flow against the built binary — first visit, capture of
+Exercises the whole flow against the built binary — first visit with its
+cookie check, capture of
 every body shape, list, detail, the live stream, owner mutations, guest
 invitation and revocation — and checks that no owner cookie or
 invitation reaches the log:

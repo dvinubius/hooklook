@@ -35,7 +35,7 @@ any handler runs:
 
 | Route class | Requests |
 | --- | --- |
-| `home` | `GET /`: returns your bin, or creates one, then redirects |
+| `home` | `GET /` and `GET /?cookie-check`: returns your bin, or checks cookies and creates one, then redirects |
 | `bin_page` | `/bins/{code}…` page documents and their redirects |
 | `api_bin` | `GET /api/bins/{code}`: bin metadata and capacity |
 | `api_request_list` | `GET` (list) and `DELETE` (clear) on `/api/bins/{code}/requests` |
@@ -61,9 +61,10 @@ event shows up. A dash means it leaves no trace there.
 | Webhook while SQLite is at `MAX_STORE` | `capture 507` | `store_full` | — | `capture capacity`; `capture error` kind `full` if SQLite itself refused | WARN `capture_capacity_rejected` |
 | Chunked body cut off by Caddy at 10 MB | `capture 400` | — | — | — | `http_request` |
 | Declared body over 10 MB, rate limit, huge headers | — | — | — | — | — |
-| First visit to `/`, no owner cookie | `home 303` | — | `create` | `create success` | `http_request` |
+| First visit to `/`, no owner cookie (browser, or any client that keeps cookies) | `home 303` ×2 | — | `create` | `create success` | `http_request` ×2 |
 | Returning visit to `/` with a cookie | `home 303` | — | — | — | `http_request` |
-| First visit while SQLite is at `MAX_STORE` | `home 507` | — | — | `create capacity` | WARN `bin_creation_capacity_rejected` |
+| Visit to `/` from a client that drops cookies | `home 303`, then `home 200` | — | — | — | `http_request` ×2, `bin_creation_cookie_missing` |
+| First visit while SQLite is at `MAX_STORE` | `home 303`, then `home 507` | — | — | `create capacity` | WARN `bin_creation_capacity_rejected` |
 | Owner opens a bin page in a browser | `bin_page 200`, `api_bin 200`, `api_request_list 200` | — | `list` | `list success` | `http_request` ×3, `sse_opened` |
 | Page for an expired or foreign bin | `bin_page 404` | — | — | — | `http_request` |
 | Owner clicks one captured request | `api_request_detail 200` | — | `detail` | `detail success` | `http_request` |
@@ -87,10 +88,14 @@ Four consequences are worth memorising:
    request is invisible to the traffic counter for as long as the tab stays
    open. It is also excluded from latency and in-flight panels, which would
    otherwise be dominated by hour-long streams.
-4. **Every cookieless visit to `/` creates a bin.** Link-preview bots
-   (Slack, Discord, and so on) are recognised and spared; other crawlers are
-   not. A crawler that does not keep cookies leaves a `home 303` followed by
-   a `bin_page 404`: it never returns the owner cookie it was just given.
+4. **Only a client that keeps cookies gets a bin.** A cookieless visit to
+   `/` first sets a short-lived cookie check and redirects to
+   `/?cookie-check`; the bin is created there, and only if the check came
+   back. A crawler that drops cookies leaves `home 303` then `home 200` (the
+   "Hooklook needs cookies" page) and no bin. Link-preview bots (Slack,
+   Discord, and so on) are recognised earlier and get a plain `home 200`.
+   `hooklook_bin_creation_results_total` (see [section 7](#7-explore-recipes))
+   splits the attempts into `created`, `no_cookie` and `store_full`.
 
 ### Reading rules
 
@@ -143,7 +148,7 @@ Four consequences are worth memorising:
 | **Overview**: Requests, Accepted captures, Missing-bin captures | How much happened in the selected range? | Captures a small share of requests |
 | **Overview**: Application 5xx | Did the application fail anyone? `507` is excluded | 0, green |
 | **Overview**: Service up | Can Prometheus scrape Hooklook right now? | 1, green |
-| **Traffic**: HTTP traffic by route and status | Which kinds of request, with which outcome? | `health 200` (deploy checks, uptime probes), `capture 201`, `home 303`, `bin_page 200`, bursts of `other 404` from scanners |
+| **Traffic**: HTTP traffic by route and status | Which kinds of request, with which outcome? | `health 200` (deploy checks, uptime probes), `capture 201`, `home 303`, `home 200` (cookieless crawlers and link previews), `bin_page 200`, bursts of `other 404` from scanners |
 | **Traffic**: In flight HTTP requests | Is non-stream work piling up right now? | 0 |
 | **Traffic**: HTTP request p50 / p95 | How long do requests take, per route class? | Tens of milliseconds or less |
 | **Bin activity**: Active bins | How many unexpired bins exist? | Roughly creations of the last three days, plus renewed bins |
@@ -205,15 +210,18 @@ panels in an order that narrows the answer.
      Hooklook never had.
    - **Everything else** is product use: `home`, `bin_page`, `api_*`, `sse`,
      `capture`.
-2. Among product use, compare `home 303` with `api_bin 200`. A real browser
-   that lands on `/` runs the frontend, which calls `api_bin` and
-   `api_request_list`. A crawler follows the redirect, gets `bin_page 404`
-   (no cookie) and stops.
+2. Among product use, compare `home 303` with `api_bin 200`. A new browser
+   passes through `/` twice (the cookie check, then its new bin) and runs the
+   frontend, which calls `api_bin` and `api_request_list`; a returning one
+   passes through once. A crawler that drops cookies follows the first
+   redirect, gets `home 200` (the cookies-required page) and stops, without a
+   bin.
 
 | Signature over the same window | Likely cause |
 | --- | --- |
-| `home 303` ≈ `bin_page 200` ≈ `api_bin 200` | People opening Hooklook in a browser |
-| `home 303` ≈ `bin_page 404`, little `api_bin` | Crawlers creating a fresh bin on every visit |
+| `home 303` ≈ `bin_page 200` ≈ `api_bin 200`, with up to twice as many `home 303` when most visitors are new | People opening Hooklook in a browser |
+| `home 303` ≈ `home 200`, little `bin_page` or `api_bin` | Crawlers that drop cookies, refused a bin (or link-preview bots, which add only `home 200`) |
+| `home 303` ≈ `bin_page 404`, little `api_bin` | Clients that keep cookies across the check but not afterwards: rare, and each still creates a bin |
 | `api_bin` and `api_request_list` well above `home` | People returning to bins, reloading, or reconnecting streams |
 | `capture 201` without matching page traffic | Senders delivering webhooks while nobody watches |
 
@@ -223,10 +231,16 @@ For exact counts over a day, use Explore:
 sort_desc(sum by (route, status) (increase(hooklook_http_requests_total[24h])))
 ```
 
-Crawler-created bins cost little: a row in SQLite that expires after three
-days. They do inflate **Active bins** and the `create` count. If you want the
-real number of bins that ever received a webhook, the operator API lists every
-bin with its `requestCount` (see the [deployment runbook](deployment-runbook.md#operating-the-deployed-stack)
+Crawlers that drop cookies create no bins. The ones that keep them do, and such a bin costs little: a row in SQLite that expires after
+three days. They inflate **Active bins** and the `create` count. How often a
+bin was refused for missing cookies:
+
+```promql
+sum by (result) (increase(hooklook_bin_creation_results_total[24h]))
+```
+
+If you want the real number of bins that ever received a webhook, the
+operator API lists every bin with its `requestCount` (see the [deployment runbook](deployment-runbook.md#operating-the-deployed-stack)
 for the token-safe way to call it):
 
 ```sh
@@ -625,6 +639,13 @@ Share of captures accepted, per day:
 ```promql
 sum(increase(hooklook_capture_results_total{result="accepted"}[24h]))
 / sum(increase(hooklook_capture_results_total[24h]))
+```
+
+Bin creation attempts from `/`: `created`, `no_cookie` (the client did not
+return the cookie check) and `store_full`:
+
+```promql
+sum by (result) (increase(hooklook_bin_creation_results_total[24h]))
 ```
 
 Which methods webhooks use (Hooklook accepts any):

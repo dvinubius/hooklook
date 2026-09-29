@@ -106,6 +106,35 @@ out of room for new bins and its operator needs to free some.</p>
 </html>
 `)
 
+// cookiesRequiredShell is the fallback for a client that did not return the
+// cookie check. Like the capacity page it stands alone.
+var cookiesRequiredShell = []byte(`<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<title>hooklook — cookies required</title>
+<style>
+body{margin:0;padding:15vh 24px;background:#141414;color:#FAFAFA;
+font:400 15px/1.55 ui-sans-serif,system-ui,sans-serif}
+main{max-width:34rem;margin:0 auto}
+h1{font-size:30px;letter-spacing:-.022em;margin:0 0 .6em}
+p{color:#9A9A9A;margin:0 0 1em}
+a{color:#DE8A42}
+</style>
+</head>
+<body>
+<main>
+<h1>Hooklook needs cookies</h1>
+<p>Your bin is tied to this browser by a cookie. Without it, hooklook could
+not find your bin again, so none was created.</p>
+<p>Allow cookies for this site, then <a href="/">try again</a>.</p>
+</main>
+</body>
+</html>
+`)
+
 var expiredBinShell = []byte(`<!doctype html>
 <html lang="en">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
@@ -144,9 +173,10 @@ func writePageShell(w http.ResponseWriter) {
 	writeShell(w, prodShell)
 }
 
-// A full store can prevent a first-time visitor from obtaining a bin. Serve
-// the same application bundle with a document marker so the browser can show
-// that state without an owner cookie or a bin-metadata request. The standalone
+// A full store or a client without cookies can prevent a first-time visitor
+// from obtaining a bin. Serve the same application bundle with a document
+// marker so the browser can show that state without an owner cookie or a
+// bin-metadata request. The standalone
 // page remains a fallback when the production frontend was not built.
 func writeStartupShell(w http.ResponseWriter, state string, status int, fallback []byte) {
 	w.Header().Set("X-Hooklook-Error", state)
@@ -168,6 +198,12 @@ func writeStartupShell(w http.ResponseWriter, state string, status int, fallback
 
 func writeCapacityShell(w http.ResponseWriter) {
 	writeStartupShell(w, "store_full", http.StatusInsufficientStorage, capacityShell)
+}
+
+// A client that dropped the cookie check gets an explanation instead of a
+// bin it could never return to. It is an answer, not an error, so `200`.
+func writeCookiesRequiredShell(w http.ResponseWriter) {
+	writeStartupShell(w, "cookies_required", http.StatusOK, cookiesRequiredShell)
 }
 
 // An unavailable regular bin URL needs an explicit dead end before the visitor

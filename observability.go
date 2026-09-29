@@ -24,6 +24,7 @@ type telemetryState struct {
 	httpDuration        *prometheus.HistogramVec
 	inFlight            prometheus.Gauge
 	operations          *prometheus.CounterVec
+	binCreations        *prometheus.CounterVec
 	captures            *prometheus.CounterVec
 	dbDuration          *prometheus.HistogramVec
 	dbOperations        *prometheus.CounterVec
@@ -49,6 +50,7 @@ func newTelemetry() *telemetryState {
 	t.httpDuration = prometheus.NewHistogramVec(prometheus.HistogramOpts{Name: "hooklook_http_request_duration_seconds", Help: "HTTP request duration, excluding SSE.", Buckets: prometheus.DefBuckets}, []string{"route", "method"})
 	t.inFlight = prometheus.NewGauge(prometheus.GaugeOpts{Name: "hooklook_http_in_flight_requests", Help: "In-flight HTTP requests excluding SSE."})
 	t.operations = prometheus.NewCounterVec(prometheus.CounterOpts{Name: "hooklook_bin_operations_total", Help: "Successful bin operations."}, []string{"operation"})
+	t.binCreations = prometheus.NewCounterVec(prometheus.CounterOpts{Name: "hooklook_bin_creation_results_total", Help: "Bin creation attempts from the home page."}, []string{"result"})
 	t.captures = prometheus.NewCounterVec(prometheus.CounterOpts{Name: "hooklook_capture_results_total", Help: "Capture results."}, []string{"result"})
 	t.dbOperations = prometheus.NewCounterVec(prometheus.CounterOpts{Name: "hooklook_db_operations_total", Help: "Selected SQLite operation results."}, []string{"operation", "result"})
 	t.dbDuration = prometheus.NewHistogramVec(prometheus.HistogramOpts{Name: "hooklook_db_operation_duration_seconds", Help: "Selected SQLite operation duration.", Buckets: prometheus.DefBuckets}, []string{"operation"})
@@ -66,7 +68,7 @@ func newTelemetry() *telemetryState {
 	t.nearLimit = prometheus.NewGauge(prometheus.GaugeOpts{Name: "hooklook_active_bins_near_limit", Help: "Active bins above 90 percent of count or body allowance."})
 	t.pool = prometheus.NewGaugeVec(prometheus.GaugeOpts{Name: "hooklook_db_pool_connections", Help: "Database pool connections."}, []string{"state"})
 	t.poolWait = prometheus.NewCounter(prometheus.CounterOpts{Name: "hooklook_db_pool_wait_seconds_total", Help: "Cumulative time waiting for a SQLite connection."})
-	t.registry.MustRegister(t.httpRequests, t.httpDuration, t.inFlight, t.operations, t.captures, t.dbDuration, t.dbOperations, t.dbErrors, t.cleanupDuration, t.cleanupRuns, t.expired, t.sseConnections, t.sseEvents, t.storage, t.storageRatio, t.storageAvailable, t.activeBins, t.activeBinsAvailable, t.nearLimit, t.pool, t.poolWait, prometheus.NewGoCollector(), prometheus.NewProcessCollector(prometheus.ProcessCollectorOpts{}))
+	t.registry.MustRegister(t.httpRequests, t.httpDuration, t.inFlight, t.operations, t.binCreations, t.captures, t.dbDuration, t.dbOperations, t.dbErrors, t.cleanupDuration, t.cleanupRuns, t.expired, t.sseConnections, t.sseEvents, t.storage, t.storageRatio, t.storageAvailable, t.activeBins, t.activeBinsAvailable, t.nearLimit, t.pool, t.poolWait, prometheus.NewGoCollector(), prometheus.NewProcessCollector(prometheus.ProcessCollectorOpts{}))
 	return t
 }
 

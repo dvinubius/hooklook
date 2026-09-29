@@ -296,3 +296,16 @@ func TestSocialThumbnailIsServedWithoutBinAuthorization(t *testing.T) {
 		t.Errorf("thumbnail cache control = %q", got)
 	}
 }
+
+func TestBuiltCookiesRequiredPageLoadsEmbeddedApp(t *testing.T) {
+	requireBuiltFrontend(t)
+	t.Setenv(frontendDevEnvironmentVariable, "")
+	rec := httptest.NewRecorder()
+	writeCookiesRequiredShell(rec)
+	if rec.Code != http.StatusOK || rec.Header().Get("X-Hooklook-Error") != "cookies_required" {
+		t.Fatalf("cookies-required response = %d, %q", rec.Code, rec.Header().Get("X-Hooklook-Error"))
+	}
+	if !strings.Contains(rec.Body.String(), `data-hooklook-startup="cookies_required"`) || !strings.Contains(rec.Body.String(), `/assets/`) {
+		t.Errorf("built cookies-required page does not load app assets: %s", rec.Body.String())
+	}
+}

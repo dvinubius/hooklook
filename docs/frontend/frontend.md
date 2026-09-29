@@ -36,6 +36,11 @@ between them. It offers no retry control, because a visitor cannot free the
 space and a button that reloads into the same wall reads worse than the
 sentence; a reload is still the way back in once room exists.
 
+A client that did not return the cookie check gets the same kind of document
+from `/?cookie-check`, with `200` and `data-hooklook-startup="cookies_required"`.
+That state renders `CookiesRequired`: the reason no bin was opened, and a
+**Try again** link to `/`, which starts the check afresh.
+
 Unavailable bin documents use parallel startup markers. An unavailable regular
 URL uses `bin_expired`; an unavailable URL with a nonempty `invite` parameter
 uses `shared_bin_unavailable`. The link shape controls the message for missing,
@@ -325,7 +330,7 @@ happen.
 | `lib/location.ts` | Bin code, request id and invitation read from the URL; capture and invitation URLs built on the origin the browser is really on. |
 | `lib/headers.ts` | The client address read out of `X-Forwarded-For`, and the trust rule that picks which hop. Pure functions. |
 | `lib/format.ts`, `lib/clipboard.ts`, `lib/theme.ts` | Times and byte counts, a clipboard that is allowed to be unavailable, a dark-by-default theme toggle. |
-| `components/` | `BinPage` wires the feed, selection, detail and mutations; the rest render. `PageShell` is the shared top bar and footer, `ServiceFull` the out-of-room page, `BinUnavailable` the expired and inaccessible shared-bin page, and `CapacityGauge` the bin's room on the capture row. `ThemeToggle` mirrors its zibs counterpart. |
+| `components/` | `BinPage` wires the feed, selection, detail and mutations; the rest render. `PageShell` is the shared top bar and footer, `ServiceFull` the out-of-room page, `CookiesRequired` the no-cookies page, `BinUnavailable` the expired and inaccessible shared-bin page, and `CapacityGauge` the bin's room on the capture row. `ThemeToggle` mirrors its zibs counterpart. |
 
 ## Tests
 

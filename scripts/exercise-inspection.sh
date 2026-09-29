@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
-# Exercises the whole inspection flow against the built binary: first visit,
-# capture, list, detail, the live stream, owner mutations, guest invitation,
+# Exercises the whole inspection flow against the built binary: first visit
+# with its cookie check, capture, list, detail, the live stream, owner mutations, guest invitation,
 # revocation and removal of the replacement route.
 #
 # It starts its own server over a throwaway SQLite database in a temporary
@@ -65,7 +65,15 @@ capture() { curl --silent --request "$1" "$base/b/$code$2" "${@:3}"; }
 id_of() { sed 's/.*"id":"\([0-9]*\)".*/\1/'; }
 
 echo "== first visit"
-location=$(curl --silent --output /dev/null --cookie-jar "$owner" --write-out '%{redirect_url}' "$base/")
+refused="$work/refused.headers"
+check "a client that drops cookies is told so" \
+  "$(curl --silent --output /dev/null --dump-header "$refused" --write-out '%{http_code}' "$base/?cookie-check")" 200
+grep -qi '^x-hooklook-error: cookies_required' "$refused" && pass "the refusal is marked cookies_required" || fail "cookies_required marker"
+check "GET / checks cookies before creating a bin" \
+  "$(curl --silent --output /dev/null --cookie "$owner" --cookie-jar "$owner" \
+    --write-out '%{redirect_url}' "$base/")" "$base/?cookie-check"
+location=$(curl --silent --output /dev/null --cookie "$owner" --cookie-jar "$owner" \
+  --write-out '%{redirect_url}' "$base/?cookie-check")
 code=${location##*/bins/}
 [[ -n "$code" ]] && pass "GET / redirects to /bins/$code" || fail "GET / redirect"
 grep -q hooklook_owner "$owner" && pass "owner cookie set" || fail "owner cookie"
@@ -171,8 +179,12 @@ check "guest clear is refused" \
 check "guest sharing change is refused" \
   "$(status_of --request PUT --header "Origin: $base" --header 'Content-Type: application/json' \
     --data '{"enabled":false}' "$base/api/bins/$code/sharing?invite=$invite")" "403"
-check "a bogus invitation gets its own bin instead" \
-  "$(status_of "$base/bins/$code?invite=not-a-real-invitation")" "303"
+bogus="$work/bogus.headers"
+check "a bogus invitation is refused, not replaced" \
+  "$(status_of --dump-header "$bogus" "$base/bins/$code?invite=not-a-real-invitation")" "404"
+grep -qi '^x-hooklook-error: shared_bin_unavailable' "$bogus" \
+  && pass "the refusal is marked shared_bin_unavailable" || fail "shared_bin_unavailable marker"
+grep -qi '^set-cookie:' "$bogus" && fail "the refusal set a cookie" || pass "the refusal sets no cookie"
 
 echo "== revocation, then re-enabling the same link"
 set_sharing false
