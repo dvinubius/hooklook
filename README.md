@@ -141,6 +141,7 @@ can be changed.
 - [Documentation routing index](docs/README.md)
 - [Current architecture](docs/architecture.md)
 - [Observability](docs/observability.md)
+- [Using the dashboard](docs/observability-guide.md)
 - [Deployment security](docs/security.md)
 - [Database behavior](docs/db.md)
 - [Bin access](docs/bin-access.md)
@@ -304,4 +305,5 @@ stay out of metrics and logs. The private stack is Prometheus, Alloy, Loki, and
 Grafana, enabled with the Compose `observability` profile. Grafana binds only
 `127.0.0.1:3001` on the host. See the
 [observability runbook](docs/observability-runbook.md) for local validation,
-operator access, retention, smoke checks, and rollback.
+operator access, retention, smoke checks, and rollback, and the
+[dashboard guide](docs/observability-guide.md) for reading the dashboard.

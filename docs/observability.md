@@ -6,7 +6,8 @@ separate Hooklook listener; Alloy forwards selected Hooklook container logs to
 Loki. Grafana queries both backends for a private operator dashboard. The
 [architecture](architecture.md) shows the complete request path, while the
 [observability runbook](observability-runbook.md) covers validation, deployment,
-access, and rollback.
+access, and rollback. The [dashboard guide](observability-guide.md) teaches
+reading the dashboard through scenarios.
 
 ## Stack topology
 
@@ -16,7 +17,7 @@ flowchart LR
 
     subgraph metrics["Docker network: hooklook_metrics (internal)"]
         app_metrics["Hooklook :9092"]
-        prom_scrape["Prometheus<br/>s   crape interface"]
+        prom_scrape["Prometheus<br/>scrape interface"]
         prom_scrape -->|GET /metrics| app_metrics
     end
 
@@ -97,15 +98,22 @@ application metrics:
 | `hooklook_http_requests_total` | Counter: `route`, `method`, `status` | Completed application HTTP requests, using normalized route classes |
 | `hooklook_http_request_duration_seconds` | Histogram: `route`, `method` | Request duration excluding long-lived SSE streams |
 | `hooklook_http_in_flight_requests` | Gauge | Current non-SSE handler work |
-| `hooklook_capture_results_total` | Counter: `result` | Accepted, missing-bin, capacity-rejected, or internal-error captures |
-| `hooklook_bin_operations_total` | Counter: `operation` | Successful create, capture, list, detail, delete, clear, and admin-list operations |
-| `hooklook_db_operations_total`, `hooklook_db_operation_duration_seconds`, `hooklook_db_errors_total` | Counter, histogram, counter; bounded operation/result/kind labels | SQLite outcomes, latency, and classified errors |
+| `hooklook_capture_results_total` | Counter: `result` | Capture outcomes: `accepted`, `missing_bin`, `bin_full`, `store_full`, or `internal_error` |
+| `hooklook_bin_operations_total` | Counter: `operation` | Successful create, capture, list, detail, delete, clear, and admin-list operations; list and detail count successful API reads, not page views or SSE reconnects |
+| `hooklook_db_operations_total`, `hooklook_db_operation_duration_seconds`, `hooklook_db_errors_total` | Counter, histogram, counter; bounded operation/result/kind labels | SQLite outcomes (`success`, `not_found`, `capacity`, `error`), latency, and real failures only (kind `full` or `other`) |
 | `hooklook_expiry_cleanup_runs_total`, `hooklook_expiry_cleanup_duration_seconds`, `hooklook_expired_bins_deleted_total` | Counters and histogram | Cleanup outcomes, duration, and expired-bin deletions |
 | `hooklook_sse_connections`, `hooklook_sse_events_total` | Gauge and counter | Open streams and bounded SSE event outcomes |
-| `hooklook_storage_bytes`, `hooklook_storage_occupancy_ratio` | Gauges | SQLite allocation, reusable pages, budget, WAL, and filesystem capacity |
+| `hooklook_storage_bytes`, `hooklook_storage_occupancy_ratio` | Gauges | SQLite allocation, reusable pages, budget, WAL, and filesystem capacity (see below) |
 | `hooklook_storage_collection_available`, `hooklook_active_bins_collection_available` | Gauges | Whether the most recent bounded collection succeeded; 0 means the related count is stale |
 | `hooklook_active_bins`, `hooklook_active_bins_near_limit` | Gauges | Active bins and bins near their count or body-byte allowance |
 | `hooklook_db_pool_connections`, `hooklook_db_pool_wait_seconds_total` | Gauge and counter | SQLite pool open/in-use/idle connections and accumulated wait time |
+
+`hooklook_storage_bytes{kind="allocated"}` measures the main SQLite file
+against `kind="budget"` (`MAX_STORE`, rounded down to whole pages).
+`kind="reusable"` counts free pages SQLite can reuse, so deleting rows can
+raise reusable bytes without shrinking allocated bytes. `main_file`, `wal`, and
+`filesystem_available` show pressure outside the page budget. The occupancy
+ratio is `allocated ÷ budget`.
 
 Metric labels never contain bin codes, raw paths or queries, request IDs,
 payloads, headers, cookies, invitation IDs, tokens, client IPs, or error text.
@@ -118,7 +126,8 @@ Prometheus itself creates `up{job="hooklook"}` for the
 [`job_name: hooklook` scrape](../observability/prometheus.yml), targeting
 `hooklook:9092`. A value of 1 means the last scrape succeeded; 0 means it
 failed. It is not emitted by Hooklook and does not establish SQLite readiness.
-Use `/ready` for the bounded SQLite check; `/health` is liveness.
+Use `/ready`, which checks SQLite within 500 ms, for readiness; `/health` is
+static liveness.
 
 ## Logs and access boundary
 
@@ -139,23 +148,16 @@ see [deployment security](security.md).
 The metrics listener has no host port and is not registered on the public
 application mux. Grafana is published only at `127.0.0.1:3001`, disables
 anonymous access and signup, and uses separate Hooklook credentials. An
-operator can open it through an SSH tunnel:
-
-```sh
-ssh -L 3001:127.0.0.1:3001 "$DEPLOY_USER@$DEPLOY_HOST"
-```
-
-Then open `http://127.0.0.1:3001` and the **Hooklook → Hooklook operator**
-dashboard. There is no public Grafana workspace or shared dashboard route.
+operator reaches it through an SSH tunnel; see
+[private access](observability-runbook.md#deployment-preparation-and-private-access).
+There is no public Grafana workspace or shared dashboard route.
 
 ## Dashboard and operating checks
 
-The provisioned dashboard has Overview, Traffic and latency, Bin activity,
-Capacity and storage, SQLite, Expiry cleanup, Runtime, and Application logs
-sections. Its stat panels show current availability and small operational
-summaries; time series preserve trends and the Loki panel shows recent safe
-application logs. Dashboard JSON in the repository is the durable layout
-source. A push to `main` that changes only that JSON deploys just the file and
+The provisioned **Hooklook → Hooklook operator** dashboard is described panel
+by panel, with scenarios for using it, in the
+[dashboard guide](observability-guide.md). Dashboard JSON in the repository is
+the durable layout source. A push to `main` that changes only that JSON deploys just the file and
 verifies Grafana provisioning.
 
 After a full or observability deployment, the
@@ -164,9 +166,7 @@ loopback binding and HTTP API, Hooklook readiness, Prometheus `up=1`, a
 Hooklook log in Loki, both Grafana data sources, and dashboard provisioning.
 It verifies the telemetry path, not every panel or a visual layout. Follow the
 [observability runbook](observability-runbook.md) for configuration validation,
-private access, and rollback. Review capacity against `MAX_STORE`, repeated
-cleanup failures, sustained 5xx, SQLite waits, and SSE connection behavior
-during normal operation.
+private access, and rollback.
 
 No alerts are configured yet. Notification destination, thresholds, and
 delivery testing remain separate operator work. The dashboard and smoke test

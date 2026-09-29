@@ -16,6 +16,50 @@ install Docker, configure DNS, or change Caddy.
 
 ## How a push deploys
 
+Every push to `main` starts a run. The plan decides how much of it reaches the
+VPS; a run whose mode is `none` stops there.
+
+```mermaid
+flowchart LR
+  subgraph test["1 · Test: test.yml, no VPS contact"]
+    direction TB
+    t1["Frontend tests<br/>and build"] --> t2["go vet<br/>and Go tests"]
+    t2 --> t3["Deployment, backup, and<br/>verifier script tests"]
+    t3 --> t4["Validate the<br/>dashboard JSON"]
+    t4 --> t5["Render Compose with<br/>a placeholder digest"]
+  end
+  subgraph plan["2 · Plan: read-only SSH"]
+    direction TB
+    p1["Install the SSH key<br/>and pinned host key"] --> p2["Read the VPS manifest:<br/>last verified commit"]
+    p2 --> p3{"Manual run<br/>with force_full?"}
+    p3 -- no --> p4["classify-deploy.sh: paths<br/>changed since that commit"]
+    p3 -- yes --> p5["Mode: none, dashboard,<br/>observability, or full"]
+    p4 --> p5
+  end
+  subgraph image["3 · Image: full mode only"]
+    direction TB
+    i1["Build for linux/amd64,<br/>tag with the commit"] --> i2["Push to GHCR"]
+    i2 --> i3["Output the<br/>@sha256 digest"]
+  end
+  subgraph deploy["4 · Deploy: VPS changes"]
+    direction TB
+    d1["Confirm the commit is<br/>still the head of main"] --> d2["Upload the git archive<br/>bundle to .deploy/staging"]
+    d2 --> d3["Take the host lock, check<br/>preconditions (full: edge network,<br/>storage headroom, pull digest)"]
+    d3 --> d4["Snapshot compose.yaml,<br/>observability/, scripts/,<br/>.env.image, manifest"]
+    d4 --> d5{"Mode"}
+    d5 -- full --> d6["Install bundle, write .env.image,<br/>recreate Hooklook; check /health,<br/>/ready, public /health"]
+    d5 -- observability --> d7["Recreate Prometheus, Alloy,<br/>Loki, Grafana; full smoke test"]
+    d5 -- dashboard --> d8["Install the dashboard JSON;<br/>dashboard smoke test"]
+    d6 --> d7
+    d7 --> d9["Write the manifest"]
+    d8 --> d9
+  end
+  test --> plan
+  plan -- "full" --> image
+  image -- digest --> deploy
+  plan -- "dashboard or observability" --> deploy
+```
+
 1. **Test.** Frontend tests and build, `go vet`, Go tests, the deployment,
    backup, and verifier shell tests, dashboard JSON validation, and Compose
    rendering. Nothing contacts the VPS before these pass.

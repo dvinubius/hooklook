@@ -7,33 +7,9 @@ observability. Prepare locally; deploying is a separate operator action.
 
 ## Signals
 
-`/health` is static liveness. `/ready` checks SQLite within 500 ms. Capacity
-is separate: `hooklook_storage_bytes{kind="allocated"}` measures the SQLite
-main file against `kind="budget"` (`MAX_STORE`, rounded to whole pages), and
-`kind="reusable"` counts pages that SQLite can reuse. Deleting rows can raise
-reusable bytes without shrinking allocated bytes. `main_file`, `wal`, and
-`filesystem_available` show other pressure. `hooklook_storage_collection_available`
-and `hooklook_active_bins_collection_available` are zero on collection failure;
-the last gauges must not be interpreted as fresh then.
-
-Capture results are `accepted`, `missing_bin`, `bin_full`, `store_full`, and
-`internal_error`. A `507` is expected capacity pressure and is separate from
-true server failures. `up` only means Prometheus can scrape the process; use
-`/ready` for SQLite readiness. Caddy-generated `413`, `429`, and `431` are not
-visible to Go; inspect Caddy access logs separately when investigating these.
-No host metrics or tracing are part of this stack.
-
-Prometheus generates `up{job="hooklook"}` for the `job_name: hooklook` scrape
-in `observability/prometheus.yml`, which targets `hooklook:9092` every 15
-seconds. It sets `up` to 1 when a scrape succeeds and 0 when it fails. Hooklook
-does not emit this metric itself, and `up=1` does not prove SQLite readiness.
-
-Successful create, capture, list, detail, owner delete, clear, and admin-list
-operations have counters. The list and detail counters reflect successful API
-reads; page views and SSE reconnects do not count. SSE duration is excluded
-from ordinary HTTP latency. Logs are JSON with fixed route class, bounded
-method/status, duration, and safe operational events. Captured payloads,
-headers, cookies, invitation IDs, raw URLs, and token values are not logged.
+What each metric, `up`, `/health`, and `/ready` mean, and what never reaches
+metrics or logs, is documented in the [observability overview](observability.md#goals-and-instrumentation).
+The [dashboard guide](observability-guide.md) explains how to read them.
 
 ## Local validation
 
@@ -118,7 +94,9 @@ readiness, the Prometheus scrape, a fresh safe log in Loki, both Grafana
 datasources, and the dashboard. Dashboard-only deployment runs the focused
 `dashboard` smoke mode after allowing one provisioning poll. Then exercise a home visit, capture, missing-bin capture, list/detail API read,
 SSE open/close, and a deliberate test-bin capacity rejection. Check their
-bounded counters and private logs in the dashboard. Verify `507` appears in
+bounded counters and private logs in the dashboard; the
+[dashboard guide](observability-guide.md#1-what-the-dashboard-can-see) shows
+where each one appears. Verify `507` appears in
 the capacity panel, separately from the application 5xx panel. Confirm the
 Grafana bind with the running container's Docker port bindings (the smoke
 script checks `docker inspect`; some Compose versions report `:0` from
