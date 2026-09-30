@@ -2,12 +2,13 @@ package main
 
 import (
 	"bytes"
-	"embed"
 	"io/fs"
 	"mime"
 	"net/http"
 	"os"
 	"strings"
+
+	"github.com/dvinubius/webhook-inspector/frontend"
 )
 
 const frontendDevEnvironmentVariable = "FRONTEND_DEV"
@@ -22,25 +23,8 @@ func frontendDev() bool {
 	return os.Getenv(frontendDevEnvironmentVariable) != ""
 }
 
-// The production build is embedded, so the binary is the whole deployment.
-// `all:` keeps the committed `.gitkeep` eligible, which lets `go build` work on
-// a fresh checkout before anyone has run `make build-web`; the page route then
-// reports the missing build instead of serving a blank document.
-//
-//go:embed all:frontend/dist
-var frontendBuild embed.FS
-
-// builtFrontend is frontend/dist rooted at itself, so "index.html" and
-// "assets/…" are exactly the paths the built document already references.
-var builtFrontend = mustSub(frontendBuild, "frontend/dist")
-
-func mustSub(embedded embed.FS, dir string) fs.FS {
-	sub, err := fs.Sub(embedded, dir)
-	if err != nil {
-		panic(err) // the embed pattern above guarantees the directory exists
-	}
-	return sub
-}
+// builtFrontend is the embedded production build; see package frontend.
+var builtFrontend = frontend.Dist
 
 // prodShell is the built application document, read once at startup. A build
 // error is kept rather than ignored: serving nothing silently would look like

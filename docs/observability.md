@@ -82,7 +82,7 @@ The Docker socket used by Alloy is a Unix socket, not a TCP port.
 
 | Component | Repository configuration | Durable state | Behavior |
 | --- | --- | --- | --- |
-| Hooklook metrics | [`observability.go`](../observability.go), [`compose.yaml`](../compose.yaml) | Application SQLite data remains in `hooklook-data` | Serves a private registry on port 9092 |
+| Hooklook metrics | [`observability.go`](../cmd/hooklook/observability.go), [`compose.yaml`](../compose.yaml) | Application SQLite data remains in `hooklook-data` | Serves a private registry on port 9092 |
 | Prometheus | [`prometheus.yml`](../observability/prometheus.yml) | `hooklook-prometheus` | Scrapes `hooklook:9092` every 15 seconds; retains 14 days, capped at 2 GB |
 | Alloy | [`alloy.alloy`](../observability/alloy.alloy) | `hooklook-alloy` | Reads only the Hooklook application container's Docker stdout and pushes it to Loki |
 | Loki | [`loki.yml`](../observability/loki.yml) | `hooklook-loki` | Filesystem TSDB with seven-day log retention |

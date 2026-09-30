@@ -158,6 +158,10 @@ can be changed.
 
 ## Local development
 
+The Go server is the `package main` in `cmd/hooklook/`; the module root stays at
+the repository root, so `go test ./...` and `go vet ./...` run from there. The
+Vue application lives in `frontend/`.
+
 `PUBLIC_BASE_URL` is required to construct capture URLs. `LISTEN_ADDRESS`
 defaults to `127.0.0.1:8080` for local development; set it to an explicit
 host-and-port address when a deployment needs another listener. `ADMIN_TOKEN`
@@ -184,13 +188,13 @@ make dev-web   # Vite; open http://localhost:5173, not the Go port
 
 ### Running a production build
 
-The binary embeds `frontend/dist`, so the frontend has to be built *before* Go
+The binary embeds `frontend/dist` (through `frontend/embed.go`), so the frontend has to be built *before* Go
 compiles. `make build` does both in the required order; building Go on its own
 after an unbuilt checkout produces a binary whose bin pages report the missing
 build instead of serving a blank document.
 
 ```bash
-make build         # npm run build, then go build -o webhook-inspector
+make build         # npm run build, then go build -o webhook-inspector ./cmd/hooklook
 set -a
 source .env
 set +a

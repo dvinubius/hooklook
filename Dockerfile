@@ -18,9 +18,10 @@ WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download
 
-COPY *.go ./
+COPY cmd/ ./cmd/
+COPY frontend/embed.go ./frontend/
 COPY --from=frontend-build /src/frontend/dist ./frontend/dist
-RUN CGO_ENABLED=1 go build -trimpath -ldflags="-s -w" -o /out/hooklook .
+RUN CGO_ENABLED=1 go build -trimpath -ldflags="-s -w" -o /out/hooklook ./cmd/hooklook
 
 FROM debian:bookworm-slim
 

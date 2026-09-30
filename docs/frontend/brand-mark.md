@@ -113,7 +113,7 @@ It stays dark in both themes, and its colours are literal hex rather than
 tokens: the file is fetched on its own and never sees the app's CSS variables.
 
 It is linked from both shells — `frontend/index.html` for the build and
-`devShell` in `frontend.go` for development — and served by a route of its own,
+`devShell` in `cmd/hooklook/frontend.go` for development — and served by a route of its own,
 `GET /favicon.svg`, because it sits at the build root rather than under
 `/assets`. Its name is stable rather than content-hashed, so it takes
 `staticFileCache`, the same ordinary lifetime the fonts get.

@@ -7,12 +7,13 @@
 !.dockerignore
 !go.mod
 !go.sum
-!*.go
+!cmd/
+!cmd/**
 !frontend/
 !frontend/**
 
 # The Go build never compiles tests, and the Node stage installs and builds
 # these directories itself.
-*_test.go
+**/*_test.go
 frontend/node_modules/
 frontend/dist/

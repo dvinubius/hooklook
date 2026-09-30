@@ -41,9 +41,7 @@ is_non_deployment() {
 	docs/* | .agents/* | local-testing/* | .vscode/*) return 0 ;;
 	README.md | AGENTS.md | CLAUDE.md | .devnotes.md) return 0 ;;
 	.gitignore | .env.example | Makefile) return 0 ;;
-	scripts/*_test.sh) return 0 ;;
-	*/*) return 1 ;;
-	*_test.go) return 0 ;;
+	scripts/*_test.sh | cmd/hooklook/*_test.go) return 0 ;;
 	esac
 	return 1
 }

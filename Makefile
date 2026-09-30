@@ -14,7 +14,7 @@ ADMIN_TOKEN  ?= local-operator-secret
 
 ## Go server for development, serving the Vite-backed page shell.
 dev-go:
-	FRONTEND_DEV=1 PUBLIC_BASE_URL=$(DEV_ORIGIN) ADMIN_TOKEN=$(ADMIN_TOKEN) go run .
+	FRONTEND_DEV=1 PUBLIC_BASE_URL=$(DEV_ORIGIN) ADMIN_TOKEN=$(ADMIN_TOKEN) go run ./cmd/hooklook
 
 ## Vite dev server. Open $(DEV_ORIGIN) — not the Go port.
 dev-web:
@@ -30,7 +30,7 @@ build-web:
 
 ## Full production build, in the required order.
 build: build-web
-	go build -o webhook-inspector .
+	go build -o webhook-inspector ./cmd/hooklook
 
 test:
 	cd frontend && npm test

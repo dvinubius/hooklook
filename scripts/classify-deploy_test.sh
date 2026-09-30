@@ -23,7 +23,7 @@ commit() {
 	git rev-parse HEAD
 }
 
-write main.go
+write cmd/hooklook/main.go
 write compose.yaml
 write README.md
 write docs/runbook.md
@@ -55,7 +55,7 @@ case_from_base
 write README.md
 write docs/runbook.md
 write .agents/PROGRESS.md
-write main_test.go
+write cmd/hooklook/main_test.go
 write scripts/deploy_test.sh
 expect 'docs and tests only' none "$base" "$(commit)"
 
@@ -101,7 +101,7 @@ write observability/grafana/dashboards/hooklook.json
 expect 'compose wins over dashboard' full "$base" "$(commit)"
 
 case_from_base
-write main.go
+write cmd/hooklook/main.go
 expect 'application change' full "$base" "$(commit)"
 
 case_from_base
@@ -119,14 +119,15 @@ expect 'unknown path' full "$base" "$(commit)"
 case_from_base
 write docs/nested/main_test.go
 write nested/main_test.go
-expect 'test outside the root package is not assumed harmless' full "$base" "$(commit)"
+write main_test.go
+expect 'test outside the application package is not assumed harmless' full "$base" "$(commit)"
 
 case_from_base
 git rm -q observability/prometheus.yml
 expect 'deleted observability file' observability "$base" "$(commit)"
 
 case_from_base
-git rm -q main.go
+git rm -q cmd/hooklook/main.go
 expect 'deleted application file' full "$base" "$(commit)"
 
 case_from_base
