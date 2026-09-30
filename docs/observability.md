@@ -3,7 +3,8 @@
 Hooklook owns a private Prometheus, Alloy, Loki, and Grafana stack on the same
 Docker host as the application. Prometheus collects aggregate metrics from a
 separate Hooklook listener; Alloy forwards selected Hooklook container logs to
-Loki. Grafana queries both backends for private operator and traffic-class dashboards. The
+Loki. Grafana queries both backends for private operator and traffic-class dashboards,
+and serves one metrics-only [public dashboard](#public-dashboard). The
 [architecture](architecture.md) shows the complete request path, while the
 [observability runbook](observability-runbook.md) covers validation, deployment,
 access, and rollback. The [dashboard guide](observability-guide.md) teaches
@@ -14,6 +15,7 @@ reading the dashboard through scenarios.
 ```mermaid
 flowchart LR
     operator[Operator] -->|SSH tunnel to 127.0.0.1:3001| grafana_access
+    visitor[Visitor] -->|HTTPS hooklook.app/public-dashboards/…| caddy
 
     subgraph metrics["Docker network: hooklook_metrics (internal)"]
         app_metrics["Hooklook :9092"]
@@ -35,19 +37,28 @@ flowchart LR
         grafana_access["Grafana host port 127.0.0.1:3001"]
     end
 
+    subgraph edge["Docker network: hooklook-edge (external, Caddy-owned)"]
+        caddy[Caddy]
+        grafana_public["Grafana :3000<br/>alias hooklook-grafana"]
+        caddy -->|public-dashboard allowlist| grafana_public
+    end
+
     prom_scrape -.-|same container| prom_query
     grafana -.-|same container| grafana_access
+    grafana -.-|same container| grafana_public
     alloy -->|Docker API| socket((Docker<br/>socket))
     socket -.->|Hooklook<br/>stdout| app_metrics
 ```
 
-The two Prometheus boxes and the two Grafana boxes represent network
+The two Prometheus boxes and the three Grafana boxes represent network
 attachments of single containers. Hooklook joins both `hooklook_metrics` and
 Caddy's `hooklook-edge`; Prometheus joins the metrics and observability
 networks. Alloy and Loki join only `hooklook_observability`. Grafana also joins
 its dedicated non-internal access bridge because this Docker host did not
-publish its loopback port when Grafana had only an internal bridge. No
-telemetry endpoint has a public Caddy route.
+publish its loopback port when Grafana had only an internal bridge, and
+`hooklook-edge` so Caddy can proxy the [public dashboard](#public-dashboard).
+That narrow Grafana path allowlist is the only telemetry with a public Caddy
+route.
 
 ### Port inventory
 
@@ -57,7 +68,7 @@ telemetry endpoint has a public Caddy route.
 | 9090 | TCP | Prometheus container on `hooklook_metrics` and `hooklook_observability`; no host publication | Prometheus query API and UI |
 | 3100 | TCP | Loki container on `hooklook_observability`; no host publication | Loki ingestion and query API |
 | 12345 | TCP | Alloy container loopback (`127.0.0.1`) only; no host publication | Alloy's default debug/readiness HTTP server, unused by the deployment smoke test |
-| 3000 | TCP | Grafana container on `hooklook_observability` and `hooklook_grafana-access` | Grafana HTTP server |
+| 3000 | TCP | Grafana container on `hooklook_observability`, `hooklook_grafana-access`, and `hooklook-edge` (alias `hooklook-grafana`) | Grafana HTTP server; Caddy proxies only the public-dashboard allowlist |
 | 3001 | TCP | VM loopback (`127.0.0.1`) only, mapped to Grafana container port 3000 | Private operator access through an SSH tunnel |
 
 The app binds both ports 8080 and 9092 to `0.0.0.0` inside its dual-network
@@ -75,8 +86,8 @@ The Docker socket used by Alloy is a Unix socket, not a TCP port.
 | Prometheus | [`prometheus.yml`](../observability/prometheus.yml) | `hooklook-prometheus` | Scrapes `hooklook:9092` every 15 seconds; retains 14 days, capped at 2 GB |
 | Alloy | [`alloy.alloy`](../observability/alloy.alloy) | `hooklook-alloy` | Reads only the Hooklook application container's Docker stdout and pushes it to Loki |
 | Loki | [`loki.yml`](../observability/loki.yml) | `hooklook-loki` | Filesystem TSDB with seven-day log retention |
-| Grafana | [`provisioning/`](../observability/grafana/provisioning/) and [`dashboards/`](../observability/grafana/dashboards/) | `hooklook-grafana` | Provisions Hooklook Prometheus and Loki data sources, the private operator dashboard, and the synthetic and non-synthetic traffic dashboards |
-| Stack wiring | [`compose.yaml`](../compose.yaml) | Separate Hooklook-owned named volumes above | Creates the telemetry networks and the loopback-only Grafana publication |
+| Grafana | [`provisioning/`](../observability/grafana/provisioning/) and [`dashboards/`](../observability/grafana/dashboards/) | `hooklook-grafana` | Provisions Hooklook Prometheus and Loki data sources, the private operator dashboard, the synthetic and non-synthetic traffic dashboards, and the shareable public-metrics dashboard |
+| Stack wiring | [`compose.yaml`](../compose.yaml) | Separate Hooklook-owned named volumes above | Creates the telemetry networks and the loopback-only Grafana publication, and attaches Grafana to `hooklook-edge` for the public dashboard |
 
 These are Hooklook-specific services, volumes, credentials, and networks. Zibs
 uses its own telemetry stack. There is no Hooklook node exporter or VM-level
@@ -169,7 +180,60 @@ application mux. Grafana is published only at `127.0.0.1:3001`, disables
 anonymous access and signup, and uses separate Hooklook credentials. An
 operator reaches it through an SSH tunnel; see
 [private access](observability-runbook.md#deployment-preparation-and-private-access).
-There is no public Grafana workspace or shared dashboard route.
+There is no public Grafana workspace. The only public telemetry is the
+externally shared [public dashboard](#public-dashboard), which Caddy proxies
+on a narrow path allowlist.
+
+## Public dashboard
+
+**Hooklook public metrics** (UID `hooklook-public-metrics`,
+[`public-metrics.json`](../observability/grafana/dashboards/public-metrics.json))
+is a deliberately metrics-only view for anyone curious how the service runs.
+It is linked from the top of the repository README, not from the app. It has
+no variables or annotations, hides the time picker, and always shows the last
+24 hours; its bin-creation and capture stats use fixed 24-hour and 7-day
+windows. It shows:
+
+- active bins, bins created, accepted captures, and missing-bin captures;
+- total requests and the Prometheus `up` signal, shown as yes/no;
+- response counts by status, and request latency (average and p95);
+- request counts by route class and status, excluding admin routes, static
+  assets, and SSE streams;
+- capture outcomes, and bin operations excluding the admin listing;
+- requests by traffic class, so visitors can tell the synthetic generator's
+  volume from everything else. Every other panel includes synthetic traffic;
+- SQLite operation duration (average and p95), excluding the admin listing;
+- open live-update (SSE) streams.
+
+It must not include:
+
+- Loki logs, or links to Loki or Explore;
+- bin codes, raw paths or queries, payloads, headers, invitation IDs, tokens,
+  or client information;
+- admin routes or the admin listing operation;
+- storage bytes, budget occupancy, or bins near their limit. These show how
+  close the store is to `store_full`, which would help someone plan to fill it;
+- process, runtime, SQLite pool, error-kind, or cleanup internals;
+- direct data-source access, Explore, or the wider Grafana workspace.
+
+Caddy serves the shared dashboard on the `hooklook.app` host at
+`/public-dashboards/<share-token>`. It forwards only that page, Grafana's
+anonymous shared-dashboard API (`/api/public/dashboards/*`), and the public
+assets it needs (`/public/build/*`, `/public/img/*`, `/favicon.ico`) to
+`hooklook-grafana:3000`, and never the normal workspace or general API. None of
+those paths is a Hooklook route. That route lives in
+[hetzner-one](https://github.com/dvinubius/hetzner-one)'s `Caddyfile`.
+Grafana joins `hooklook-edge` under the alias `hooklook-grafana` because Caddy
+also joins `zibs-edge`, where zibs's Grafana answers to the Compose service
+name `grafana`. Compose adds the service name as an alias on every network, so
+a bare `grafana` upstream would be ambiguous for Caddy; both Caddy routes must
+use a name that exists on only one network.
+
+Grafana's externally shared dashboards run only the dashboard's saved queries,
+unlike anonymous Viewer access, which could explore data freely. Sharing is
+Grafana runtime state in the `hooklook-grafana` volume, not provisioning, so it
+survives redeployments. Share, pause, and revoke it as described in the
+[observability runbook](observability-runbook.md#share-only-the-public-dashboard).
 
 ## Dashboard and operating checks
 
@@ -178,9 +242,11 @@ and is described panel by panel, with scenarios for using it, in the
 [dashboard guide](observability-guide.md). **Hooklook synthetic traffic** and
 **Hooklook non-synthetic traffic** repeat only its request, capture, and
 bin-operation panels, filtered by [traffic class](#traffic-classes), plus the
-matching request logs. Dashboard JSON in the repository is the durable layout
-source. A push to `main` that changes only dashboard JSON deploys just those
-files and verifies Grafana provisioning of all three.
+matching request logs. **Hooklook public metrics** is the one dashboard that
+may be shared outside the operator workspace; see
+[public dashboard](#public-dashboard). Dashboard JSON in the repository is the
+durable layout source. A push to `main` that changes only dashboard JSON
+deploys just those files and verifies Grafana provisioning of all four.
 
 After a full or observability deployment, the
 [`telemetry-smoke-test.sh`](../scripts/telemetry-smoke-test.sh) checks Grafana's

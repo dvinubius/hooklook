@@ -84,6 +84,7 @@ dashboards_ready() {
   wait_for 'Hooklook operator dashboard is provisioned' dashboard_ready hooklook-operator
   wait_for 'Hooklook synthetic traffic dashboard is provisioned' dashboard_ready hooklook-traffic-synthetic
   wait_for 'Hooklook non-synthetic traffic dashboard is provisioned' dashboard_ready hooklook-traffic-other
+  wait_for 'Hooklook public metrics dashboard is provisioned' dashboard_ready hooklook-public-metrics
 }
 
 wait_for 'Grafana HTTP API is healthy' grafana_healthy

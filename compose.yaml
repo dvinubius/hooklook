@@ -95,7 +95,14 @@ services:
     # Docker does not publish host ports for a container attached only to an
     # internal bridge. This bridge has Grafana as its sole member; the host
     # publication remains restricted to 127.0.0.1.
-    networks: [observability, grafana-access]
+    networks:
+      observability:
+      grafana-access:
+      # Caddy proxies only the externally shared public dashboard to Grafana.
+      # Caddy also joins zibs-edge, where zibs's Grafana answers to the
+      # service name "grafana", so Caddy must use this unique alias.
+      hooklook-edge:
+        aliases: [hooklook-grafana]
     read_only: true
     tmpfs: [/tmp]
     security_opt: ["no-new-privileges:true"]

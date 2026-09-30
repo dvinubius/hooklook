@@ -55,7 +55,8 @@ while IFS= read -r path; do
 	case $path in
 	observability/grafana/dashboards/hooklook.json | \
 		observability/grafana/dashboards/traffic-synthetic.json | \
-		observability/grafana/dashboards/traffic-other.json) dashboard=true ;;
+		observability/grafana/dashboards/traffic-other.json | \
+		observability/grafana/dashboards/public-metrics.json) dashboard=true ;;
 	observability/*) observability=true ;;
 	*)
 		if ! is_non_deployment "$path"; then

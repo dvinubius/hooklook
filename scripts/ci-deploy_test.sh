@@ -32,6 +32,7 @@ cp "$project_dir/scripts/ci-deploy.sh" "$project_dir/scripts/classify-deploy.sh"
 cp "$project_dir/observability/grafana/dashboards/hooklook.json" \
 	"$project_dir/observability/grafana/dashboards/traffic-synthetic.json" \
 	"$project_dir/observability/grafana/dashboards/traffic-other.json" \
+	"$project_dir/observability/grafana/dashboards/public-metrics.json" \
 	"$repo/observability/grafana/dashboards/"
 touch "$repo/compose.yaml" "$repo/main.go" "$repo/README.md" "$repo/scripts/remote-deploy_test.sh"
 printf 'key\n' >"$temporary_dir/key"
@@ -103,7 +104,7 @@ ci deploy full "$head" "$image_repository:latest" >/dev/null 2>&1 && fail 'accep
 expect_no_ssh 'invalid image'
 
 reset
-for name in hooklook traffic-synthetic traffic-other; do
+for name in hooklook traffic-synthetic traffic-other public-metrics; do
 	reset
 	printf '{"uid":"wrong","panels":[]}\n' >"observability/grafana/dashboards/$name.json"
 	ci deploy dashboard "$head" >/dev/null 2>&1 && fail "accepted an invalid $name dashboard"
@@ -114,7 +115,7 @@ done
 reset
 GHCR_USER=github-actions GHCR_PULL_TOKEN=secret-token ci deploy full "$head" "$image" >/dev/null
 grep -q '^BUNDLE compose.yaml$' "$ssh_log" || fail 'bundle is missing compose.yaml'
-for name in hooklook traffic-synthetic traffic-other; do
+for name in hooklook traffic-synthetic traffic-other public-metrics; do
 	grep -q "^BUNDLE observability/grafana/dashboards/$name.json\$" "$ssh_log" || fail "bundle is missing the $name dashboard"
 done
 grep -q '^BUNDLE scripts/remote-deploy.sh$' "$ssh_log" || fail 'bundle is missing the remote deploy script'

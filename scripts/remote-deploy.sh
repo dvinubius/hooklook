@@ -28,6 +28,7 @@ dashboard_paths=(
 	observability/grafana/dashboards/hooklook.json
 	observability/grafana/dashboards/traffic-synthetic.json
 	observability/grafana/dashboards/traffic-other.json
+	observability/grafana/dashboards/public-metrics.json
 )
 
 die() {

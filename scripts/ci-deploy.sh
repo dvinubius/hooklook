@@ -35,6 +35,7 @@ for path, uid in (
     ("observability/grafana/dashboards/hooklook.json", "hooklook-operator"),
     ("observability/grafana/dashboards/traffic-synthetic.json", "hooklook-traffic-synthetic"),
     ("observability/grafana/dashboards/traffic-other.json", "hooklook-traffic-other"),
+    ("observability/grafana/dashboards/public-metrics.json", "hooklook-public-metrics"),
 ):
     with open(path, encoding="utf-8") as source:
         dashboard = json.load(source)

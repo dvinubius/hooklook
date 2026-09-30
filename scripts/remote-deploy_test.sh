@@ -66,7 +66,7 @@ make_bundle() {
 	mkdir -p "$bundle/scripts" "$bundle/observability/grafana/dashboards" "$bundle/observability/grafana/provisioning"
 	printf 'name: hooklook # new\n' >"$bundle/compose.yaml"
 	printf 'new dashboard\n' >"$bundle/observability/grafana/dashboards/hooklook.json"
-	for name in traffic-synthetic traffic-other; do
+	for name in traffic-synthetic traffic-other public-metrics; do
 		printf 'new %s\n' "$name" >"$bundle/observability/grafana/dashboards/$name.json"
 	done
 	printf 'new prometheus\n' >"$bundle/observability/prometheus.yml"
@@ -89,7 +89,7 @@ make_live() {
 	mkdir -p "$live/scripts" "$live/observability/grafana/dashboards"
 	printf 'name: hooklook # old\n' >"$live/compose.yaml"
 	printf 'old dashboard\n' >"$live/observability/grafana/dashboards/hooklook.json"
-	for name in traffic-synthetic traffic-other; do
+	for name in traffic-synthetic traffic-other public-metrics; do
 		printf 'old %s\n' "$name" >"$live/observability/grafana/dashboards/$name.json"
 	done
 	printf 'old prometheus\n' >"$live/observability/prometheus.yml"
@@ -229,6 +229,7 @@ test_dashboard_deploy() {
 	grep -q 'new dashboard' "$live/observability/grafana/dashboards/hooklook.json" || fail 'dashboard not installed'
 	grep -q 'new traffic-synthetic' "$live/observability/grafana/dashboards/traffic-synthetic.json" || fail 'synthetic dashboard not installed'
 	grep -q 'new traffic-other' "$live/observability/grafana/dashboards/traffic-other.json" || fail 'non-synthetic dashboard not installed'
+	grep -q 'new public-metrics' "$live/observability/grafana/dashboards/public-metrics.json" || fail 'public dashboard not installed'
 	grep -q 'old prometheus' "$live/observability/prometheus.yml" || fail 'dashboard deploy touched other configuration'
 	expect_log 'smoke dashboard'
 	refute_log ' up -d'
@@ -246,6 +247,7 @@ test_failed_dashboard_deploy_restores_dashboard() {
 	grep -q 'old dashboard' "$live/observability/grafana/dashboards/hooklook.json" || fail 'dashboard not restored'
 	grep -q 'old traffic-synthetic' "$live/observability/grafana/dashboards/traffic-synthetic.json" || fail 'synthetic dashboard not restored'
 	grep -q 'old traffic-other' "$live/observability/grafana/dashboards/traffic-other.json" || fail 'non-synthetic dashboard not restored'
+	grep -q 'old public-metrics' "$live/observability/grafana/dashboards/public-metrics.json" || fail 'public dashboard not restored'
 	[[ $(manifest_value mode) == full ]] || fail 'failed dashboard deploy changed the manifest'
 }
 

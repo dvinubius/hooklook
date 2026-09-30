@@ -72,7 +72,7 @@ flowchart LR
    | Changed since the last verified deployment | Mode |
    | --- | --- |
    | Only docs, agent notes, tests, `Makefile`, `.env.example` | none |
-   | `hooklook.json`, `traffic-synthetic.json`, or `traffic-other.json` in `observability/grafana/dashboards/` (plus docs) | dashboard |
+   | `hooklook.json`, `traffic-synthetic.json`, `traffic-other.json`, or `public-metrics.json` in `observability/grafana/dashboards/` (plus docs) | dashboard |
    | Other `observability/` files (plus docs) | observability |
    | Dashboard and other observability files together | full |
    | `compose.yaml`, app, frontend, Dockerfile, scripts, workflow, or any unlisted path | full |
@@ -107,9 +107,9 @@ manifest, and then applies one mode:
   deployed; replaces only `observability/`, recreates Prometheus, Alloy,
   Loki, and Grafana, and runs the full telemetry smoke test. It does not pull
   or recreate the app.
-- **dashboard**: requires a running Grafana; replaces only the three
+- **dashboard**: requires a running Grafana; replaces only the four
   dashboard JSON files and runs the dashboard smoke test, which checks that
-  Grafana serves all three dashboard UIDs. It runs no Compose `up`. A new
+  Grafana serves all four dashboard UIDs. It runs no Compose `up`. A new
   dashboard file must be added to the lists in `ci-deploy.sh`,
   `classify-deploy.sh`, `remote-deploy.sh`, and `telemetry-smoke-test.sh`.
 

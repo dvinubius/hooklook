@@ -75,7 +75,7 @@ grep -q 'compose --env-file .env.observability --env-file .env.image --profile o
 : >"$temporary_dir/smoke.log"
 run_smoke dashboard >"$temporary_dir/output"
 grep -q 'Dashboard smoke test passed.' "$temporary_dir/output"
-for uid in hooklook-operator hooklook-traffic-synthetic hooklook-traffic-other; do
+for uid in hooklook-operator hooklook-traffic-synthetic hooklook-traffic-other hooklook-public-metrics; do
   grep -q "/api/dashboards/uid/$uid" "$temporary_dir/smoke.log"
 done
 ! grep -q 'hooklook-prometheus/' "$temporary_dir/smoke.log"

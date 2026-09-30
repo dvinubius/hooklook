@@ -11,19 +11,21 @@ It opens on the last 24 hours and refreshes every 30 seconds.
 
 The operator dashboard counts all traffic, including the private
 synthetic-traffic generator. Two more dashboards in the Hooklook folder split
-that off:
+that off, and a fourth is the metrics-only view shared with the public:
 
 | Dashboard | Filter | Use it to |
 | --- | --- | --- |
-| **Hooklook operator** | None | Triage anything; the only view with storage, SQLite, cleanup, runtime, and SSE panels |
+| **Hooklook operator** | None | Triage anything; the only view with storage, SQLite errors and pool, cleanup, runtime, and logs across all traffic |
 | **Hooklook synthetic traffic** | `traffic_class="synthetic"` | Check that the generator runs and behaves |
 | **Hooklook non-synthetic traffic** | `traffic_class="other"` | Approximate real use: people, bots, scanners, health checks |
+| **Hooklook public metrics** | None, aggregated | See what the public sees; never use it to diagnose |
 
 The class dashboards repeat the operator's request, latency, capture, and
 bin-operation panels with the same names, and add **Bins created** and
 **Capacity rejections** totals. Their logs panel shows `http_request` lines for
 that class. See [traffic classes](observability.md#traffic-classes) for the
-rule and its limits.
+rule and its limits. The public dashboard's content and boundary are described
+in [public dashboard](observability.md#public-dashboard).
 
 ## 1. What the dashboard can see
 

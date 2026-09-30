@@ -18,10 +18,10 @@ the source of truth for the limits described below.
 | Boundary | Members and exposure | Security purpose |
 | --- | --- | --- |
 | Internet to Caddy | Caddy serves `https://hooklook.app` and forwards the Hooklook hostname to port 8080 on `hooklook-edge`. | Caddy terminates TLS and applies public request rate, body-size, and header-size limits before traffic reaches Go. |
-| `hooklook-edge` | Caddy and Hooklook share this Caddy-owned external Docker network. Hooklook also publishes its HTTP listener as `127.0.0.1:8081` for host checks. | Caddy can reach Hooklook without publishing the app on a public host interface. Caddy can reach both of Hooklook's listening ports, including 9092, through this bridge. The loopback port remains reachable by processes on the host. |
+| `hooklook-edge` | Caddy, Hooklook, and Grafana (alias `hooklook-grafana`) share this Caddy-owned external Docker network. Hooklook also publishes its HTTP listener as `127.0.0.1:8081` for host checks. | Caddy can reach Hooklook without publishing the app on a public host interface, and can proxy the public-dashboard allowlist to Grafana. Caddy can reach both of Hooklook's listening ports, including 9092, and Grafana's port 3000 through this bridge. The loopback port remains reachable by processes on the host. |
 | `hooklook_metrics` | Internal Compose network shared by Hooklook and Prometheus. Hooklook listens on port 9092 inside its container; there is no host publication or Caddy route for `/metrics`. | Prometheus can reach both of Hooklook's listening ports through this bridge. Other application containers do not join it. Host administrators retain access to Docker networks. |
 | `hooklook_observability` | Internal Compose network shared by Prometheus, Alloy, Loki, and Grafana. | Keeps telemetry APIs away from the ingress network. Prometheus bridges metrics into the private observability network for Grafana queries. |
-| `hooklook_grafana-access` | Non-internal Compose bridge with Grafana as its only member; Grafana publishes `127.0.0.1:3001:3000`. | Allows Docker to create a working host-loopback publication without putting Grafana on `hooklook-edge`. Operators use an SSH tunnel and Grafana credentials. |
+| `hooklook_grafana-access` | Non-internal Compose bridge with Grafana as its only member; Grafana publishes `127.0.0.1:3001:3000`. | Allows Docker to create a working host-loopback publication that does not depend on the Caddy-owned `hooklook-edge` network. Operators use an SSH tunnel and Grafana credentials. |
 
 Compose fixes the project name to `hooklook`, which prefixes the three
 Compose-owned network names above. `hooklook-edge` is external in the Compose
@@ -105,8 +105,13 @@ Hooklook emits structured logs and bounded-label metrics without captured
 bodies, raw paths, query strings, cookies, invitation IDs, or credential
 headers. The telemetry pipeline retains application logs in Loki for seven
 days and metrics in Prometheus for fourteen days. Grafana disables anonymous
-access and signup and uses Hooklook-specific credentials. None of these
-services has a public Caddy route. See the
+access and signup and uses Hooklook-specific credentials. Prometheus, Alloy,
+and Loki have no public Caddy route. Caddy forwards only Grafana's externally
+shared [public dashboard](observability.md#public-dashboard): its page, its
+anonymous API, and static assets. That share runs only the dashboard's saved
+aggregate queries. Because Grafana joins `hooklook-edge`, the Hooklook
+container can also connect to Grafana's port 3000, where the workspace still
+requires a login. See the
 [observability runbook](observability-runbook.md) for validation and access.
 
 ## Operator credentials, deployment, and recovery

@@ -31,6 +31,7 @@ write observability/prometheus.yml
 write observability/grafana/dashboards/hooklook.json
 write observability/grafana/dashboards/traffic-synthetic.json
 write observability/grafana/dashboards/traffic-other.json
+write observability/grafana/dashboards/public-metrics.json
 write observability/grafana/provisioning/dashboards/hooklook.yml
 write scripts/deploy.sh
 base=$(commit)
@@ -67,6 +68,10 @@ case_from_base
 write observability/grafana/dashboards/traffic-synthetic.json
 write observability/grafana/dashboards/traffic-other.json
 expect 'traffic dashboards' dashboard "$base" "$(commit)"
+
+case_from_base
+write observability/grafana/dashboards/public-metrics.json
+expect 'public dashboard' dashboard "$base" "$(commit)"
 
 case_from_base
 write observability/grafana/dashboards/unlisted.json

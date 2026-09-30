@@ -3,7 +3,9 @@
 This is a private, Hooklook-owned stack. The [observability overview](observability.md)
 documents its topology, ports, signals, and dashboard. This runbook covers
 validation and operation. Nothing here changes Caddy, zibs, or host
-observability. Prepare locally; deploying is a separate operator action.
+observability, except the public-dashboard route in
+[Share only the public dashboard](#share-only-the-public-dashboard). Prepare
+locally; deploying is a separate operator action.
 
 ## Signals
 
@@ -54,9 +56,10 @@ app from its GHCR image, recreates the four telemetry services, and runs
 other than the dashboard installs that directory, recreates Prometheus, Alloy,
 Loki, and Grafana, and runs the same smoke checks without pulling or
 recreating the app. A push that changes only the dashboard JSON files
-(`hooklook.json`, `traffic-synthetic.json`, `traffic-other.json` in
-`observability/grafana/dashboards/`) installs those files and checks all three
-dashboard UIDs after Grafana's polling interval, with no Compose `up`.
+(`hooklook.json`, `traffic-synthetic.json`, `traffic-other.json`,
+`public-metrics.json` in `observability/grafana/dashboards/`) installs those
+files and checks all four dashboard UIDs after Grafana's polling interval,
+with no Compose `up`.
 Changing both the dashboard and other observability files is a full
 deployment. The `hooklook-data` volume remains unchanged.
 
@@ -101,8 +104,8 @@ where each one appears. Verify `507` appears in
 the capacity panel, separately from the application 5xx panel. Confirm the
 Grafana bind with the running container's Docker port bindings (the smoke
 script checks `docker inspect`; some Compose versions report `:0` from
-`docker compose port`) and ensure there is no Caddy route for `/metrics` or
-Grafana. Recheck public Hooklook and zibs
+`docker compose port`) and ensure Caddy has no route for `/metrics` and
+forwards only the public-dashboard allowlist to Grafana. Recheck public Hooklook and zibs
 behavior. Configure two alerts only when a notification destination exists:
 SQLite/volume capacity approaching the limit and any `store_full` rejection.
 The dashboard also shows scrape loss, repeated cleanup failures, and 5xx.
@@ -112,3 +115,40 @@ successful one, use the snapshot rollback in the deployment runbook. To stop
 only the Hooklook telemetry containers, run
 `./scripts/compose.sh stop prometheus alloy loki grafana` from
 `/opt/hooklook`, and keep their named volumes for investigation. Do not modify Caddy, zibs, or host monitoring.
+
+## Share only the public dashboard
+
+**Hooklook public metrics** is the only dashboard that may be shared. Never
+share the operator or traffic-class dashboards: they contain logs and private
+capacity detail.
+
+The route has two halves, and both must be deployed before a share works:
+
+1. This repository's `compose.yaml` attaches Grafana to `hooklook-edge` under
+   the alias `hooklook-grafana`.
+2. [hetzner-one](https://github.com/dvinubius/hetzner-one)'s `Caddyfile` sends
+   the public-dashboard allowlist on `hooklook.app` to `hooklook-grafana:3000`.
+   Its zibs route dials `zibs-grafana-1`, never the bare `grafana` name, which
+   both Grafana containers carry on their edge networks. Keep it that way: a
+   bare `grafana` upstream could send zibs's public-dashboard requests to
+   Hooklook's Grafana.
+
+Then, in Grafana (through the SSH tunnel):
+
+1. Open **Hooklook → Hooklook public metrics** and review every panel's saved
+   query against the [allowed content](observability.md#public-dashboard).
+2. Use **Share → Share externally**, choose **Anyone with the link**, and
+   leave time-range selection and annotations disabled.
+3. Copy the share token from the generated URL. Its origin is the tunnel's
+   `127.0.0.1:3001`; the public link is
+   `https://hooklook.app/public-dashboards/<share-token>`. Open it in a private
+   window: panels should load, and `https://hooklook.app/login` and
+   `https://hooklook.app/api/dashboards/uid/hooklook-operator` must not reach
+   Grafana.
+4. Put the public link at the top of the repository README.
+
+The share is Grafana runtime state in `hooklook-grafana`, so deployments keep
+it. Pause or revoke it from the same drawer when the dashboard changes in a way
+you have not reviewed, or when it must go offline. Revoking creates a new token
+on the next share, so update the README link. Watch the query load the public
+link generates on the operator dashboard's runtime panels.

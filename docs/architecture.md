@@ -112,7 +112,9 @@ flowchart LR
     subgraph edge["Docker network: hooklook-edge (external, Caddy-owned)"]
         caddy[Caddy]
         app_http["Hooklook :8080"]
+        grafana_public["Grafana :3000<br/>alias hooklook-grafana"]
         caddy --> app_http
+        caddy -->|public-dashboard allowlist| grafana_public
     end
 
     subgraph metrics["Docker network: hooklook_metrics (internal)"]
@@ -138,20 +140,24 @@ flowchart LR
     app_http -.-|same container| app_metrics
     prom_scrape -.-|same container| prom_query
     grafana -.-|same container| grafana_access
+    grafana -.-|same container| grafana_public
     app_http --> db[(SQLite in<br/>hooklook-data volume)]
     alloy -->|Docker API| socket((Docker<br/>socket))
     socket -.->|Hooklook<br/>stdout| app_metrics
 ```
 
-The paired Hooklook, Prometheus, and Grafana boxes each represent one container
-attached to two networks. Compose fixes the project name to `hooklook`, so its
+The paired Hooklook and Prometheus boxes each represent one container attached
+to two networks; the three Grafana boxes represent one container attached to
+three. Compose fixes the project name to `hooklook`, so its
 created networks are `hooklook_metrics`,
 `hooklook_observability`, and `hooklook_grafana-access`. The
 external ingress network keeps its literal name, `hooklook-edge`. Grafana's
 access bridge is non-internal and has no other Hooklook member: Docker cannot
 publish its loopback port from an internal-only bridge on the production host.
 The private metrics listener has no host port or Caddy route. Only Grafana
-publishes a telemetry port, on host loopback.
+publishes a telemetry port, on host loopback. Grafana also joins
+`hooklook-edge` so Caddy can proxy the metrics-only
+[public dashboard](observability.md#public-dashboard) and nothing else of it.
 
 Both Hooklook listeners bind to `0.0.0.0` inside the same container. Caddy can
 therefore reach port 9092 on `hooklook-edge`, and Prometheus can reach port
