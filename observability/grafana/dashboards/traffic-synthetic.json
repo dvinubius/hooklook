@@ -3,7 +3,7 @@
   "title": "Hooklook synthetic traffic",
   "description": "Requests whose User-Agent starts with hooklook-synthetic/, the marker sent by the private traffic generator. Global storage, SQLite, cleanup, and runtime panels stay on the operator dashboard.",
   "schemaVersion": 39,
-  "version": 1,
+  "version": 2,
   "editable": false,
   "timezone": "browser",
   "refresh": "30s",
@@ -342,7 +342,7 @@
       "type": "timeseries",
       "gridPos": {
         "h": 8,
-        "w": 24,
+        "w": 8,
         "x": 0,
         "y": 6
       },
@@ -372,9 +372,9 @@
       "type": "timeseries",
       "gridPos": {
         "h": 8,
-        "w": 12,
-        "x": 0,
-        "y": 14
+        "w": 8,
+        "x": 8,
+        "y": 6
       },
       "datasource": {
         "type": "prometheus",
@@ -401,9 +401,9 @@
       "type": "timeseries",
       "gridPos": {
         "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 14
+        "w": 8,
+        "x": 16,
+        "y": 6
       },
       "datasource": {
         "type": "prometheus",
@@ -433,7 +433,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 22
+        "y": 14
       },
       "collapsed": false,
       "panels": []
@@ -446,7 +446,7 @@
         "h": 8,
         "w": 8,
         "x": 0,
-        "y": 23
+        "y": 15
       },
       "datasource": {
         "type": "prometheus",
@@ -475,7 +475,7 @@
         "h": 8,
         "w": 8,
         "x": 8,
-        "y": 23
+        "y": 15
       },
       "datasource": {
         "type": "prometheus",
@@ -504,7 +504,7 @@
         "h": 8,
         "w": 8,
         "x": 16,
-        "y": 23
+        "y": 15
       },
       "datasource": {
         "type": "prometheus",
@@ -534,7 +534,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 31
+        "y": 23
       },
       "collapsed": false,
       "panels": []
@@ -547,7 +547,7 @@
         "h": 12,
         "w": 24,
         "x": 0,
-        "y": 32
+        "y": 24
       },
       "datasource": {
         "type": "loki",
