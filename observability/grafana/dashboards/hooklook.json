@@ -366,7 +366,7 @@
       "type": "timeseries",
       "gridPos": {
         "h": 8,
-        "w": 16,
+        "w": 20,
         "x": 0,
         "y": 6
       },
