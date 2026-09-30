@@ -40,6 +40,7 @@ database backups, and a **full observability stack** — Prometheus metrics, str
 logs shipped through Alloy to Loki, and Grafana dashboards provisioned straight 
 from this repository.
 
+- 📈 **Watch it run** — the [public metrics dashboard](https://hooklook.app/public-dashboards/0147f58fbb36423c842cca4a44e443c7) shows live request rates, latency percentiles, capture outcomes, and bin totals. It is the deliberately limited public view of the private operator dashboard; see [public dashboard](docs/observability.md#public-dashboard).
 - 🚧 **Still in the works** — polished documentation and a GH based CI/CD.
 - ⭐ **Like what you see?** Star the repo — it helps others find it.
 
@@ -313,4 +314,6 @@ operator access, retention, smoke checks, and rollback, and the
 Besides the all-traffic operator dashboard, Grafana has separate synthetic and
 non-synthetic traffic dashboards. Requests whose User-Agent starts with
 `hooklook-synthetic/` count as synthetic; see
-[traffic classes](docs/observability.md#traffic-classes).
+[traffic classes](docs/observability.md#traffic-classes). A fourth,
+metrics-only dashboard is shared publicly through Caddy on a narrow path
+allowlist; see [public dashboard](docs/observability.md#public-dashboard).
