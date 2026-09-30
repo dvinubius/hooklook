@@ -3,7 +3,7 @@
 Hooklook owns a private Prometheus, Alloy, Loki, and Grafana stack on the same
 Docker host as the application. Prometheus collects aggregate metrics from a
 separate Hooklook listener; Alloy forwards selected Hooklook container logs to
-Loki. Grafana queries both backends for a private operator dashboard. The
+Loki. Grafana queries both backends for private operator and traffic-class dashboards. The
 [architecture](architecture.md) shows the complete request path, while the
 [observability runbook](observability-runbook.md) covers validation, deployment,
 access, and rollback. The [dashboard guide](observability-guide.md) teaches
@@ -75,7 +75,7 @@ The Docker socket used by Alloy is a Unix socket, not a TCP port.
 | Prometheus | [`prometheus.yml`](../observability/prometheus.yml) | `hooklook-prometheus` | Scrapes `hooklook:9092` every 15 seconds; retains 14 days, capped at 2 GB |
 | Alloy | [`alloy.alloy`](../observability/alloy.alloy) | `hooklook-alloy` | Reads only the Hooklook application container's Docker stdout and pushes it to Loki |
 | Loki | [`loki.yml`](../observability/loki.yml) | `hooklook-loki` | Filesystem TSDB with seven-day log retention |
-| Grafana | [`provisioning/`](../observability/grafana/provisioning/) and [`hooklook.json`](../observability/grafana/dashboards/hooklook.json) | `hooklook-grafana` | Provisions Hooklook Prometheus and Loki data sources and one private operator dashboard |
+| Grafana | [`provisioning/`](../observability/grafana/provisioning/) and [`dashboards/`](../observability/grafana/dashboards/) | `hooklook-grafana` | Provisions Hooklook Prometheus and Loki data sources, the private operator dashboard, and the synthetic and non-synthetic traffic dashboards |
 | Stack wiring | [`compose.yaml`](../compose.yaml) | Separate Hooklook-owned named volumes above | Creates the telemetry networks and the loopback-only Grafana publication |
 
 These are Hooklook-specific services, volumes, credentials, and networks. Zibs
@@ -95,12 +95,12 @@ application metrics:
 
 | Metric family | Type and labels | Meaning |
 | --- | --- | --- |
-| `hooklook_http_requests_total` | Counter: `route`, `method`, `status` | Completed application HTTP requests, using normalized route classes |
-| `hooklook_http_request_duration_seconds` | Histogram: `route`, `method` | Request duration excluding long-lived SSE streams |
+| `hooklook_http_requests_total` | Counter: `route`, `method`, `status`, `traffic_class` | Completed application HTTP requests, using normalized route classes |
+| `hooklook_http_request_duration_seconds` | Histogram: `route`, `method`, `traffic_class` | Request duration excluding long-lived SSE streams |
 | `hooklook_http_in_flight_requests` | Gauge | Current non-SSE handler work |
-| `hooklook_bin_creation_results_total` | Counter: `result` | Bin creation attempts from `/`: `created`, `no_cookie` (the client did not return the cookie check), or `store_full` |
-| `hooklook_capture_results_total` | Counter: `result` | Capture outcomes: `accepted`, `missing_bin`, `bin_full`, `store_full`, or `internal_error` |
-| `hooklook_bin_operations_total` | Counter: `operation` | Successful create, capture, list, detail, delete, clear, and admin-list operations; list and detail count successful API reads, not page views or SSE reconnects |
+| `hooklook_bin_creation_results_total` | Counter: `result`, `traffic_class` | Bin creation attempts from `/`: `created`, `no_cookie` (the client did not return the cookie check), or `store_full` |
+| `hooklook_capture_results_total` | Counter: `result`, `traffic_class` | Capture outcomes: `accepted`, `missing_bin`, `bin_full`, `store_full`, or `internal_error` |
+| `hooklook_bin_operations_total` | Counter: `operation`, `traffic_class` | Successful create, capture, list, detail, delete, clear, and admin-list operations; list and detail count successful API reads, not page views or SSE reconnects |
 | `hooklook_db_operations_total`, `hooklook_db_operation_duration_seconds`, `hooklook_db_errors_total` | Counter, histogram, counter; bounded operation/result/kind labels | SQLite outcomes (`success`, `not_found`, `capacity`, `error`), latency, and real failures only (kind `full` or `other`) |
 | `hooklook_expiry_cleanup_runs_total`, `hooklook_expiry_cleanup_duration_seconds`, `hooklook_expired_bins_deleted_total` | Counters and histogram | Cleanup outcomes, duration, and expired-bin deletions |
 | `hooklook_sse_connections`, `hooklook_sse_events_total` | Gauge and counter | Open streams and bounded SSE event outcomes |
@@ -130,10 +130,28 @@ failed. It is not emitted by Hooklook and does not establish SQLite readiness.
 Use `/ready`, which checks SQLite within 500 ms, for readiness; `/health` is
 static liveness.
 
+### Traffic classes
+
+`traffic_class` separates the private synthetic-traffic generator from
+everything else:
+
+| Value | Rule | Meaning |
+| --- | --- | --- |
+| `synthetic` | User-Agent starts with `hooklook-synthetic/` | Request sent by the traffic generator. The marker is attribution, not authentication: anyone can send it. |
+| `other` | Every other request | People, crawlers, scanners, health checks, and your own admin calls. Not a verified-human count. |
+
+The generator sends its User-Agent on every request: the two-hop bin
+creation, metadata reads, captures, and clears. Only the request and
+bin-operation families above carry the class; they are counted by the request
+that caused them. SQLite, storage, active-bin, SSE, cleanup, in-flight, and
+process metrics stay global, because they cannot be attributed reliably to one
+class. Series recorded before the label was deployed have no class, so the
+traffic-class dashboards start empty and cannot partition older data.
+
 ## Logs and access boundary
 
 The app writes JSON to Docker stdout. HTTP entries use bounded route, method,
-and status fields plus duration; operation entries record safe event names and
+status, and `traffic_class` fields plus duration; operation entries record safe event names and
 bounded classifications. Captured bodies, raw paths and queries, secret
 headers, cookies, invitation IDs, and bearer tokens stay out of logs. Docker
 rotates the app's stdout files at 10 MB with three files.
@@ -155,11 +173,14 @@ There is no public Grafana workspace or shared dashboard route.
 
 ## Dashboard and operating checks
 
-The provisioned **Hooklook → Hooklook operator** dashboard is described panel
-by panel, with scenarios for using it, in the
-[dashboard guide](observability-guide.md). Dashboard JSON in the repository is
-the durable layout source. A push to `main` that changes only that JSON deploys just the file and
-verifies Grafana provisioning.
+The provisioned **Hooklook → Hooklook operator** dashboard shows all traffic
+and is described panel by panel, with scenarios for using it, in the
+[dashboard guide](observability-guide.md). **Hooklook synthetic traffic** and
+**Hooklook non-synthetic traffic** repeat only its request, capture, and
+bin-operation panels, filtered by [traffic class](#traffic-classes), plus the
+matching request logs. Dashboard JSON in the repository is the durable layout
+source. A push to `main` that changes only dashboard JSON deploys just those
+files and verifies Grafana provisioning of all three.
 
 After a full or observability deployment, the
 [`telemetry-smoke-test.sh`](../scripts/telemetry-smoke-test.sh) checks Grafana's

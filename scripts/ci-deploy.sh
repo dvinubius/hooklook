@@ -6,7 +6,7 @@
 # allowlisted bundle taken from the exact target commit.
 #
 # Usage:
-#   ci-deploy.sh validate                      Validate the dashboard JSON.
+#   ci-deploy.sh validate                      Validate the dashboard JSON files.
 #   ci-deploy.sh plan <target-sha> [full]      Print none|dashboard|observability|full.
 #   ci-deploy.sh deploy <mode> <target-sha> [image]
 #
@@ -21,7 +21,6 @@ project_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
 cd "$project_dir"
 
 remote_dir=/opt/hooklook
-dashboard_path=observability/grafana/dashboards/hooklook.json
 
 die() {
 	printf '%s\n' "$*" >&2
@@ -29,14 +28,18 @@ die() {
 }
 
 validate_dashboard() {
-	python3 - "$dashboard_path" <<'PY'
+	python3 - <<'PY'
 import json
-import sys
 
-with open(sys.argv[1], encoding="utf-8") as source:
-    dashboard = json.load(source)
-if dashboard.get("uid") != "hooklook-operator" or not isinstance(dashboard.get("panels"), list) or "apiVersion" in dashboard:
-    raise SystemExit("hooklook.json must be a classic Grafana dashboard with UID hooklook-operator")
+for path, uid in (
+    ("observability/grafana/dashboards/hooklook.json", "hooklook-operator"),
+    ("observability/grafana/dashboards/traffic-synthetic.json", "hooklook-traffic-synthetic"),
+    ("observability/grafana/dashboards/traffic-other.json", "hooklook-traffic-other"),
+):
+    with open(path, encoding="utf-8") as source:
+        dashboard = json.load(source)
+    if dashboard.get("uid") != uid or not isinstance(dashboard.get("panels"), list) or "apiVersion" in dashboard:
+        raise SystemExit(f"{path} must be a classic Grafana dashboard with UID {uid}")
 PY
 }
 

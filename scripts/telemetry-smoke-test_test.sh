@@ -34,7 +34,10 @@ if [[ " $* " == *' --config - '* ]]; then
   [[ $config_line == 'user = "operator:abcdefghijklmnopqrstuvwxyz123456"' ]] || exit 1
 fi
 case "$*" in
-  *'/api/dashboards/uid/hooklook-operator'*) printf '%s\n' '{"dashboard":{"uid":"hooklook-operator"}}' ;;
+  *'/api/dashboards/uid/'*)
+    uid=${!#}
+    uid=${uid##*/}
+    [[ $uid == "${SMOKE_TEST_MISSING_DASHBOARD:-}" ]] || printf '{"dashboard":{"uid":"%s"}}\n' "$uid" ;;
   *'/api/datasources/proxy/uid/hooklook-prometheus/'*)
     case ${SMOKE_TEST_PROMETHEUS:-up} in
       up) printf '%s\n' '{"data":{"activeTargets":[{"scrapeUrl":"http://hooklook:9092/metrics","health":"up"}]}}' ;;
@@ -72,6 +75,9 @@ grep -q 'compose --env-file .env.observability --env-file .env.image --profile o
 : >"$temporary_dir/smoke.log"
 run_smoke dashboard >"$temporary_dir/output"
 grep -q 'Dashboard smoke test passed.' "$temporary_dir/output"
+for uid in hooklook-operator hooklook-traffic-synthetic hooklook-traffic-other; do
+  grep -q "/api/dashboards/uid/$uid" "$temporary_dir/smoke.log"
+done
 ! grep -q 'hooklook-prometheus/' "$temporary_dir/smoke.log"
 ! grep -q '/ready' "$temporary_dir/smoke.log"
 
@@ -95,6 +101,14 @@ if PATH="$temporary_dir/bin:$PATH" SMOKE_TEST_LOG="$temporary_dir/smoke.log" \
   exit 1
 fi
 grep -q 'Loki received a Hooklook log from this test did not pass' "$temporary_dir/output"
+
+if PATH="$temporary_dir/bin:$PATH" SMOKE_TEST_LOG="$temporary_dir/smoke.log" \
+  SMOKE_TEST_MISSING_DASHBOARD=hooklook-traffic-other SMOKE_TEST_TIMEOUT_SECONDS=1 \
+  bash "$temporary_dir/project/scripts/telemetry-smoke-test.sh" dashboard >"$temporary_dir/output" 2>&1; then
+  printf '%s\n' 'Telemetry smoke test accepted a missing traffic dashboard.' >&2
+  exit 1
+fi
+grep -q 'Hooklook non-synthetic traffic dashboard is provisioned did not pass' "$temporary_dir/output"
 
 if PATH="$temporary_dir/bin:$PATH" SMOKE_TEST_LOG="$temporary_dir/smoke.log" \
   SMOKE_TEST_BAD_BIND=1 \

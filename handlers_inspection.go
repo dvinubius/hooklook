@@ -68,7 +68,7 @@ func resolveOwnBin(w http.ResponseWriter, req *http.Request) (Bin, bool) {
 	// bin per visit.
 	if !hasCookieCheck(req) {
 		if req.URL.Query().Has(cookieCheckQuery) {
-			telemetry.binCreations.WithLabelValues("no_cookie").Inc()
+			telemetry.binCreations.WithLabelValues("no_cookie", trafficClass(req)).Inc()
 			slog.Info("bin_creation_cookie_missing")
 			writeCookiesRequiredShell(w)
 			return Bin{}, false
@@ -86,7 +86,7 @@ func resolveOwnBin(w http.ResponseWriter, req *http.Request) (Bin, bool) {
 		// The probe stays: reloading this address once room is freed should
 		// retry the creation, not report missing cookies.
 		if errors.Is(err, ErrStoreFull) {
-			telemetry.binCreations.WithLabelValues("store_full").Inc()
+			telemetry.binCreations.WithLabelValues("store_full", trafficClass(req)).Inc()
 			slog.Warn("bin_creation_capacity_rejected", "reason", "store_full")
 			writeCapacityShell(w)
 		} else {
@@ -95,8 +95,8 @@ func resolveOwnBin(w http.ResponseWriter, req *http.Request) (Bin, bool) {
 		return Bin{}, false
 	}
 	eventHub.openBin(bin.Code)
-	telemetry.operations.WithLabelValues("create").Inc()
-	telemetry.binCreations.WithLabelValues("created").Inc()
+	telemetry.operations.WithLabelValues("create", trafficClass(req)).Inc()
+	telemetry.binCreations.WithLabelValues("created", trafficClass(req)).Inc()
 	streamAccessMu.Unlock()
 	setCookieCheck(w, -1)
 	setOwnerCookie(w, secret, bin.ExpiresAt)
@@ -248,7 +248,7 @@ func requestDetail(w http.ResponseWriter, req *http.Request) {
 	detail, err := store.requestDetail(req.PathValue("code"), req.PathValue("id"))
 	observeDBOperation("detail", started, err)
 	if err == nil {
-		telemetry.operations.WithLabelValues("detail").Inc()
+		telemetry.operations.WithLabelValues("detail", trafficClass(req)).Inc()
 	}
 	if errors.Is(err, ErrRequestNotFound) {
 		http.Error(w, "request not found", 404)
@@ -295,7 +295,7 @@ func deleteOneRequest(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, "internal server error", 500)
 		return
 	}
-	telemetry.operations.WithLabelValues("delete").Inc()
+	telemetry.operations.WithLabelValues("delete", trafficClass(req)).Inc()
 	eventHub.publish(req.PathValue("code"), SummarizedRequest{})
 	w.WriteHeader(http.StatusNoContent)
 }
@@ -311,7 +311,7 @@ func clearBinRequests(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, "internal server error", 500)
 		return
 	}
-	telemetry.operations.WithLabelValues("clear").Inc()
+	telemetry.operations.WithLabelValues("clear", trafficClass(req)).Inc()
 	eventHub.publish(req.PathValue("code"), SummarizedRequest{})
 	w.WriteHeader(http.StatusNoContent)
 }

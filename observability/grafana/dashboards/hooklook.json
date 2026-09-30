@@ -2,7 +2,7 @@
   "uid": "hooklook-operator",
   "title": "Hooklook operator",
   "schemaVersion": 39,
-  "version": 5,
+  "version": 6,
   "editable": false,
   "timezone": "browser",
   "refresh": "30s",
@@ -448,6 +448,36 @@
       },
       "options": {},
       "description": ""
+    },
+    {
+      "id": 38,
+      "title": "HTTP traffic by traffic class",
+      "type": "timeseries",
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 14
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "hooklook-prometheus"
+      },
+      "targets": [
+        {
+          "expr": "sum by (traffic_class) (rate(hooklook_http_requests_total{traffic_class=~\"synthetic|other\",route!=\"static\",route!=\"sse\"}[5m]))",
+          "refId": "A",
+          "legendFormat": "{{traffic_class}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {},
+      "description": "Synthetic requests carry the generator's User-Agent marker; other is everything else. Data before classification was deployed has no class."
     },
     {
       "id": 102,

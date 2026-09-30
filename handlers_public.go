@@ -39,12 +39,12 @@ func captureRequest(w http.ResponseWriter, req *http.Request) {
 	} else if err != nil {
 		result = "internal_error"
 	}
-	telemetry.captures.WithLabelValues(result).Inc()
+	telemetry.captures.WithLabelValues(result, trafficClass(req)).Inc()
 	if result == "bin_full" || result == "store_full" {
 		slog.Warn("capture_capacity_rejected", "reason", result)
 	}
 	if err == nil {
-		telemetry.operations.WithLabelValues("capture").Inc()
+		telemetry.operations.WithLabelValues("capture", trafficClass(req)).Inc()
 	}
 	if errors.Is(err, ErrBinNotFound) {
 		http.Error(w, "bin not found", http.StatusNotFound)
@@ -96,7 +96,7 @@ func getBinRequests(w http.ResponseWriter, req *http.Request) {
 	requests, err := store.getBinRequests(binCode)
 	observeDBOperation("list", started, err)
 	if err == nil {
-		telemetry.operations.WithLabelValues("list").Inc()
+		telemetry.operations.WithLabelValues("list", trafficClass(req)).Inc()
 	}
 	if errors.Is(err, ErrBinNotFound) {
 		http.Error(w, "bin not found", http.StatusNotFound)

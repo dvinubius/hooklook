@@ -9,6 +9,22 @@ Open the dashboard through the SSH tunnel described in the
 [observability runbook](observability-runbook.md#deployment-preparation-and-private-access).
 It opens on the last 24 hours and refreshes every 30 seconds.
 
+The operator dashboard counts all traffic, including the private
+synthetic-traffic generator. Two more dashboards in the Hooklook folder split
+that off:
+
+| Dashboard | Filter | Use it to |
+| --- | --- | --- |
+| **Hooklook operator** | None | Triage anything; the only view with storage, SQLite, cleanup, runtime, and SSE panels |
+| **Hooklook synthetic traffic** | `traffic_class="synthetic"` | Check that the generator runs and behaves |
+| **Hooklook non-synthetic traffic** | `traffic_class="other"` | Approximate real use: people, bots, scanners, health checks |
+
+The class dashboards repeat the operator's request, latency, capture, and
+bin-operation panels with the same names, and add **Bins created** and
+**Capacity rejections** totals. Their logs panel shows `http_request` lines for
+that class. See [traffic classes](observability.md#traffic-classes) for the
+rule and its limits.
+
 ## 1. What the dashboard can see
 
 The dashboard sees Hooklook from inside the Go process, one hop behind Caddy.
@@ -151,6 +167,7 @@ Four consequences are worth memorising:
 | **Traffic**: HTTP traffic by route and status | Which kinds of request, with which outcome? | `health 200` (deploy checks, uptime probes), `capture 201`, `home 303`, `home 200` (cookieless crawlers and link previews), `bin_page 200`, bursts of `other 404` from scanners |
 | **Traffic**: In flight HTTP requests | Is non-stream work piling up right now? | 0 |
 | **Traffic**: HTTP request p50 / p95 | How long do requests take, per route class? | Tens of milliseconds or less |
+| **Traffic**: HTTP traffic by traffic class | How much of the traffic is the generator? | A steady `synthetic` curve with a daytime peak; `other` bursty |
 | **Bin activity**: Active bins | How many unexpired bins exist? | Roughly creations of the last three days, plus renewed bins |
 | **Bin activity**: Active bins near limit | Is any bin at 450 requests or 90 MB or more? | 0 |
 | **Bin activity**: Expired bins deleted, 24 hours | Is cleanup removing bins? | Close to the creations of three days ago |
@@ -202,7 +219,9 @@ panels in an order that narrows the answer.
 
 **Requests** says a few thousand for the day. How many of those are people?
 
-1. Open **HTTP traffic by route and status** and hover to read the series.
+1. Switch to **Hooklook non-synthetic traffic**, so the generator's bins and
+   captures drop out, then open **HTTP traffic by route and status** and hover
+   to read the series.
    Sort traffic into three piles:
    - **Machines checking on you:** `health 200` comes from deployment
      verification and any uptime monitor; `other 200` is `/ready`.
@@ -578,8 +597,8 @@ Open **Explore**, choose the **Hooklook Loki** data source, and paste a query.
 Loki keeps seven days. Three labels are indexed: `service` (always
 `hooklook`), `level` (`INFO`, `WARN`, `ERROR`) and `route` (only on
 `http_request` lines). Everything else is a JSON field that `| json` extracts:
-`msg`, `method`, `status`, `duration_seconds`, `reason`, `error_class`,
-`bins_deleted`.
+`msg`, `method`, `status`, `traffic_class`, `duration_seconds`, `reason`,
+`error_class`, `bins_deleted`.
 
 Everything that is not a plain request:
 

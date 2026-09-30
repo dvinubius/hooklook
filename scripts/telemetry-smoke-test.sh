@@ -76,8 +76,14 @@ grafana_healthy() {
 }
 
 dashboard_ready() {
-  grafana_get http://127.0.0.1:3001/api/dashboards/uid/hooklook-operator |
-    grep -q '"uid":"hooklook-operator"'
+  grafana_get "http://127.0.0.1:3001/api/dashboards/uid/$1" |
+    grep -q "\"uid\":\"$1\""
+}
+
+dashboards_ready() {
+  wait_for 'Hooklook operator dashboard is provisioned' dashboard_ready hooklook-operator
+  wait_for 'Hooklook synthetic traffic dashboard is provisioned' dashboard_ready hooklook-traffic-synthetic
+  wait_for 'Hooklook non-synthetic traffic dashboard is provisioned' dashboard_ready hooklook-traffic-other
 }
 
 wait_for 'Grafana HTTP API is healthy' grafana_healthy
@@ -85,7 +91,7 @@ if [[ $mode == dashboard ]]; then
   # File provisioning polls every 10 seconds by default. Allow one poll before
   # checking the dashboard API so an old copy does not satisfy the check.
   sleep 12
-  wait_for 'Hooklook dashboard is provisioned' dashboard_ready
+  dashboards_ready
   printf '%s\n' 'Dashboard smoke test passed.'
   exit 0
 fi
@@ -123,5 +129,5 @@ wait_for 'Prometheus reports Hooklook as up' prometheus_target_up
 wait_for 'Loki received a Hooklook log from this test' loki_has_new_hooklook_log
 wait_for 'Grafana Prometheus datasource is healthy' datasource_healthy hooklook-prometheus
 wait_for 'Grafana Loki datasource is healthy' datasource_healthy hooklook-loki
-wait_for 'Hooklook dashboard is provisioned' dashboard_ready
+dashboards_ready
 printf '%s\n' 'Telemetry smoke test passed.'

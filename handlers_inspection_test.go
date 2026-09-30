@@ -123,7 +123,7 @@ func TestHomeCreatesNoBinForAClientThatDropsCookies(t *testing.T) {
 
 	metrics := httptest.NewRecorder()
 	metricsHandler().ServeHTTP(metrics, httptest.NewRequest(http.MethodGet, "/metrics", nil))
-	if !strings.Contains(metrics.Body.String(), `hooklook_bin_creation_results_total{result="no_cookie"} 1`) {
+	if !strings.Contains(metrics.Body.String(), `hooklook_bin_creation_results_total{result="no_cookie",traffic_class="other"} 1`) {
 		t.Error("refusal was not counted as no_cookie")
 	}
 }

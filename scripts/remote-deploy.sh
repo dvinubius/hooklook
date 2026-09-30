@@ -24,7 +24,11 @@ live_dir=${HOOKLOOK_DIR:-/opt/hooklook}
 state_dir=$live_dir/.deploy
 health_attempts=${DEPLOY_HEALTH_ATTEMPTS:-30}
 keep_snapshots=5
-dashboard_path=observability/grafana/dashboards/hooklook.json
+dashboard_paths=(
+	observability/grafana/dashboards/hooklook.json
+	observability/grafana/dashboards/traffic-synthetic.json
+	observability/grafana/dashboards/traffic-other.json
+)
 
 die() {
 	printf '%s\n' "$*" >&2
@@ -132,7 +136,7 @@ validate_bundle() {
 		*) die "Unexpected bundle entry: ${entry##*/}" ;;
 		esac
 	done
-	for entry in compose.yaml "$dashboard_path" observability/prometheus.yml \
+	for entry in compose.yaml "${dashboard_paths[@]}" observability/prometheus.yml \
 		observability/alloy.alloy observability/loki.yml observability/grafana/provisioning \
 		scripts/compose.sh scripts/remote-deploy.sh scripts/telemetry-smoke-test.sh \
 		scripts/check-storage-headroom.sh scripts/backup.sh; do
@@ -280,8 +284,15 @@ apply_observability() {
 	refresh_telemetry
 }
 
+install_dashboards() {
+	local path
+	for path in "${dashboard_paths[@]}"; do
+		install_entry "$1" "$path"
+	done
+}
+
 apply_dashboard() {
-	install_entry "$bundle_dir" "$dashboard_path"
+	install_dashboards "$bundle_dir"
 	bash "$live_dir/scripts/telemetry-smoke-test.sh" dashboard
 }
 
@@ -292,7 +303,7 @@ apply_rollback() {
 restore_snapshot() {
 	case $mode in
 	dashboard)
-		install_entry "$snapshot_dir" "$dashboard_path"
+		install_dashboards "$snapshot_dir"
 		bash "$live_dir/scripts/telemetry-smoke-test.sh" dashboard
 		;;
 	observability)

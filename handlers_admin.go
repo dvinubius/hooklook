@@ -17,7 +17,7 @@ func getAllBins(w http.ResponseWriter, req *http.Request) {
 	bins, err := store.getAllBins()
 	observeDBOperation("admin_list", started, err)
 	if err == nil {
-		telemetry.operations.WithLabelValues("admin_list").Inc()
+		telemetry.operations.WithLabelValues("admin_list", trafficClass(req)).Inc()
 	}
 	if err != nil {
 		http.Error(w, "internal server error", http.StatusInternalServerError)

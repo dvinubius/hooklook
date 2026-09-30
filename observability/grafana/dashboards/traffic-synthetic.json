@@ -1,0 +1,570 @@
+{
+  "uid": "hooklook-traffic-synthetic",
+  "title": "Hooklook synthetic traffic",
+  "description": "Requests whose User-Agent starts with hooklook-synthetic/, the marker sent by the private traffic generator. Global storage, SQLite, cleanup, and runtime panels stay on the operator dashboard.",
+  "schemaVersion": 39,
+  "version": 1,
+  "editable": false,
+  "timezone": "browser",
+  "refresh": "30s",
+  "time": {
+    "from": "now-24h",
+    "to": "now"
+  },
+  "tags": [
+    "hooklook",
+    "traffic"
+  ],
+  "panels": [
+    {
+      "id": 100,
+      "title": "Overview",
+      "type": "row",
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "collapsed": false,
+      "panels": []
+    },
+    {
+      "id": 3,
+      "title": "Requests",
+      "type": "stat",
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 0,
+        "y": 1
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "hooklook-prometheus"
+      },
+      "targets": [
+        {
+          "expr": "sum(increase(hooklook_http_requests_total{traffic_class=\"synthetic\"}[$__range])) or vector(0)",
+          "refId": "A",
+          "legendFormat": "requests"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#8F9BA8"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "none",
+        "graphMode": "area",
+        "justifyMode": "auto"
+      },
+      "description": "Completed application requests in the selected dashboard range. Responses generated at Caddy, such as public 413, 429, and 431, are excluded."
+    },
+    {
+      "id": 36,
+      "title": "Bins created",
+      "type": "stat",
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 4,
+        "y": 1
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "hooklook-prometheus"
+      },
+      "targets": [
+        {
+          "expr": "sum(increase(hooklook_bin_operations_total{operation=\"create\",traffic_class=\"synthetic\"}[$__range])) or vector(0)",
+          "refId": "A",
+          "legendFormat": "bins"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#74BE69"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto"
+      },
+      "description": "Bins created from the home page during the selected dashboard range."
+    },
+    {
+      "id": 4,
+      "title": "Accepted captures",
+      "type": "stat",
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 8,
+        "y": 1
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "hooklook-prometheus"
+      },
+      "targets": [
+        {
+          "expr": "sum(increase(hooklook_capture_results_total{result=\"accepted\",traffic_class=\"synthetic\"}[$__range])) or vector(0)",
+          "refId": "A",
+          "legendFormat": "captures"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#74BE69"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto"
+      },
+      "description": "Captures persisted successfully during the selected dashboard range."
+    },
+    {
+      "id": 5,
+      "title": "Missing-bin captures",
+      "type": "stat",
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 12,
+        "y": 1
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "hooklook-prometheus"
+      },
+      "targets": [
+        {
+          "expr": "sum(increase(hooklook_capture_results_total{result=\"missing_bin\",traffic_class=\"synthetic\"}[$__range])) or vector(0)",
+          "refId": "A",
+          "legendFormat": "missing"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#8F9BA8"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "none",
+        "graphMode": "area",
+        "justifyMode": "auto"
+      },
+      "description": "Captures sent to an unknown or expired bin during the selected dashboard range."
+    },
+    {
+      "id": 37,
+      "title": "Capacity rejections",
+      "type": "stat",
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 16,
+        "y": 1
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "hooklook-prometheus"
+      },
+      "targets": [
+        {
+          "expr": "sum(increase(hooklook_capture_results_total{result=~\"bin_full|store_full\",traffic_class=\"synthetic\"}[$__range])) or vector(0)",
+          "refId": "A",
+          "legendFormat": "rejections"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#8F9BA8"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto"
+      },
+      "description": "Captures rejected with 507 because a bin or the store was full, during the selected dashboard range."
+    },
+    {
+      "id": 6,
+      "title": "Application 5xx",
+      "type": "stat",
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 20,
+        "y": 1
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "hooklook-prometheus"
+      },
+      "targets": [
+        {
+          "expr": "sum(increase(hooklook_http_requests_total{status=~\"5..\",status!=\"507\",traffic_class=\"synthetic\"}[$__range])) or vector(0)",
+          "refId": "A",
+          "legendFormat": "5xx"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#74BE69",
+                "value": null
+              },
+              {
+                "color": "#DE736A",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto"
+      },
+      "description": "Application HTTP 5xx responses during the selected range. Capacity 507 responses are excluded."
+    },
+    {
+      "id": 101,
+      "title": "Traffic and latency",
+      "type": "row",
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 5
+      },
+      "collapsed": false,
+      "panels": []
+    },
+    {
+      "id": 8,
+      "title": "HTTP traffic by route and status",
+      "type": "timeseries",
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 6
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "hooklook-prometheus"
+      },
+      "targets": [
+        {
+          "expr": "sum by (route,status) (rate(hooklook_http_requests_total{route!=\"static\",route!=\"sse\",traffic_class=\"synthetic\"}[5m]))",
+          "refId": "A",
+          "legendFormat": "{{route}} {{status}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {},
+      "description": ""
+    },
+    {
+      "id": 28,
+      "title": "HTTP request p50",
+      "type": "timeseries",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 14
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "hooklook-prometheus"
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.5,sum by (le,route) (rate(hooklook_http_request_duration_seconds_bucket{traffic_class=\"synthetic\"}[5m])))",
+          "refId": "A",
+          "legendFormat": "{{route}} p50"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "options": {}
+    },
+    {
+      "id": 9,
+      "title": "HTTP request p95",
+      "type": "timeseries",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 14
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "hooklook-prometheus"
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95,sum by (le,route) (rate(hooklook_http_request_duration_seconds_bucket{traffic_class=\"synthetic\"}[5m])))",
+          "refId": "A",
+          "legendFormat": "{{route}} p95"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "options": {},
+      "description": ""
+    },
+    {
+      "id": 102,
+      "title": "Bin activity",
+      "type": "row",
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 22
+      },
+      "collapsed": false,
+      "panels": []
+    },
+    {
+      "id": 11,
+      "title": "Bin operations, 24 hours",
+      "type": "timeseries",
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 23
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "hooklook-prometheus"
+      },
+      "targets": [
+        {
+          "expr": "sum by (operation) (increase(hooklook_bin_operations_total{traffic_class=\"synthetic\"}[24h]))",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {},
+      "description": ""
+    },
+    {
+      "id": 12,
+      "title": "Bin operations, 7 days",
+      "type": "timeseries",
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 23
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "hooklook-prometheus"
+      },
+      "targets": [
+        {
+          "expr": "sum by (operation) (increase(hooklook_bin_operations_total{traffic_class=\"synthetic\"}[7d]))",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {},
+      "description": ""
+    },
+    {
+      "id": 7,
+      "title": "Capacity rejections by cause",
+      "type": "timeseries",
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 23
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "hooklook-prometheus"
+      },
+      "targets": [
+        {
+          "expr": "sum by (result) (increase(hooklook_capture_results_total{result=~\"bin_full|store_full\",traffic_class=\"synthetic\"}[24h]))",
+          "refId": "A",
+          "legendFormat": "{{result}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "options": {},
+      "description": "Capacity rejections by cause over a rolling 24-hour window; capacity is separate from application 5xx."
+    },
+    {
+      "id": 107,
+      "title": "Request logs",
+      "type": "row",
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 31
+      },
+      "collapsed": false,
+      "panels": []
+    },
+    {
+      "id": 35,
+      "title": "Recent request logs",
+      "type": "logs",
+      "gridPos": {
+        "h": 12,
+        "w": 24,
+        "x": 0,
+        "y": 32
+      },
+      "datasource": {
+        "type": "loki",
+        "uid": "hooklook-loki"
+      },
+      "targets": [
+        {
+          "expr": "{service=\"hooklook\"} | json | msg=\"http_request\" | traffic_class=\"synthetic\"",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "showLabels": true,
+        "showTime": true,
+        "wrapLogMessage": true
+      },
+      "description": "Completed-request logs for this traffic class. Static assets are not logged."
+    }
+  ]
+}

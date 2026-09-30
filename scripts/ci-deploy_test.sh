@@ -29,7 +29,10 @@ chmod +x "$bin/ssh"
 
 cp "$project_dir/scripts/ci-deploy.sh" "$project_dir/scripts/classify-deploy.sh" \
 	"$project_dir/scripts/remote-deploy.sh" "$project_dir/scripts/compose.sh" "$repo/scripts/"
-cp "$project_dir/observability/grafana/dashboards/hooklook.json" "$repo/observability/grafana/dashboards/"
+cp "$project_dir/observability/grafana/dashboards/hooklook.json" \
+	"$project_dir/observability/grafana/dashboards/traffic-synthetic.json" \
+	"$project_dir/observability/grafana/dashboards/traffic-other.json" \
+	"$repo/observability/grafana/dashboards/"
 touch "$repo/compose.yaml" "$repo/main.go" "$repo/README.md" "$repo/scripts/remote-deploy_test.sh"
 printf 'key\n' >"$temporary_dir/key"
 printf 'host key\n' >"$temporary_dir/known_hosts"
@@ -100,15 +103,20 @@ ci deploy full "$head" "$image_repository:latest" >/dev/null 2>&1 && fail 'accep
 expect_no_ssh 'invalid image'
 
 reset
-printf '{"uid":"wrong","panels":[]}\n' >observability/grafana/dashboards/hooklook.json
-ci deploy dashboard "$head" >/dev/null 2>&1 && fail 'accepted an invalid dashboard'
-expect_no_ssh 'invalid dashboard'
-git checkout -q -- observability
+for name in hooklook traffic-synthetic traffic-other; do
+	reset
+	printf '{"uid":"wrong","panels":[]}\n' >"observability/grafana/dashboards/$name.json"
+	ci deploy dashboard "$head" >/dev/null 2>&1 && fail "accepted an invalid $name dashboard"
+	expect_no_ssh "invalid $name dashboard"
+	git checkout -q -- observability
+done
 
 reset
 GHCR_USER=github-actions GHCR_PULL_TOKEN=secret-token ci deploy full "$head" "$image" >/dev/null
 grep -q '^BUNDLE compose.yaml$' "$ssh_log" || fail 'bundle is missing compose.yaml'
-grep -q '^BUNDLE observability/grafana/dashboards/hooklook.json$' "$ssh_log" || fail 'bundle is missing the dashboard'
+for name in hooklook traffic-synthetic traffic-other; do
+	grep -q "^BUNDLE observability/grafana/dashboards/$name.json\$" "$ssh_log" || fail "bundle is missing the $name dashboard"
+done
 grep -q '^BUNDLE scripts/remote-deploy.sh$' "$ssh_log" || fail 'bundle is missing the remote deploy script'
 ! grep -qE '^BUNDLE (main\.go|README\.md|scripts/.*_test\.sh|scripts/ci-deploy\.sh|scripts/classify-deploy\.sh)$' "$ssh_log" ||
 	fail 'bundle contains files the VPS does not need'

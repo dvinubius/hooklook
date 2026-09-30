@@ -66,6 +66,9 @@ make_bundle() {
 	mkdir -p "$bundle/scripts" "$bundle/observability/grafana/dashboards" "$bundle/observability/grafana/provisioning"
 	printf 'name: hooklook # new\n' >"$bundle/compose.yaml"
 	printf 'new dashboard\n' >"$bundle/observability/grafana/dashboards/hooklook.json"
+	for name in traffic-synthetic traffic-other; do
+		printf 'new %s\n' "$name" >"$bundle/observability/grafana/dashboards/$name.json"
+	done
 	printf 'new prometheus\n' >"$bundle/observability/prometheus.yml"
 	touch "$bundle/observability/alloy.alloy" "$bundle/observability/loki.yml"
 	cp "$project_dir/scripts/remote-deploy.sh" "$project_dir/scripts/compose.sh" \
@@ -86,6 +89,9 @@ make_live() {
 	mkdir -p "$live/scripts" "$live/observability/grafana/dashboards"
 	printf 'name: hooklook # old\n' >"$live/compose.yaml"
 	printf 'old dashboard\n' >"$live/observability/grafana/dashboards/hooklook.json"
+	for name in traffic-synthetic traffic-other; do
+		printf 'old %s\n' "$name" >"$live/observability/grafana/dashboards/$name.json"
+	done
 	printf 'old prometheus\n' >"$live/observability/prometheus.yml"
 	cp "$bundle/scripts/telemetry-smoke-test.sh" "$live/scripts/"
 	printf 'PUBLIC_BASE_URL=https://hooklook.example\nADMIN_TOKEN=x\nMAX_STORE=7000\n' >"$live/.env"
@@ -221,6 +227,8 @@ test_dashboard_deploy() {
 	make_live
 	deploy dashboard "$commit" >/dev/null
 	grep -q 'new dashboard' "$live/observability/grafana/dashboards/hooklook.json" || fail 'dashboard not installed'
+	grep -q 'new traffic-synthetic' "$live/observability/grafana/dashboards/traffic-synthetic.json" || fail 'synthetic dashboard not installed'
+	grep -q 'new traffic-other' "$live/observability/grafana/dashboards/traffic-other.json" || fail 'non-synthetic dashboard not installed'
 	grep -q 'old prometheus' "$live/observability/prometheus.yml" || fail 'dashboard deploy touched other configuration'
 	expect_log 'smoke dashboard'
 	refute_log ' up -d'
@@ -230,12 +238,14 @@ test_dashboard_deploy() {
 
 test_failed_dashboard_deploy_restores_dashboard() {
 	make_bundle
-	printf 'bad dashboard\n' >"$bundle/observability/grafana/dashboards/hooklook.json"
+	printf 'bad dashboard\n' >"$bundle/observability/grafana/dashboards/traffic-other.json"
 	make_live
 	if deploy dashboard "$commit" >/dev/null 2>&1; then
 		fail 'dashboard deploy accepted a failing smoke test'
 	fi
 	grep -q 'old dashboard' "$live/observability/grafana/dashboards/hooklook.json" || fail 'dashboard not restored'
+	grep -q 'old traffic-synthetic' "$live/observability/grafana/dashboards/traffic-synthetic.json" || fail 'synthetic dashboard not restored'
+	grep -q 'old traffic-other' "$live/observability/grafana/dashboards/traffic-other.json" || fail 'non-synthetic dashboard not restored'
 	[[ $(manifest_value mode) == full ]] || fail 'failed dashboard deploy changed the manifest'
 }
 

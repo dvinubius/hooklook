@@ -25,7 +25,7 @@ flowchart LR
     direction TB
     t1["Frontend tests<br/>and build"] --> t2["go vet<br/>and Go tests"]
     t2 --> t3["Deployment, backup, and<br/>verifier script tests"]
-    t3 --> t4["Validate the<br/>dashboard JSON"]
+    t3 --> t4["Validate the<br/>dashboard JSON files"]
     t4 --> t5["Render Compose with<br/>a placeholder digest"]
   end
   subgraph plan["2 · Plan: read-only SSH"]
@@ -49,7 +49,7 @@ flowchart LR
     d4 --> d5{"Mode"}
     d5 -- full --> d6["Install bundle, write .env.image,<br/>recreate Hooklook; check /health,<br/>/ready, public /health"]
     d5 -- observability --> d7["Recreate Prometheus, Alloy,<br/>Loki, Grafana; full smoke test"]
-    d5 -- dashboard --> d8["Install the dashboard JSON;<br/>dashboard smoke test"]
+    d5 -- dashboard --> d8["Install the dashboard JSON files;<br/>dashboard smoke test"]
     d6 --> d7
     d7 --> d9["Write the manifest"]
     d8 --> d9
@@ -72,7 +72,7 @@ flowchart LR
    | Changed since the last verified deployment | Mode |
    | --- | --- |
    | Only docs, agent notes, tests, `Makefile`, `.env.example` | none |
-   | `observability/grafana/dashboards/hooklook.json` (plus docs) | dashboard |
+   | `hooklook.json`, `traffic-synthetic.json`, or `traffic-other.json` in `observability/grafana/dashboards/` (plus docs) | dashboard |
    | Other `observability/` files (plus docs) | observability |
    | Dashboard and other observability files together | full |
    | `compose.yaml`, app, frontend, Dockerfile, scripts, workflow, or any unlisted path | full |
@@ -107,8 +107,11 @@ manifest, and then applies one mode:
   deployed; replaces only `observability/`, recreates Prometheus, Alloy,
   Loki, and Grafana, and runs the full telemetry smoke test. It does not pull
   or recreate the app.
-- **dashboard**: requires a running Grafana; replaces only the dashboard JSON
-  and runs the dashboard smoke test. It runs no Compose `up`.
+- **dashboard**: requires a running Grafana; replaces only the three
+  dashboard JSON files and runs the dashboard smoke test, which checks that
+  Grafana serves all three dashboard UIDs. It runs no Compose `up`. A new
+  dashboard file must be added to the lists in `ci-deploy.sh`,
+  `classify-deploy.sh`, `remote-deploy.sh`, and `telemetry-smoke-test.sh`.
 
 Only after every check passes does it write the mode-0600 manifest
 (`commit`, `image`, `mode`, `deployed_at`). On a failed check it prints

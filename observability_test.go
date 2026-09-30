@@ -1,9 +1,11 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -34,7 +36,7 @@ func TestPrivateMetricsUseBoundedLabelsAndCaptureOutcomes(t *testing.T) {
 		t.Fatalf("private metrics status = %d: %s", private.Code, private.Body.String())
 	}
 	body := private.Body.String()
-	for _, want := range []string{`hooklook_capture_results_total{result="accepted"} 1`, `hooklook_capture_results_total{result="missing_bin"} 1`, `hooklook_http_requests_total{method="OTHER",route="capture",status="201"} 1`, `hooklook_db_operations_total{operation="capture",result="not_found"} 1`} {
+	for _, want := range []string{`hooklook_capture_results_total{result="accepted",traffic_class="other"} 1`, `hooklook_capture_results_total{result="missing_bin",traffic_class="other"} 1`, `hooklook_http_requests_total{method="OTHER",route="capture",status="201",traffic_class="other"} 1`, `hooklook_db_operations_total{operation="capture",result="not_found"} 1`} {
 		if !strings.Contains(body, want) {
 			t.Errorf("missing metric %q", want)
 		}
@@ -45,6 +47,51 @@ func TestPrivateMetricsUseBoundedLabelsAndCaptureOutcomes(t *testing.T) {
 	for _, secret := range []string{"secret-bin", "secret-path", "secret-query"} {
 		if strings.Contains(body, secret) {
 			t.Errorf("metrics exposed %q", secret)
+		}
+	}
+}
+
+func TestTrafficClassPartitionsRequestTelemetry(t *testing.T) {
+	s := useTestStore(t)
+	original := telemetry
+	telemetry = newTelemetry()
+	t.Cleanup(func() { telemetry = original })
+	var logs bytes.Buffer
+	originalLogger := slog.Default()
+	slog.SetDefault(slog.New(slog.NewJSONHandler(&logs, nil)))
+	t.Cleanup(func() { slog.SetDefault(originalLogger) })
+	insertTestBin(t, s, "classified-bin")
+
+	for _, userAgent := range []string{"hooklook-synthetic/1.0", "curl/8.7.1", "", "Mozilla/5.0 hooklook-synthetic/1.0"} {
+		req := httptest.NewRequest(http.MethodPost, "/b/classified-bin/hook", strings.NewReader("{}"))
+		req.Header.Set("User-Agent", userAgent)
+		rec := httptest.NewRecorder()
+		routes().ServeHTTP(rec, req)
+		if rec.Code != http.StatusCreated {
+			t.Fatalf("capture with User-Agent %q = %d", userAgent, rec.Code)
+		}
+	}
+
+	metrics := httptest.NewRecorder()
+	metricsHandler().ServeHTTP(metrics, httptest.NewRequest(http.MethodGet, "/metrics", nil))
+	body := metrics.Body.String()
+	// Only a leading marker counts; one buried in another client's string does not.
+	for _, want := range []string{
+		`hooklook_http_requests_total{method="POST",route="capture",status="201",traffic_class="synthetic"} 1`,
+		`hooklook_http_requests_total{method="POST",route="capture",status="201",traffic_class="other"} 3`,
+		`hooklook_http_request_duration_seconds_count{method="POST",route="capture",traffic_class="synthetic"} 1`,
+		`hooklook_capture_results_total{result="accepted",traffic_class="synthetic"} 1`,
+		`hooklook_capture_results_total{result="accepted",traffic_class="other"} 3`,
+		`hooklook_bin_operations_total{operation="capture",traffic_class="synthetic"} 1`,
+		`hooklook_bin_operations_total{operation="capture",traffic_class="other"} 3`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("missing metric %q", want)
+		}
+	}
+	for _, class := range []string{"synthetic", "other"} {
+		if !strings.Contains(logs.String(), `"traffic_class":"`+class+`"`) {
+			t.Errorf("request logs omit traffic class %q", class)
 		}
 	}
 }

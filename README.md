@@ -310,3 +310,7 @@ Grafana, enabled with the Compose `observability` profile. Grafana binds only
 [observability runbook](docs/observability-runbook.md) for local validation,
 operator access, retention, smoke checks, and rollback, and the
 [dashboard guide](docs/observability-guide.md) for reading the dashboard.
+Besides the all-traffic operator dashboard, Grafana has separate synthetic and
+non-synthetic traffic dashboards. Requests whose User-Agent starts with
+`hooklook-synthetic/` count as synthetic; see
+[traffic classes](docs/observability.md#traffic-classes).

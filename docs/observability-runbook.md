@@ -32,7 +32,7 @@ docker run --rm -v "$PWD/observability/alloy.alloy:/etc/alloy/config.alloy:ro" \
   grafana/alloy:v1.10.2 validate /etc/alloy/config.alloy
 docker run --rm -v "$PWD/observability/loki.yml:/etc/loki/config.yml:ro" \
   grafana/loki:3.5.3 -config.file=/etc/loki/config.yml -verify-config=true
-python3 -m json.tool observability/grafana/dashboards/hooklook.json >/dev/null
+./scripts/ci-deploy.sh validate
 ```
 
 Pinned versions were checked against release dates before adding them:
@@ -53,9 +53,10 @@ app from its GHCR image, recreates the four telemetry services, and runs
 `telemetry-smoke-test.sh`. A push that changes only `observability/` files
 other than the dashboard installs that directory, recreates Prometheus, Alloy,
 Loki, and Grafana, and runs the same smoke checks without pulling or
-recreating the app. A push that changes only
-`observability/grafana/dashboards/hooklook.json` installs that file and checks
-the dashboard API after Grafana's polling interval, with no Compose `up`.
+recreating the app. A push that changes only the dashboard JSON files
+(`hooklook.json`, `traffic-synthetic.json`, `traffic-other.json` in
+`observability/grafana/dashboards/`) installs those files and checks all three
+dashboard UIDs after Grafana's polling interval, with no Compose `up`.
 Changing both the dashboard and other observability files is a full
 deployment. The `hooklook-data` volume remains unchanged.
 

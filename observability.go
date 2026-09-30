@@ -46,12 +46,12 @@ type telemetryState struct {
 
 func newTelemetry() *telemetryState {
 	t := &telemetryState{registry: prometheus.NewRegistry()}
-	t.httpRequests = prometheus.NewCounterVec(prometheus.CounterOpts{Name: "hooklook_http_requests_total", Help: "Completed public HTTP requests."}, []string{"route", "method", "status"})
-	t.httpDuration = prometheus.NewHistogramVec(prometheus.HistogramOpts{Name: "hooklook_http_request_duration_seconds", Help: "HTTP request duration, excluding SSE.", Buckets: prometheus.DefBuckets}, []string{"route", "method"})
+	t.httpRequests = prometheus.NewCounterVec(prometheus.CounterOpts{Name: "hooklook_http_requests_total", Help: "Completed public HTTP requests."}, []string{"route", "method", "status", "traffic_class"})
+	t.httpDuration = prometheus.NewHistogramVec(prometheus.HistogramOpts{Name: "hooklook_http_request_duration_seconds", Help: "HTTP request duration, excluding SSE.", Buckets: prometheus.DefBuckets}, []string{"route", "method", "traffic_class"})
 	t.inFlight = prometheus.NewGauge(prometheus.GaugeOpts{Name: "hooklook_http_in_flight_requests", Help: "In-flight HTTP requests excluding SSE."})
-	t.operations = prometheus.NewCounterVec(prometheus.CounterOpts{Name: "hooklook_bin_operations_total", Help: "Successful bin operations."}, []string{"operation"})
-	t.binCreations = prometheus.NewCounterVec(prometheus.CounterOpts{Name: "hooklook_bin_creation_results_total", Help: "Bin creation attempts from the home page."}, []string{"result"})
-	t.captures = prometheus.NewCounterVec(prometheus.CounterOpts{Name: "hooklook_capture_results_total", Help: "Capture results."}, []string{"result"})
+	t.operations = prometheus.NewCounterVec(prometheus.CounterOpts{Name: "hooklook_bin_operations_total", Help: "Successful bin operations."}, []string{"operation", "traffic_class"})
+	t.binCreations = prometheus.NewCounterVec(prometheus.CounterOpts{Name: "hooklook_bin_creation_results_total", Help: "Bin creation attempts from the home page."}, []string{"result", "traffic_class"})
+	t.captures = prometheus.NewCounterVec(prometheus.CounterOpts{Name: "hooklook_capture_results_total", Help: "Capture results."}, []string{"result", "traffic_class"})
 	t.dbOperations = prometheus.NewCounterVec(prometheus.CounterOpts{Name: "hooklook_db_operations_total", Help: "Selected SQLite operation results."}, []string{"operation", "result"})
 	t.dbDuration = prometheus.NewHistogramVec(prometheus.HistogramOpts{Name: "hooklook_db_operation_duration_seconds", Help: "Selected SQLite operation duration.", Buckets: prometheus.DefBuckets}, []string{"operation"})
 	t.dbErrors = prometheus.NewCounterVec(prometheus.CounterOpts{Name: "hooklook_db_errors_total", Help: "Selected SQLite operation failures, excluding not-found and capacity outcomes."}, []string{"operation", "kind"})
@@ -106,6 +106,19 @@ func routeClass(r *http.Request) string {
 		return "other"
 	}
 }
+
+const syntheticUserAgentPrefix = "hooklook-synthetic/"
+
+// trafficClass partitions request telemetry. The User-Agent prefix is the
+// marker the private synthetic-traffic generator sends; it is an attribution
+// hint, not authentication. "other" is every unmarked request, not a verified
+// human visitor.
+func trafficClass(r *http.Request) string {
+	if strings.HasPrefix(r.UserAgent(), syntheticUserAgentPrefix) {
+		return "synthetic"
+	}
+	return "other"
+}
 func methodClass(method string) string {
 	switch method {
 	case "GET", "HEAD", "POST", "PUT", "PATCH", "DELETE":
@@ -150,6 +163,7 @@ func observeHTTP(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		route := routeClass(r)
 		method := methodClass(r.Method)
+		traffic := trafficClass(r)
 		started := time.Now()
 		ow := &observedWriter{ResponseWriter: w}
 		if route != "sse" {
@@ -161,12 +175,12 @@ func observeHTTP(next http.Handler) http.Handler {
 		if status == 0 {
 			status = http.StatusOK
 		}
-		telemetry.httpRequests.WithLabelValues(route, method, statusClass(status)).Inc()
+		telemetry.httpRequests.WithLabelValues(route, method, statusClass(status), traffic).Inc()
 		if route != "sse" {
-			telemetry.httpDuration.WithLabelValues(route, method).Observe(time.Since(started).Seconds())
+			telemetry.httpDuration.WithLabelValues(route, method, traffic).Observe(time.Since(started).Seconds())
 		}
 		if route != "static" {
-			slog.Info("http_request", "route", route, "method", method, "status", status, "duration_seconds", time.Since(started).Seconds())
+			slog.Info("http_request", "route", route, "method", method, "status", status, "traffic_class", traffic, "duration_seconds", time.Since(started).Seconds())
 		}
 	})
 }
