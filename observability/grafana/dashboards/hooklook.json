@@ -2,7 +2,7 @@
   "uid": "hooklook-operator",
   "title": "Hooklook operator",
   "schemaVersion": 39,
-  "version": 6,
+  "version": 7,
   "editable": false,
   "timezone": "browser",
   "refresh": "30s",
@@ -226,6 +226,52 @@
         "justifyMode": "auto"
       },
       "description": "Application HTTP 5xx responses during the selected range. Capacity 507 responses are excluded."
+    },
+    {
+      "id": 2,
+      "title": "Process uptime",
+      "type": "stat",
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 16,
+        "y": 1
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "hooklook-prometheus"
+      },
+      "targets": [
+        {
+          "expr": "time() - process_start_time_seconds{job=\"hooklook\"}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#74BE69"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto"
+      },
+      "description": "Time since the currently scraped Hooklook process started; not a container restart count."
     },
     {
       "id": 1,
@@ -1370,14 +1416,215 @@
       "panels": []
     },
     {
+      "id": 25,
+      "title": "Resident vs Go-managed memory",
+      "type": "timeseries",
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 80
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "hooklook-prometheus"
+      },
+      "targets": [
+        {
+          "expr": "process_resident_memory_bytes{job=\"hooklook\"}",
+          "refId": "A",
+          "legendFormat": "resident memory"
+        },
+        {
+          "expr": "go_memstats_sys_bytes{job=\"hooklook\"}",
+          "refId": "B",
+          "legendFormat": "Go runtime reserved"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 30,
+            "gradientMode": "opacity",
+            "showPoints": "never"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "resident memory"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "blue"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Go runtime reserved"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "green"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {},
+      "description": "Resident memory includes allocations outside the Go runtime, chiefly the cgo SQLite page cache. The gap between the two series approximates that non-Go memory."
+    },
+    {
+      "id": 39,
+      "title": "Heap vs next GC target",
+      "type": "timeseries",
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 80
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "hooklook-prometheus"
+      },
+      "targets": [
+        {
+          "expr": "go_memstats_heap_alloc_bytes{job=\"hooklook\"}",
+          "refId": "A",
+          "legendFormat": "heap allocated"
+        },
+        {
+          "expr": "go_memstats_next_gc_bytes{job=\"hooklook\"}",
+          "refId": "B",
+          "legendFormat": "next GC target"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 30,
+            "gradientMode": "opacity",
+            "showPoints": "never"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "heap allocated"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "orange"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "next GC target"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "red"
+                }
+              },
+              {
+                "id": "custom.fillOpacity",
+                "value": 0
+              },
+              {
+                "id": "custom.lineStyle",
+                "value": {
+                  "fill": "dash",
+                  "dash": [
+                    10,
+                    10
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {},
+      "description": "Live heap allocation against the heap size that triggers the next garbage collection. Rising troughs over a long range suggest retained memory."
+    },
+    {
+      "id": 40,
+      "title": "Allocation rate",
+      "type": "timeseries",
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 80
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "hooklook-prometheus"
+      },
+      "targets": [
+        {
+          "expr": "rate(go_memstats_alloc_bytes_total{job=\"hooklook\"}[$__rate_interval])",
+          "refId": "A",
+          "legendFormat": "allocated"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "Bps",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "yellow"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 30,
+            "gradientMode": "opacity",
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {},
+      "description": "Bytes allocated on the Go heap per second. It should track request volume; a step change after a deploy points to an allocation regression."
+    },
+    {
       "id": 24,
       "title": "Go goroutines",
       "type": "timeseries",
       "gridPos": {
         "h": 8,
-        "w": 6,
+        "w": 8,
         "x": 0,
-        "y": 79
+        "y": 88
       },
       "datasource": {
         "type": "prometheus",
@@ -1385,151 +1632,156 @@
       },
       "targets": [
         {
-          "expr": "go_goroutines",
-          "refId": "A"
+          "expr": "go_goroutines{job=\"hooklook\"}",
+          "refId": "A",
+          "legendFormat": "goroutines"
         }
       ],
       "fieldConfig": {
         "defaults": {
-          "unit": "short"
-        },
-        "overrides": []
-      },
-      "options": {},
-      "description": ""
-    },
-    {
-      "id": 25,
-      "title": "Process resident memory",
-      "type": "timeseries",
-      "gridPos": {
-        "h": 8,
-        "w": 6,
-        "x": 6,
-        "y": 79
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "hooklook-prometheus"
-      },
-      "targets": [
-        {
-          "expr": "process_resident_memory_bytes",
-          "refId": "A"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "bytes"
-        },
-        "overrides": []
-      },
-      "options": {},
-      "description": ""
-    },
-    {
-      "id": 26,
-      "title": "Process CPU rate",
-      "type": "timeseries",
-      "gridPos": {
-        "h": 8,
-        "w": 6,
-        "x": 12,
-        "y": 79
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "hooklook-prometheus"
-      },
-      "targets": [
-        {
-          "expr": "rate(process_cpu_seconds_total[5m])",
-          "refId": "A"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "percentunit"
-        },
-        "overrides": []
-      },
-      "options": {},
-      "description": ""
-    },
-    {
-      "id": 27,
-      "title": "Process file descriptors",
-      "type": "timeseries",
-      "gridPos": {
-        "h": 8,
-        "w": 6,
-        "x": 18,
-        "y": 79
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "hooklook-prometheus"
-      },
-      "targets": [
-        {
-          "expr": "process_open_fds",
-          "refId": "A"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short"
-        },
-        "overrides": []
-      },
-      "options": {},
-      "description": ""
-    },
-    {
-      "id": 2,
-      "title": "Process uptime",
-      "type": "stat",
-      "gridPos": {
-        "h": 4,
-        "w": 4,
-        "x": 20,
-        "y": 87
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "hooklook-prometheus"
-      },
-      "targets": [
-        {
-          "expr": "time() - process_start_time_seconds{job=\"hooklook\"}",
-          "refId": "A"
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "s",
+          "unit": "short",
           "color": {
             "mode": "fixed",
-            "fixedColor": "#74BE69"
+            "fixedColor": "purple"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 30,
+            "gradientMode": "opacity",
+            "showPoints": "never"
           }
         },
         "overrides": []
       },
-      "options": {
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "orientation": "auto",
-        "textMode": "auto",
-        "colorMode": "value",
-        "graphMode": "none",
-        "justifyMode": "auto"
+      "options": {},
+      "description": "Open SSE streams each hold a goroutine, so this tracks the SSE count as well as request load."
+    },
+    {
+      "id": 26,
+      "title": "CPU usage",
+      "type": "timeseries",
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 88
       },
-      "description": "Time since the currently scraped Hooklook process started; not a container restart count."
+      "datasource": {
+        "type": "prometheus",
+        "uid": "hooklook-prometheus"
+      },
+      "targets": [
+        {
+          "expr": "rate(process_cpu_seconds_total{job=\"hooklook\"}[$__rate_interval])",
+          "refId": "A",
+          "legendFormat": "CPU"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "super-light-red"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 30,
+            "gradientMode": "opacity",
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {}
+    },
+    {
+      "id": 27,
+      "title": "Open file descriptors",
+      "type": "timeseries",
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 88
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "hooklook-prometheus"
+      },
+      "targets": [
+        {
+          "expr": "process_open_fds{job=\"hooklook\"}",
+          "refId": "A",
+          "legendFormat": "open"
+        },
+        {
+          "expr": "process_max_fds{job=\"hooklook\"}",
+          "refId": "B",
+          "legendFormat": "limit"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 30,
+            "gradientMode": "opacity",
+            "showPoints": "never"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "open"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "blue"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "limit"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "red"
+                }
+              },
+              {
+                "id": "custom.fillOpacity",
+                "value": 0
+              },
+              {
+                "id": "custom.lineStyle",
+                "value": {
+                  "fill": "dash",
+                  "dash": [
+                    10,
+                    10
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {}
     },
     {
       "id": 107,
@@ -1539,7 +1791,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 91
+        "y": 96
       },
       "collapsed": false,
       "panels": []
@@ -1552,7 +1804,7 @@
         "h": 12,
         "w": 24,
         "x": 0,
-        "y": 92
+        "y": 97
       },
       "datasource": {
         "type": "loki",
