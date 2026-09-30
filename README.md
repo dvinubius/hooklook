@@ -42,7 +42,6 @@ from this repository.
 
 - 📈 **Watch it run** — the [public metrics dashboard](https://hooklook.app/public-dashboards/0147f58fbb36423c842cca4a44e443c7) shows live request rates, latency percentiles, capture outcomes, and bin totals. It is the deliberately limited public view of the private operator dashboard; see [public dashboard](docs/observability.md#public-dashboard).
 - 🧭 **Private traffic views** — the operator dashboard shows all requests, with separate dashboards for synthetic activity, suspected scans, and other unclassified activity. See the [observability guide](docs/observability-guide.md).
-- 🚧 **Still in the works** — polished documentation and a GH based CI/CD.
 - ⭐ **Like what you see?** Star the repo — it helps others find it.
 
 ## Intended v1 use
