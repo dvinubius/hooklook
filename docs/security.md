@@ -139,7 +139,7 @@ The live SQLite database resides in `hooklook-data`. The backup command
 creates a consistent snapshot and a SHA-256 sidecar outside that volume, with
 mode `0600` files. Treat both the live volume and snapshots as captured
 production data. The current backup workflow creates a local staging pair;
-automated off-host R2 storage is planned but not yet implemented. Host loss can
+automated off-host R2 storage is deferred to v2. Host loss can
 therefore still mean data loss unless an operator has transferred and verified
 a backup. See the [backup runbook](database-backup-runbook.md).
 

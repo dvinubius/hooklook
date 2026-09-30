@@ -10,8 +10,8 @@ snapshot. The off-host upload is a separate storage operation.
 
 For resilience against loss of the production VM, the intended destination is
 a private Cloudflare R2 bucket. Its configuration and the automated uploader
-are deliberately deferred to the final post-observability milestone; the
-current script creates a local staging pair only. Do not treat that staging
+are deferred to v2 (see [V2 deferred](v2-deferred.md#off-host-r2-backup-automation));
+the current script creates a local staging pair only. Do not treat that staging
 directory as durable backup storage.
 
 ## Create and transfer a backup
@@ -49,7 +49,7 @@ backup_file=/var/backups/hooklook/hooklook-YYYYmmddTHHMMSSZ.db
   hooklook integrity-check "/backups/$(basename "$backup_file")"
 ```
 
-It must print `ok`. The later R2 automation will upload this database and its
+It must print `ok`. The deferred R2 automation would upload this database and its
 already-created SHA-256 sidecar under the same timestamped object prefix,
 record a successful upload of both objects at the source, and only then remove
 the local staging pair. Never copy the live `hooklook.db` file directly;
