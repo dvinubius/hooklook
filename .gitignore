@@ -21,6 +21,7 @@ coverage.out
 
 docs/learning/*
 local-testing/
+synthetic-traffic/
 .devnotes.md
 
 # Frontend dependencies and build output. `frontend/dist` must exist at Go
