@@ -13,7 +13,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/dvinubius/hooklook/actions/workflows/deploy.yml"><img src="https://github.com/dvinubius/hooklook/actions/workflows/deploy.yml/badge.svg?branch=main" alt="Deploy production"></a>
+  <a href="https://hooklook.app/health"><img src="https://img.shields.io/website?url=https%3A%2F%2Fhooklook.app%2Fhealth&label=hooklook.app&up_message=live&down_message=down" alt="hooklook.app status"></a>
   <a href="go.mod"><img src="https://img.shields.io/github/go-mod/go-version/dvinubius/hooklook" alt="Go version"></a>
   <a href="LICENSE"><img src="https://img.shields.io/github/license/dvinubius/hooklook" alt="MIT license"></a>
 </p>
